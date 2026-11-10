@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { AppModule } from '../app.module.js';
 import { CONFIG, type Config } from '../config.js';
 import { Database } from '../db/db.module.js';
-import { admins, advice, comments, places, tips, users } from '../db/schema.js';
+import { admins, advice, comments, places, products, tips, users } from '../db/schema.js';
 import { AdminAuthService } from '../modules/admin/admin-auth.js';
 import { otpauthUrl, totpCode } from '../modules/admin/totp.js';
 
@@ -63,6 +63,20 @@ await db.insert(places).values([
   { slug: 'iceland', name: 'Iceland', kind: 'Country', countryCode: 'IS', imageKey: 'waterfall', bestTime: 'Jun – Aug', currency: 'Króna (ISK)', summary: 'Waterfalls, glaciers and a ring road that links them all.' },
 ]).onConflictDoNothing();
 console.log('Places are in place.');
+
+const [anyProduct] = await db.select({ id: products.id }).from(products).limit(1);
+if (!anyProduct) {
+  const N = (n: number) => n * 100;
+  await db.insert(products).values([
+    { name: 'Dakota backpack, medium', brand: 'Dagne Dover', category: 'Backpacks & bags', price: N(95_000), stock: 34, imageKey: 'product-3', variant: 'Navy', description: 'Fits under an airline seat, with a padded laptop sleeve and a strap that slides over your suitcase handle.', pickedNote: 'Picked by travellers for carry-on packing.' },
+    { name: 'Personal organizer toiletry bag', category: 'Packing cubes & organisers', price: N(38_500), stock: 120, imageKey: 'product-0', variant: 'Black', description: 'Hangs from a hook, opens flat, and keeps liquids in a wipe-clean pocket.' },
+    { name: 'Riemot luggage cup holder', category: 'Luggage & suitcases', price: N(16_500), stock: 6, imageKey: 'product-2', variant: 'Grey', description: 'Slides over your suitcase handle and holds two drinks and a phone.' },
+    { name: 'Anti-wrinkle hydrating serum', category: 'Skincare & sun care', price: N(24_000), stock: 40, imageKey: 'product-1', variant: '30 ml', description: 'Cabin-size bottle for long, dry flights.' },
+    { name: 'Universal travel adapter, 4 USB', category: 'Adapters & power banks', price: N(12_000), stock: 210, variant: 'White', description: 'Works in over 150 countries and charges four devices at once.' },
+    { name: 'Europe eSIM, 10 GB / 30 days', category: 'eSIMs & data plans', price: N(18_000), stock: null, variant: 'Digital', description: 'Data in 39 European countries. The QR code arrives by email in minutes.' },
+  ]);
+  console.log('Added 6 shop products.');
+}
 
 const email = 'admin@everycation.app';
 let [admin] = await db.select().from(admins).where(eq(admins.email, email));

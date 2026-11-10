@@ -38,6 +38,8 @@ export const RULES = {
   /** BR-01: the platform keeps 25% of every trip plan sale. Locked rule. */
   planFeeRate: 0.25,
   minPlanPriceKobo: 1_000_00,
+  /** Delivery prices. Placeholders until the delivery partner's rates are agreed. */
+  delivery: { standard: { fee: 2_500_00, label: 'Standard', eta: '3 to 5 working days' }, express: { fee: 5_000_00, label: 'Express', eta: '1 to 2 working days' } },
   adminSessionHours: 12,
   /** Verified advice goes back to review after this many reports from different users. */
   reportsToRereview: 3,

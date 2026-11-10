@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Database } from '../db/db.module.js';
-import { bankAccounts, ledgerAccounts, outbox, places } from '../db/schema.js';
+import { bankAccounts, ledgerAccounts, outbox, places, products } from '../db/schema.js';
 import { createApp } from '../main.js';
 import { Ledger } from '../modules/wallet/ledger.service.js';
 import { AdminAuthService, type AdminRole } from '../modules/admin/admin-auth.js';
@@ -551,6 +551,43 @@ describe('trip plans marketplace', () => {
     expect((await balance(unverified.api)).available).toBe(0); // held until the ID check passes
     expect((await s.api.get('/plans/studio')).body.waitingForPayout).toBe(0);
     expect(((await finance.get('/payouts')).body.sellers as { sellerId: string }[]).some((x) => x.sellerId === s.id)).toBe(false);
+    expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
+  });
+});
+
+describe('shop', () => {
+  const address = '12 Admiralty Way, Lekki Phase 1, Lagos'; const phone = '08031234821';
+  it('pays for an order from the goal first, then the balance, and keeps stock honest', async () => {
+    const [bag, holder, esim] = await db.insert(products).values([
+      { name: 'Test backpack', category: 'Backpacks & bags', price: N(95_000), stock: 2 }, { name: 'Test cup holder', category: 'Luggage & suitcases', price: N(16_500), stock: 5 }, { name: 'Test eSIM', category: 'eSIMs & data plans', price: N(18_000), stock: null }]).returning();
+    const u = await readyUser(150_000); const ops = await staff('shop_ops'); const finance = await staff('finance');
+    const goal = (await u.api.post('/wallet/goals', { name: 'Travel shopping', kind: 'shopping', target: N(80_000) })).body;
+    await u.api.post(`/wallet/goals/${goal.id}/move`, { amount: N(45_000), direction: 'in' }).expect(200);
+    expect(((await http().get('/v1/shop/products?q=test%20back').expect(200)).body as { id: string }[]).map((p) => p.id)).toEqual([bag!.id]);
+    const body = { items: [{ productId: bag!.id, qty: 1 }, { productId: holder!.id, qty: 1 }], delivery: 'standard', address, phone, goalId: goal.id, pin: '2580' };
+    expect((await u.api.post('/shop/orders', { ...body, pin: '1111' }).expect(400)).body.code).toBe('pin_wrong');
+    expect((await u.api.post('/shop/orders', { ...body, items: [{ productId: bag!.id, qty: 3 }] }).expect(409)).body.code).toBe('out_of_stock');
+    const key = randomUUID();
+    const order = (await u.api.post('/shop/orders', body, key).expect(201)).body;
+    expect(order).toMatchObject({ status: 'placed', subtotal: N(111_500), deliveryFee: N(2_500), total: N(114_000), paidFromGoal: N(45_000), goalName: 'Travel shopping', repeated: false });
+    expect((await u.api.post('/shop/orders', body, key).expect(201)).body).toMatchObject({ reference: order.reference, repeated: true });
+    expect(await balance(u.api)).toMatchObject({ available: N(150_000 - 45_000 - 69_000), inGoals: 0 });
+    expect((await http().get(`/v1/shop/products/${bag!.id}`)).body).toMatchObject({ inStock: true, lowStock: true });
+    const digital = (await u.api.post('/shop/orders', { items: [{ productId: esim!.id, qty: 1 }], delivery: 'express', address, phone, pin: '2580' }).expect(201)).body;
+    expect(digital).toMatchObject({ deliveryFee: 0, total: N(18_000), delivery: 'Sent by email' });
+    expect((await u.api.post('/shop/orders', { items: [{ productId: bag!.id, qty: 1 }], delivery: 'standard', address, phone, pin: '2580' }).expect(400)).body.code).toBe('insufficient_funds');
+    expect((await http().get(`/v1/shop/products/${bag!.id}`)).body.inStock).toBe(true); // the failed order did not take the last one
+
+    await finance.post(`/shop/orders/${order.id}/status`, { status: 'packed' }).expect(403);
+    await ops.post(`/shop/orders/${order.id}/status`, { status: 'delivered' }).expect(409);
+    await ops.post(`/shop/orders/${order.id}/status`, { status: 'packed' }).expect(200);
+    await ops.post(`/shop/orders/${order.id}/status`, { status: 'shipped' }).expect(200);
+    expect((await u.api.get(`/shop/orders/${order.id}`)).body.status).toBe('shipped');
+    expect((await u.api.get('/notifications')).body.items[0].text).toContain('is on its way');
+    const before = (await balance(u.api)).available;
+    await ops.post(`/shop/orders/${digital.id}/status`, { status: 'cancelled' }).expect(200);
+    expect((await balance(u.api)).available).toBe(before + N(18_000));
+    expect(((await ops.get('/shop/orders?status=shipped')).body.orders as { id: string }[]).some((o) => o.id === order.id)).toBe(true);
     expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
   });
 });

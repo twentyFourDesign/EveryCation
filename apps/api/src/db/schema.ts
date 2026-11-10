@@ -394,3 +394,51 @@ export const planPurchases = pgTable('plan_purchases', {
   paidOutAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('plan_purchase_once_idx').on(t.planId, t.buyerId), index('plan_purchase_seller_idx').on(t.sellerId, t.paidOutAt)]);
+
+// ───────────── Shop ─────────────
+
+export const products = pgTable('products', {
+  id: id(),
+  name: text().notNull(),
+  brand: text(),
+  category: text().notNull(),
+  price: kobo().notNull(),
+  /** Units in stock. Null means a digital item (an eSIM) that never runs out. */
+  stock: integer(),
+  imageKey: text(),
+  variant: text(),
+  description: text().notNull().default(''),
+  pickedNote: text(),
+  active: boolean().notNull().default(true),
+  createdAt: createdAt(),
+}, (t) => [index('products_category_idx').on(t.category), check('products_stock_not_negative', sql`${t.stock} IS NULL OR ${t.stock} >= 0`), check('products_price_positive', sql`${t.price} > 0`)]);
+
+export const orderStatus = pgEnum('order_status', ['placed', 'packed', 'shipped', 'delivered', 'cancelled']);
+
+export const orders = pgTable('orders', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  reference: text().notNull().unique(),
+  status: orderStatus().notNull().default('placed'),
+  subtotal: kobo().notNull(),
+  deliveryFee: kobo().notNull(),
+  total: kobo().notNull(),
+  paidFromGoal: kobo().notNull().default(0),
+  goalName: text(),
+  delivery: text().notNull(),
+  address: text().notNull(),
+  phone: text().notNull(),
+  transactionId: uuid().references(() => ledgerTransactions.id),
+  createdAt: createdAt(),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+}, (t) => [index('orders_user_idx').on(t.userId, t.createdAt), index('orders_status_idx').on(t.status)]);
+
+export const orderItems = pgTable('order_items', {
+  id: id(),
+  orderId: uuid().notNull().references(() => orders.id),
+  productId: uuid().notNull().references(() => products.id),
+  name: text().notNull(),
+  imageKey: text(),
+  price: kobo().notNull(),
+  qty: integer().notNull(),
+}, (t) => [index('order_items_order_idx').on(t.orderId), check('order_items_qty_positive', sql`${t.qty} > 0`)]);

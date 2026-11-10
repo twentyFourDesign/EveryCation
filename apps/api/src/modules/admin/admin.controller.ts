@@ -11,6 +11,7 @@ import { AdviceService, type Queue } from '../community/advice.service.js';
 import { ModerationService } from '../community/moderation.service.js';
 import { otpauthUrl } from './totp.js';
 import { PlansService } from '../plans/plans.service.js';
+import { ShopService } from '../shop/shop.service.js';
 import { Ledger } from '../wallet/ledger.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { AdminAuthService, AdminGuard, CurrentAdmin, PERMISSIONS, Staff, type Admin } from './admin-auth.js';
@@ -21,6 +22,7 @@ const decisionBody = z.object({ decision: z.enum(['approve', 'changes', 'reject'
 const inviteBody = z.object({ email: z.email('Enter a work email'), name: z.string().trim().min(2, 'Enter their name').max(60), role: z.enum(['super_admin', 'moderator', 'finance', 'shop_ops', 'support']) });
 const activeBody = z.object({ active: z.boolean() });
 const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false) });
+const orderStatusBody = z.object({ status: z.enum(['packed', 'shipped', 'delivered', 'cancelled']) });
 const queues: Queue[] = ['waiting', 'changes', 'rereview', 'decided'];
 const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString('en-NG')}`;
 const bearer = (req: Request) => (req.headers.authorization ?? '').split(' ')[1] ?? '';
@@ -40,7 +42,7 @@ export class AdminLoginController {
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService) {}
+  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService, private readonly shop: ShopService) {}
 
   @Get('me')
   async me(@CurrentAdmin() admin: Admin) {
@@ -75,6 +77,15 @@ export class AdminController {
   async approvePayouts(@CurrentAdmin() admin: Admin, @Req() req: Request) {
     const r = await this.plans.approvePayouts();
     await this.auth.record(admin, 'Approved creator payout batch', `${r.reference} · ${naira(r.total)} to ${r.sellersPaid} seller${r.sellersPaid === 1 ? '' : 's'}`, req);
+    return r;
+  }
+
+  // ───────────── Shop orders ─────────────
+  @Staff('shop') @Get('shop/orders') shopOrders(@Query('status') status?: string) { return this.shop.allOrders(['placed', 'packed', 'shipped', 'delivered', 'cancelled'].includes(status ?? '') ? status : undefined); }
+  @Staff('shop', 'edit') @HttpCode(200) @Post('shop/orders/:id/status')
+  async orderStatus(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(orderStatusBody)) b: z.infer<typeof orderStatusBody>, @Req() req: Request) {
+    const r = await this.shop.setStatus(id, b.status);
+    await this.auth.record(admin, b.status === 'cancelled' ? 'Cancelled and refunded order' : `Marked order as ${b.status}`, r.reference, req);
     return r;
   }
 

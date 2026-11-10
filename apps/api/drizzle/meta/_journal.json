@@ -57,6 +57,13 @@
       "when": 1794345600741,
       "tag": "0007_plans",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1794345825134,
+      "tag": "0008_shop",
+      "breakpoints": true
     }
   ]
 }
