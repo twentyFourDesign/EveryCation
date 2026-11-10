@@ -1,11 +1,12 @@
-# EveryCation frontend
+# EveryCation
 
-One TypeScript codebase for both EveryCation frontends.
+One TypeScript codebase for the EveryCation apps and API.
 
 | Path | What it is |
 | --- | --- |
 | `apps/mobile` | The traveller app. React Native, Expo, Expo Router. |
 | `apps/admin` | The staff console. Next.js App Router. |
+| `apps/api` | The backend. NestJS, PostgreSQL, Drizzle. Sign-in and the wallet ledger so far. |
 | `packages/shared` | Types, form rules (Zod), money helpers, sample data and the data layer (`api`). |
 | `packages/tokens` | Brand colours, radii and font names used by both apps. |
 
@@ -17,6 +18,32 @@ pnpm dev:admin     # console on http://localhost:3000 (any email, 8+ character p
 pnpm dev:mobile    # Expo dev server; press i, a or w
 pnpm typecheck
 ```
+
+## API (`apps/api`)
+
+```bash
+docker compose up -d                      # PostgreSQL 16 with the dev and test databases
+cp apps/api/.env.example apps/api/.env    # then set the three secrets
+pnpm --filter @everycation/api build
+pnpm --filter @everycation/api db:migrate
+pnpm dev:api                              # http://localhost:4000/v1, docs at /docs
+pnpm --filter @everycation/api test       # needs the test database running
+```
+
+Built so far:
+
+- **Sign-in**: phone code by SMS, 15-minute access tokens, rotating refresh tokens (reusing an old one ends the session).
+- **Wallet setup**: BVN/NIN check, 4-digit PIN (Argon2id, locks after 3 wrong tries), bank account in the customer's own name.
+- **Wallet**: balances, savings goals (lock, move in and out), history, freeze.
+- **Money in**: signed partner webhook, credited once however often it is delivered.
+- **Withdrawals**: PIN, daily limit of ₦300,000 and 24-hour new-bank rule (both hold the request for Finance), paid or returned on the partner's verdict.
+- **Ledger**: double entry in whole kobo. The database itself refuses an overdraft, an unbalanced transaction and any edit to past entries.
+
+Money endpoints require an `Idempotency-Key` header. Outside production the code request returns `devCode`, and SMS is written to the log.
+
+Stand-ins to replace when partners are chosen: `modules/auth/sms.ts` (SMS), `modules/wallet/partners.ts` (identity and bank lookup), `modules/wallet/webhook.controller.ts` (event format). Follow-up work is written to the `outbox` table; the worker that sends it (BullMQ) is not built yet.
+
+To change the schema: edit `src/db/schema.ts`, run `pnpm --filter @everycation/api db:generate`, review the SQL in `apps/api/drizzle`, then `db:migrate`.
 
 ## Data
 
@@ -52,7 +79,7 @@ Sample user starts signed in with a verified wallet. Wallet PIN in the sample: *
 
 These need accounts, keys or native builds, so the screens are in place with a stand-in:
 
-- **API**: everything reads `packages/shared/src/api.ts` sample data. Device state lives in `apps/mobile/src/lib/store.ts`.
+- **Apps to API**: the apps still read `packages/shared/src/api.ts` sample data; they are not connected to `apps/api` yet. Device state lives in `apps/mobile/src/lib/store.ts`.
 - **Admin auth**: the session is a demo kept in the browser (`apps/admin/lib/session.ts`). Replace with the API's cookie session.
 - **Map** (My travels → Map): placeholder pins. Add `@rnmapbox/maps` and a Mapbox token.
 - **Recording** (Record a tip): timer and controls only. Add `expo-camera` and `expo-audio` capture and the upload.
