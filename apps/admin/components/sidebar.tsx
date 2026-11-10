@@ -27,7 +27,7 @@ export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
   const { admin, signOut, counts } = useSession();
-  const live: Record<string, number> = { '/advice': counts.adviceWaiting, '/transactions': counts.heldWithdrawals };
+  const live: Record<string, number> = { '/advice': counts.adviceWaiting, '/transactions': counts.heldWithdrawals, '/reports': counts.openReports ?? 0 };
   if (!admin) return null;
   const items = NAV.filter((i) => i.area === 'any' || accessFor(admin.role, i.area)).map((i) => (i.href in live ? { ...i, badge: live[i.href] ? String(live[i.href]) : undefined } : i));
   return (

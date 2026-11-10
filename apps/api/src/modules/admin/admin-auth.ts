@@ -41,6 +41,7 @@ export class AdminAuthService {
 
   /** Creates a staff account and returns the authenticator secret to hand over once. */
   async createAdmin(input: { email: string; name: string; role: AdminRole; password: string }) {
+    if (input.password.length < 12) throw new Error('Staff passwords need at least 12 characters.');
     const totpSecret = newTotpSecret();
     const [a] = await this.db.insert(admins).values({ email: input.email.toLowerCase(), name: input.name, role: input.role, passwordHash: await argon2.hash(input.password, { type: argon2.argon2id }), totpSecret }).returning({ id: admins.id });
     return { id: a!.id, totpSecret };
@@ -72,6 +73,13 @@ export class AdminAuthService {
   async audit(limit = 100) {
     const rows = await this.db.select({ l: auditLog, name: admins.name, role: admins.role }).from(auditLog).innerJoin(admins, eq(admins.id, auditLog.adminId)).orderBy(desc(auditLog.createdAt)).limit(limit);
     return rows.map(({ l, name, role }) => ({ id: l.id, at: l.createdAt, admin: name, role, action: l.action, item: l.item, ip: l.ip }));
+  }
+  /** Turns a staff account off or back on. Turning it off ends their sessions at once. */
+  async setActive(id: string, active: boolean) {
+    const [a] = await this.db.update(admins).set({ active }).where(eq(admins.id, id)).returning({ email: admins.email });
+    if (!a) return null;
+    if (!active) await this.db.update(adminSessions).set({ revokedAt: new Date() }).where(and(eq(adminSessions.adminId, id), isNull(adminSessions.revokedAt)));
+    return a;
   }
   async staff() {
     const rows = await this.db.select().from(admins).orderBy(admins.createdAt);

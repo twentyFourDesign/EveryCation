@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { CurrentUser, MaybeUser, Public, type AuthUser } from '../../common/auth.guard.js';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { AdviceService } from './advice.service.js';
+import { NotificationsService } from './notifications.service.js';
 import { TipsService } from './tips.service.js';
 
 const text = (min: number, max: number, message: string) => z.string().trim().min(min, message).max(max);
@@ -18,7 +19,11 @@ const reportBody = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), 
 @ApiTags('community')
 @Controller()
 export class CommunityController {
-  constructor(private readonly tips: TipsService, private readonly advice: AdviceService) {}
+  constructor(private readonly tips: TipsService, private readonly advice: AdviceService, private readonly notifications: NotificationsService) {}
+
+  @ApiBearerAuth() @Get('notifications') inbox(@CurrentUser() u: AuthUser) { return this.notifications.list(u.id); }
+  @ApiBearerAuth() @Get('notifications/unread') unread(@CurrentUser() u: AuthUser) { return this.notifications.unread(u.id); }
+  @ApiBearerAuth() @HttpCode(204) @Post('notifications/read') read(@CurrentUser() u: AuthUser) { return this.notifications.markAllRead(u.id); }
 
   // Reading is open to guests; a valid token adds "liked by me" and the reader's own unreviewed advice.
   @Public() @Get('tips')

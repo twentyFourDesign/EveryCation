@@ -12,6 +12,7 @@ interface Session {
   verifyCode: (phone: string, code: string) => Promise<void>;
   /** Saves the name shown on tips, comments and advice. */
   setName: (name: string) => Promise<void>;
+  updateProfile: (patch: { name?: string; handle?: string; city?: string; bio?: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -31,6 +32,7 @@ export const useSession = create<Session>((set, get) => ({
     set({ status: 'signedIn', me: await api<Me>('/auth/me') });
   },
   setName: async (name) => set({ me: await api<Me>('/auth/me', { method: 'PATCH', body: { name } }) }),
+  updateProfile: async (patch) => { set({ me: await api<Me>('/auth/me', { method: 'PATCH', body: patch }) }); await queryClient.invalidateQueries(); },
   signOut: async () => {
     if (get().status === 'signedIn') await api('/auth/logout', { method: 'POST' }).catch(() => {});
     await clearTokens();

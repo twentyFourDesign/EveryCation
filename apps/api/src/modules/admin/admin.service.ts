@@ -45,6 +45,7 @@ export class AdminWalletService {
   async counts() {
     const [w] = await this.db.select({ n: sql<number>`count(*)::int` }).from(withdrawals).where(eq(withdrawals.status, 'held'));
     const [a] = await this.db.select({ n: sql<number>`count(*)::int` }).from(advice).where(and(inArray(advice.status, ['in_review', 'rereview']), isNull(advice.reviewedAt)));
-    return { heldWithdrawals: w?.n ?? 0, adviceWaiting: a?.n ?? 0 };
+    const r = await this.db.execute(sql`SELECT count(*)::int AS n FROM (SELECT 1 FROM reports WHERE resolved_at IS NULL GROUP BY target_type, target_id) g`);
+    return { heldWithdrawals: w?.n ?? 0, adviceWaiting: a?.n ?? 0, openReports: Number((r.rows[0] as { n: number }).n) };
   }
 }

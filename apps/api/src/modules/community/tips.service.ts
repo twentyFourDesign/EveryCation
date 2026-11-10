@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { conflict, notFound } from '../../common/errors.js';
 import { RULES } from '../../config.js';
+import { notify } from '../../common/notify.js';
 import { Database } from '../../db/db.module.js';
 import { advice, comments, reports, tipLikes, tips, users } from '../../db/schema.js';
 
@@ -57,10 +58,12 @@ export class TipsService {
   }
 
   async addComment(userId: string, tipId: string, body: string) {
-    await this.get(tipId);
+    const tip = await this.get(tipId);
+    const [me] = await this.db.select({ name: users.name }).from(users).where(eq(users.id, userId));
     await this.db.transaction(async (tx) => {
       await tx.insert(comments).values({ tipId, userId, body });
       await tx.update(tips).set({ commentCount: sql`${tips.commentCount} + 1` }).where(eq(tips.id, tipId));
+      if (tip.author.id !== userId) await notify(tx, tip.author.id, 'community', `${me?.name ?? 'A traveller'} commented on your tip "${tip.title}"`, `/tip/${tipId}/comments`);
     });
     return this.comments(tipId, userId);
   }

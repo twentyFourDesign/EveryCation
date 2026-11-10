@@ -6,7 +6,7 @@ import { adminApi, setSignedOutHandler, setToken } from './api';
 
 export type ApiRole = 'super_admin' | 'moderator' | 'finance' | 'shop_ops' | 'support';
 export const ROLE_LABEL: Record<ApiRole, string> = { super_admin: 'Super admin', moderator: 'Moderator', finance: 'Finance', shop_ops: 'Shop ops', support: 'Support' };
-interface Me { admin: { id: string; email: string; name: string; role: ApiRole }; access: Record<string, 'edit' | 'view' | null>; counts: { heldWithdrawals: number; adviceWaiting: number } }
+interface Me { admin: { id: string; email: string; name: string; role: ApiRole }; access: Record<string, 'edit' | 'view' | null>; counts: { heldWithdrawals: number; adviceWaiting: number; openReports: number } }
 
 interface Session {
   token: string | null;
@@ -18,7 +18,7 @@ interface Session {
   signOut: () => Promise<void>;
 }
 const initials = (name: string) => name.split(/\s+/).map((w) => w[0]).join('').slice(0, 2).toUpperCase();
-const empty = { token: null, admin: null, access: {}, counts: { heldWithdrawals: 0, adviceWaiting: 0 } };
+const empty = { token: null, admin: null, access: {}, counts: { heldWithdrawals: 0, adviceWaiting: 0, openReports: 0 } };
 
 /**
  * The signed-in staff member. The token lives in this browser tab only (sessionStorage),

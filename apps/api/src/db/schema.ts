@@ -274,3 +274,17 @@ export const reports = pgTable('reports', {
   resolvedAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('reports_once_idx').on(t.targetType, t.targetId, t.reporterId), index('reports_target_idx').on(t.targetType, t.targetId)]);
+
+// ───────────── Notifications ─────────────
+
+/** In-app notifications. Push delivery reads the same rows once a push provider is connected. */
+export const notifications = pgTable('notifications', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  type: text().notNull(),
+  text: text().notNull(),
+  /** App route to open, e.g. /advice/GH. */
+  href: text(),
+  readAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)]);

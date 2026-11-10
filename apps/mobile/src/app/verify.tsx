@@ -21,7 +21,7 @@ export default function VerifyCode() {
     const r = otpSchema.safeParse({ code });
     if (!r.success) return setError(r.error.issues[0]!.message);
     setBusy(true); setError('');
-    try { await verifyCode(p.phone, code); router.dismissAll(); router.replace('/explore'); }
+    try { await verifyCode(p.phone, code); router.dismissAll(); router.replace(useSession.getState().me?.name ? '/explore' : '/edit-profile?welcome=1'); }
     catch (e) { setError(errorMessage(e)); setCode(''); }
     finally { setBusy(false); }
   }

@@ -3,6 +3,7 @@ import * as argon2 from 'argon2';
 import { and, desc, eq, gte, inArray, isNull, lt, sql } from 'drizzle-orm';
 import { RULES } from '../../config.js';
 import { badRequest, conflict, forbidden, notFound, tooMany } from '../../common/errors.js';
+import { notify } from '../../common/notify.js';
 import { Database, type Tx } from '../../db/db.module.js';
 import { bankAccounts, ledgerAccounts, ledgerEntries, ledgerTransactions, outbox, savingsGoals, users, withdrawals } from '../../db/schema.js';
 import { Ledger, newReference } from './ledger.service.js';
@@ -176,6 +177,7 @@ export class WalletService {
       const from = await this.ledger.systemAccount(tx, input.channel === 'card' ? 'card_clearing' : 'partner_float');
       await this.ledger.post(tx, { kind: 'deposit', reference: input.partnerReference, userId: input.userId, description: goal ? `Added to ${goal.name}` : input.channel === 'card' ? 'Card payment in' : 'Bank transfer in',
         metadata: { channel: input.channel }, entries: [{ accountId: from, amount: -input.amount }, { accountId: to, amount: input.amount }] });
+      await notify(tx, input.userId, 'wallet', `${naira(input.amount)} arrived in ${goal ? goal.name : 'your available balance'}.`, '/wallet/history');
       await tx.insert(outbox).values({ topic: 'wallet.deposit', payload: { userId: input.userId, amount: input.amount, goalId: input.goalId ?? null } });
       return { credited: true };
     });
@@ -237,6 +239,7 @@ export class WalletService {
       if (w.status !== 'held') throw conflict('not_held', 'This withdrawal is no longer on hold.');
       if (decision === 'release') {
         await tx.update(withdrawals).set({ status: 'processing', decidedBy: adminName }).where(eq(withdrawals.id, w.id));
+        await notify(tx, w.userId, 'wallet', `Your withdrawal of ${naira(w.amount)} was approved and is on its way.`, '/wallet/history');
         await tx.insert(outbox).values({ topic: 'withdrawal.send', payload: { withdrawalId: w.id, reference: w.reference } });
         return { status: 'processing' as const };
       }
@@ -255,6 +258,7 @@ export class WalletService {
       const clearing = await this.ledger.systemAccount(tx, 'payout_clearing'); const float = await this.ledger.systemAccount(tx, 'partner_float');
       await this.ledger.post(tx, { kind: 'withdrawal_paid', reference: `${w.reference}-PAID`, userId: w.userId, description: 'Withdrawal paid out', entries: [{ accountId: clearing, amount: -w.amount }, { accountId: float, amount: w.amount }] });
       await tx.update(withdrawals).set({ status: 'paid', settledAt: new Date() }).where(eq(withdrawals.id, w.id));
+      await notify(tx, w.userId, 'wallet', `Your withdrawal of ${naira(w.amount)} has reached your bank.`, '/wallet/history');
       await tx.insert(outbox).values({ topic: 'withdrawal.paid', payload: { withdrawalId: w.id } });
       return { status: 'paid' as const, changed: true };
     });
@@ -264,6 +268,7 @@ export class WalletService {
     const clearing = await this.ledger.systemAccount(tx, 'payout_clearing');
     await this.ledger.post(tx, { kind: 'withdrawal_reversed', reference: `${w.reference}-REV`, userId: w.userId, description: 'Withdrawal returned to your wallet', entries: [{ accountId: clearing, amount: -w.amount }, { accountId: w.sourceAccountId, amount: w.amount }] });
     await tx.update(withdrawals).set({ status, decidedBy, settledAt: new Date() }).where(eq(withdrawals.id, w.id));
+    await notify(tx, w.userId, 'wallet', status === 'failed' ? `Your bank could not take the transfer, so ${naira(w.amount)} is back in your wallet.` : `Your withdrawal of ${naira(w.amount)} was not approved. The money is back in your wallet.`, '/wallet/history');
     await tx.insert(outbox).values({ topic: 'withdrawal.returned', payload: { withdrawalId: w.id, status } });
   }
 }

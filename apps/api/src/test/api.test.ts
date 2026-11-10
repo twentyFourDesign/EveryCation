@@ -358,3 +358,57 @@ describe('ledger integrity', () => {
     expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
   });
 });
+
+describe('notifications, reports and staff invites', () => {
+  it('tells the author about comments and review decisions', async () => {
+    const author = await named('Ngozi A.'); const fan = await named('Fan'); const mod = await staff('moderator');
+    const tip = (await author.api.post('/tips', { title: 'Carry small notes for the ferry', place: 'Lagos, Nigeria', category: 'Money', body: 'The ticket desk rarely has change.' }, null)).body;
+    await fan.api.post(`/tips/${tip.id}/comments`, { body: 'Good to know.' }, null).expect(201);
+    await author.api.post(`/tips/${tip.id}/comments`, { body: 'Welcome.' }, null).expect(201); // your own comment does not notify you
+    const a = (await author.api.post('/advice', { countryCode: 'KE', city: 'Nairobi', topic: 'Money', body: 'Mobile money is accepted nearly everywhere, even by street vendors.' }, null)).body;
+    await mod.post(`/advice/${a.id}/decision`, { decision: 'approve' }).expect(200);
+    const inbox = (await author.api.get('/notifications').expect(200)).body;
+    expect(inbox.unread).toBe(2);
+    expect(inbox.items.map((n: { text: string }) => n.text)).toEqual(['Your advice for Nairobi was approved and now shows as Verified.', 'Fan commented on your tip "Carry small notes for the ferry"']);
+    expect(inbox.items[0]).toMatchObject({ href: '/advice/KE', read: false });
+    await author.api.post('/notifications/read', {}, null).expect(204);
+    expect((await author.api.get('/notifications/unread')).body).toEqual({ unread: 0 });
+    expect((await fan.api.get('/notifications')).body.unread).toBe(0);
+  });
+  it('lets a moderator remove reported content, tell the author and suspend them', async () => {
+    const spammer = await named('Cheap Visas'); const r1 = await named('Rep One'); const r2 = await named('Rep Two'); const mod = await staff('moderator'); const finance = await staff('finance');
+    const tip = (await spammer.api.post('/tips', { title: 'Guaranteed visa in two days', place: 'Dubai, UAE', category: 'Money', body: 'Message my agent to pay.' }, null)).body;
+    const other = (await r1.api.post('/tips', { title: 'Metro day pass is worth it', place: 'Dubai, UAE', category: 'Getting there', body: 'It covers the tram too.' }, null)).body;
+    const comment = (await spammer.api.post(`/tips/${other.id}/comments`, { body: 'DM me for cheap visas' }, null)).body.at(-1);
+    await r1.api.post('/reports', { targetType: 'tip', targetId: tip.id, reason: 'Scam or false claims' }, null).expect(200);
+    await r2.api.post('/reports', { targetType: 'tip', targetId: tip.id, reason: 'Selling services' }, null).expect(200);
+    await r2.api.post('/reports', { targetType: 'comment', targetId: comment.id, reason: 'Spam' }, null).expect(200);
+    await finance.get('/reports').expect(403);
+    const open = (await mod.get('/reports').expect(200)).body as { targetId: string; reports: number; item: string; author: { name: string } }[];
+    expect(open.find((x) => x.targetId === tip.id)).toMatchObject({ reports: 2, item: 'Tip · "Guaranteed visa in two days"', author: { name: 'Cheap Visas' } });
+    expect((await mod.get('/me')).body.counts.openReports).toBeGreaterThanOrEqual(2);
+    await mod.post('/reports/decision', { targetType: 'comment', targetId: comment.id, decision: 'remove' }).expect(200);
+    expect((await http().get(`/v1/tips/${other.id}`)).body.comments).toBe(0);
+    expect((await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove', suspendAuthor: true }).expect(200)).body).toMatchObject({ reportsClosed: 2, suspended: true });
+    await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove' }).expect(409);
+    await http().get(`/v1/tips/${tip.id}`).expect(404);
+    expect((await spammer.api.get('/auth/me').expect(403)).body.code).toBe('account_suspended');
+    await http().post('/v1/auth/refresh').send({ refreshToken: spammer.refreshToken }).expect(401);
+    expect(((await mod.get('/reports?status=closed')).body as { targetId: string }[]).some((x) => x.targetId === tip.id)).toBe(true);
+  });
+  it('lets a Super admin invite staff and turn an account off', async () => {
+    const boss = await staff('super_admin'); const mod = await staff('moderator');
+    await mod.post('/staff', { email: 'new@everycation.app', name: 'New Person', role: 'support' }).expect(403);
+    const invite = (await boss.post('/staff', { email: 'Bisi@everycation.app', name: 'Bisi L.', role: 'support' }).expect(201)).body;
+    expect(invite).toMatchObject({ email: 'bisi@everycation.app' }); expect(invite.temporaryPassword.length).toBeGreaterThanOrEqual(12);
+    await boss.post('/staff', { email: 'bisi@everycation.app', name: 'Again', role: 'support' }).expect(409);
+    const login = () => http().post('/v1/admin/auth/login').send({ email: invite.email, password: invite.temporaryPassword, code: totpCode(invite.authenticatorSecret) });
+    const session = (await login().expect(200)).body;
+    const bisi = ((await boss.get('/staff')).body as { id: string; email: string }[]).find((x) => x.email === invite.email)!;
+    await boss.post(`/staff/${bisi.id}/active`, { active: false }).expect(200);
+    await http().get('/v1/admin/me').set('Authorization', `Bearer ${session.token}`).expect(401);
+    await login().expect(401);
+    const me = ((await boss.get('/staff')).body as { id: string; email: string }[]).find((x) => x.email === boss.email)!;
+    await boss.post(`/staff/${me.id}/active`, { active: false }).expect(400);
+  });
+});

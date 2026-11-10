@@ -35,6 +35,14 @@ export const useTipComments = (id: string) => { const w = useWho(); return useQu
 export const useAdviceCounts = () => useQuery({ queryKey: ['advice', 'countries'], queryFn: () => api<{ code: string; total: number; verified: number }[]>('/advice/countries') });
 export const useCountryAdvice = (code: string, verifiedOnly: boolean) => { const w = useWho(); return useQuery({ queryKey: ['advice', code, verifiedOnly, w], queryFn: () => api<Advice[]>(`/advice?country=${code}&verifiedOnly=${verifiedOnly}`) }); };
 
+export interface Profile extends Author { bio: string | null; memberSince: string; tips: number; countries: number; verifiedAdvice: number }
+export const useProfile = (id: string | undefined) => useQuery({ queryKey: ['profile', id], queryFn: () => api<Profile>(`/users/${id}`), enabled: !!id && isUuid(id) });
+export const useTipsBy = (id: string | undefined) => useQuery({ queryKey: ['tips', 'by', id], queryFn: () => api<Tip[]>(`/tips?authorId=${id}`), enabled: !!id && isUuid(id) });
+export interface Inbox { unread: number; items: { id: string; type: string; text: string; href: string | null; read: boolean; at: string }[] }
+export const useInbox = () => { const signedIn = useSession((s) => s.status === 'signedIn'); return useQuery({ queryKey: ['notifications'], queryFn: () => api<Inbox>('/notifications'), enabled: signedIn }); };
+export const useUnread = () => { const signedIn = useSession((s) => s.status === 'signedIn'); return useQuery({ queryKey: ['notifications', 'unread'], queryFn: () => api<{ unread: number }>('/notifications/unread'), enabled: signedIn, refetchInterval: 60_000 }); };
+export const useMarkRead = () => useMutation({ mutationFn: () => api('/notifications/read', { method: 'POST' }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }) });
+
 const refreshTips = () => queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'tips' || q.queryKey[0] === 'tip' });
 const refreshAdvice = () => queryClient.invalidateQueries({ queryKey: ['advice'] });
 

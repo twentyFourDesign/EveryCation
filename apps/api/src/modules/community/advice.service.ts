@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
 import { badRequest, conflict, forbidden, notFound } from '../../common/errors.js';
+import { notify } from '../../common/notify.js';
 import { Database } from '../../db/db.module.js';
 import { admins, advice, adviceHelpful, outbox, reports, tips, users } from '../../db/schema.js';
 import { author } from './tips.service.js';
@@ -97,6 +98,8 @@ export class AdviceService {
         .where(and(eq(advice.id, id), inArray(advice.status, ['in_review', 'rereview', 'changes_requested']))).returning();
       if (!a) throw conflict('already_decided', 'This advice has already been decided, or no longer exists.');
       await tx.update(reports).set({ resolvedAt: new Date() }).where(and(eq(reports.targetType, 'advice'), eq(reports.targetId, id), isNull(reports.resolvedAt)));
+      const place = `${a.city}`;
+      await notify(tx, a.userId, 'community', status === 'verified' ? `Your advice for ${place} was approved and now shows as Verified.` : status === 'changes_requested' ? `Our team asked for a change to your advice for ${place}: ${note}` : `Your advice for ${place} was not approved: ${note}`, `/advice/${a.countryCode}`);
       await tx.insert(outbox).values({ topic: 'advice.decided', payload: { adviceId: id, userId: a.userId, status, note: note ?? null } });
       return { status, countryCode: a.countryCode, excerpt: a.body.length > 50 ? `${a.body.slice(0, 50)}…` : a.body };
     });

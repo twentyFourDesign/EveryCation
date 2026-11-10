@@ -5,8 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { api, formatNaira } from '@everycation/shared';
 import { shortName as author } from '@/lib/people';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
-import { tipImage, useTips } from '@/lib/community';
-import { useApp } from '@/lib/store';
+import { tipImage, useTips, useUnread } from '@/lib/community';
 
 const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Advice'] as const;
 const links: Record<string, string> = { Community: '/community', Places: '/place/bali', 'Trip plans': '/plans', Advice: '/advice' };
@@ -14,12 +13,12 @@ const links: Record<string, string> = { Community: '/community', Places: '/place
 export default function Explore() {
   const tips = useTips('popular');
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans });
-  const unread = useApp((s) => !s.readNotifications);
+  const unread = useUnread().data?.unread ?? 0;
   return (
     <Screen edges={['top']}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2"><Mark size={30} color="brand" /><Text className="font-pop-sb text-lg text-navy">EveryCation</Text></View>
-        <IconButton icon={Bell} label="Notifications" badge={unread ? 3 : undefined} onPress={() => router.push('/notifications')} />
+        <IconButton icon={Bell} label="Notifications" badge={unread || undefined} onPress={() => router.push('/notifications')} />
       </View>
       <T v="h1">Where to next?</T>
       <Pressable accessibilityRole="search" accessibilityLabel="Search places, tips and trip plans" onPress={() => router.push('/search')} className="h-[52px] flex-row items-center gap-3 rounded-full bg-surface-muted px-4">
