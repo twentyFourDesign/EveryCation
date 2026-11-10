@@ -494,3 +494,63 @@ describe('places, search and following', () => {
     expect((await b.api.get(`/travellers/${a.id}`)).body.followers).toBe(0);
   });
 });
+
+describe('trip plans marketplace', () => {
+  const stops = async (u: Awaited<ReturnType<typeof named>>, tripId: string, day: string) => { for (const [time, title] of [['08:00', 'Breakfast by the lake'], ['10:00', 'Cable car up'], ['15:00', 'Old town walk']] as const) await u.api.post(`/trips/${tripId}/items`, { day, time, title }, null).expect(201); };
+  async function seller(name: string, verified = true) {
+    const u = await named(name);
+    if (verified) await u.api.post('/wallet/identity', { method: 'BVN', number: '22212345678', dateOfBirth: '1990-01-01' }).expect(200);
+    const past = (await u.api.post('/trips', { title: `${name} in the Dolomites`, place: 'Cortina, Italy', countryCode: 'IT', startDate: '2026-09-01', endDate: '2026-09-07' }, null)).body;
+    await stops(u, past.id, '2026-09-01'); await u.api.post(`/trips/${past.id}/items`, { day: '2026-09-02', time: '06:30', title: 'Sunrise at Braies' }, null);
+    return { ...u, tripId: past.id as string };
+  }
+  it('opens a paid plan for sale only after the trip has ended', async () => {
+    const s = await seller('Amaka O.');
+    const future = (await s.api.post('/trips', { title: 'Next winter', place: 'Zermatt, Switzerland', countryCode: 'CH', startDate: '2099-01-01', endDate: '2099-01-05' }, null)).body;
+    expect((await s.api.put(`/trips/${future.id}/plan`, { mode: 'sell', price: N(6_500) }).expect(400)).body.code).toBe('plan_too_thin');
+    await stops(s, future.id, '2099-01-02');
+    expect((await s.api.put(`/trips/${future.id}/plan`, { mode: 'sell', price: N(500) }).expect(400)).body.code).toBe('price_too_low');
+    const scheduled = (await s.api.put(`/trips/${future.id}/plan`, { mode: 'sell', price: N(6_500) }).expect(200)).body;
+    expect(scheduled).toMatchObject({ status: 'scheduled', opensAt: '2099-01-06T05:00:00.000Z', sellerGets: N(4_875), fee: N(1_625) });
+    const live = (await s.api.put(`/trips/${s.tripId}/plan`, { mode: 'sell', price: N(7_500) }).expect(200)).body;
+    expect(live.status).toBe('on_sale');
+    const listed = (await http().get('/v1/plans').expect(200)).body as { id: string }[];
+    expect(listed.some((p) => p.id === live.id)).toBe(true); expect(listed.some((p) => p.id === scheduled.id)).toBe(false);
+    await http().get(`/v1/plans/${scheduled.id}`).expect(404); // not visible to others before the sale opens
+    const free = (await s.api.put(`/trips/${future.id}/plan`, { mode: 'free' }).expect(200)).body; // free sharing is allowed any time
+    expect(free).toMatchObject({ status: 'free', price: 0 });
+    expect(((await http().get('/v1/plans?filter=free')).body as { id: string }[]).some((p) => p.id === free.id)).toBe(true);
+  });
+  it('takes 25% on a sale, unlocks the plan for the buyer and pays the seller when Finance approves', async () => {
+    const s = await seller('Tunde A.'); const unverified = await seller('No ID Yet', false); const buyer = await readyUser(50_000); const finance = await staff('finance'); const mod = await staff('moderator');
+    const plan = (await s.api.put(`/trips/${s.tripId}/plan`, { mode: 'sell', price: N(7_500) })).body;
+    const plan2 = (await unverified.api.put(`/trips/${unverified.tripId}/plan`, { mode: 'sell', price: N(4_000) })).body;
+    const preview = (await buyer.api.get(`/plans/${plan.id}`)).body;
+    expect(preview).toMatchObject({ unlocked: false, lockedStops: 1, stops: 4, days: 7 }); expect(preview.itinerary).toHaveLength(3);
+    expect((await buyer.api.post(`/plans/${plan.id}/buy`, { pin: '0000' }).expect(400)).body.code).toBe('pin_wrong');
+    const key = randomUUID();
+    await buyer.api.post(`/plans/${plan.id}/buy`, { pin: '2580' }, key).expect(200);
+    expect((await buyer.api.post(`/plans/${plan.id}/buy`, { pin: '2580' }, key).expect(200)).body.repeated).toBe(true);
+    await buyer.api.post(`/plans/${plan2.id}/buy`, { pin: '2580' }).expect(200);
+    expect((await balance(buyer.api)).available).toBe(N(50_000 - 7_500 - 4_000));
+    expect((await buyer.api.get(`/plans/${plan.id}`)).body).toMatchObject({ unlocked: true, owned: true, lockedStops: 0 });
+    expect((await s.api.post(`/plans/${plan.id}/buy`, { pin: '2580' }).expect(409)).body.code).toBe('own_plan');
+    expect(((await buyer.api.get('/plans?filter=owned')).body as { id: string }[]).map((p) => p.id).sort()).toEqual([plan.id, plan2.id].sort());
+    const studio = (await s.api.get('/plans/studio')).body;
+    expect(studio).toMatchObject({ month: { sales: 1, gross: N(7_500), fee: N(1_875), net: N(5_625) }, waitingForPayout: N(5_625), canBePaid: true, feePercent: 25 });
+    expect((await s.api.get('/notifications')).body.items[0].text).toContain('₦5,625 is in your next payout');
+
+    await mod.get('/payouts').expect(403);
+    const batch = (await finance.get('/payouts').expect(200)).body;
+    expect(batch.sellers.find((x: { sellerId: string }) => x.sellerId === s.id)).toMatchObject({ sales: 1, gross: N(7_500), fee: N(1_875), owed: N(5_625), held: null });
+    expect(batch.sellers.find((x: { sellerId: string }) => x.sellerId === unverified.id)).toMatchObject({ owed: N(3_000), held: 'ID not verified' });
+    const before = (await balance(s.api)).available;
+    const done = (await finance.post('/payouts/approve').expect(200)).body;
+    expect(done.sellersPaid).toBeGreaterThanOrEqual(1);
+    expect((await balance(s.api)).available).toBe(before + N(5_625));
+    expect((await balance(unverified.api)).available).toBe(0); // held until the ID check passes
+    expect((await s.api.get('/plans/studio')).body.waitingForPayout).toBe(0);
+    expect(((await finance.get('/payouts')).body.sellers as { sellerId: string }[]).some((x) => x.sellerId === s.id)).toBe(false);
+    expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
+  });
+});

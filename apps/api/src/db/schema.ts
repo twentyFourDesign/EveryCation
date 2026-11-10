@@ -64,7 +64,7 @@ export const bankAccounts = pgTable('bank_accounts', {
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('bank_user_number_idx').on(t.userId, t.bankName, t.accountNumber)]);
 
-export const accountKind = pgEnum('ledger_account_kind', ['user_available', 'goal', 'partner_float', 'payout_clearing', 'platform_fees', 'card_clearing']);
+export const accountKind = pgEnum('ledger_account_kind', ['user_available', 'goal', 'partner_float', 'payout_clearing', 'platform_fees', 'card_clearing', 'creator_payable', 'shop_revenue']);
 
 /**
  * Ledger accounts. `balance` is a running total kept in step with ledger_entries
@@ -363,3 +363,34 @@ export const follows = pgTable('follows', {
   followeeId: uuid().notNull().references(() => users.id),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('follows_once_idx').on(t.followerId, t.followeeId), index('follows_followee_idx').on(t.followeeId), check('follows_not_self', sql`${t.followerId} <> ${t.followeeId}`)]);
+
+// ───────────── Trip plans marketplace ─────────────
+
+export const planMode = pgEnum('plan_mode', ['private', 'free', 'sell']);
+
+/** A trip offered to other travellers. One listing per trip. */
+export const plans = pgTable('plans', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  tripId: uuid().notNull().references(() => trips.id).unique(),
+  mode: planMode().notNull().default('private'),
+  price: kobo().notNull().default(0),
+  summary: text().notNull().default(''),
+  removedAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [index('plans_user_idx').on(t.userId), check('plans_price_not_negative', sql`${t.price} >= 0`)]);
+
+export const planPurchases = pgTable('plan_purchases', {
+  id: id(),
+  planId: uuid().notNull().references(() => plans.id),
+  buyerId: uuid().notNull().references(() => users.id),
+  sellerId: uuid().notNull().references(() => users.id),
+  price: kobo().notNull(),
+  fee: kobo().notNull(),
+  sellerAmount: kobo().notNull(),
+  transactionId: uuid().references(() => ledgerTransactions.id),
+  /** Set when Finance pays the seller. Null means the seller's share is still waiting. */
+  payoutReference: text(),
+  paidOutAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('plan_purchase_once_idx').on(t.planId, t.buyerId), index('plan_purchase_seller_idx').on(t.sellerId, t.paidOutAt)]);

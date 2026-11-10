@@ -50,6 +50,13 @@
       "when": 1794345414221,
       "tag": "0006_places_follows",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1794345600741,
+      "tag": "0007_plans",
+      "breakpoints": true
     }
   ]
 }

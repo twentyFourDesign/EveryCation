@@ -11,6 +11,7 @@ import { AuthModule } from './modules/auth/auth.module.js';
 import { CommunityModule } from './modules/community/community.module.js';
 import { DiscoverModule } from './modules/discover/discover.module.js';
 import { MediaModule } from './modules/media/media.module.js';
+import { PlansModule } from './modules/plans/plans.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 
@@ -37,6 +38,7 @@ class ConfigModule {}
     TripsModule,
     MediaModule,
     DiscoverModule,
+    PlansModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: AuthGuard }],

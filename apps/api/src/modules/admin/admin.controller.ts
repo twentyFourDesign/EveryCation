@@ -10,6 +10,7 @@ import { ZodPipe } from '../../common/zod.pipe.js';
 import { AdviceService, type Queue } from '../community/advice.service.js';
 import { ModerationService } from '../community/moderation.service.js';
 import { otpauthUrl } from './totp.js';
+import { PlansService } from '../plans/plans.service.js';
 import { Ledger } from '../wallet/ledger.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { AdminAuthService, AdminGuard, CurrentAdmin, PERMISSIONS, Staff, type Admin } from './admin-auth.js';
@@ -39,7 +40,7 @@ export class AdminLoginController {
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService) {}
+  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService) {}
 
   @Get('me')
   async me(@CurrentAdmin() admin: Admin) {
@@ -66,6 +67,15 @@ export class AdminController {
     const result = await this.wallet.decideHeld(id, decision, admin.name);
     await this.auth.record(admin, decision === 'release' ? 'Released held withdrawal' : 'Rejected withdrawal, money returned', `${w.reference} · ${naira(w.amount)}`, req);
     return result;
+  }
+
+  // ───────────── Creator payouts ─────────────
+  @Staff('payouts') @Get('payouts') payouts() { return this.plans.payoutBatch(); }
+  @Staff('payouts', 'edit') @HttpCode(200) @Post('payouts/approve')
+  async approvePayouts(@CurrentAdmin() admin: Admin, @Req() req: Request) {
+    const r = await this.plans.approvePayouts();
+    await this.auth.record(admin, 'Approved creator payout batch', `${r.reference} · ${naira(r.total)} to ${r.sellersPaid} seller${r.sellersPaid === 1 ? '' : 's'}`, req);
+    return r;
   }
 
   // ───────────── Advice review ─────────────

@@ -6,7 +6,7 @@ import { Database, type Tx } from '../../db/db.module.js';
 import { ledgerAccounts, ledgerEntries, ledgerTransactions } from '../../db/schema.js';
 
 type TxnKind = (typeof ledgerTransactions.$inferInsert)['kind'];
-type SystemAccount = 'partner_float' | 'payout_clearing' | 'platform_fees' | 'card_clearing';
+type SystemAccount = 'partner_float' | 'payout_clearing' | 'platform_fees' | 'card_clearing' | 'creator_payable' | 'shop_revenue';
 export interface Posting {
   kind: TxnKind; reference: string; description: string; userId?: string; idempotencyKey?: string;
   metadata?: Record<string, unknown>; entries: { accountId: string; amount: number }[];
@@ -73,8 +73,11 @@ export class Ledger {
   }
 
   async systemAccount(tx: Tx, kind: SystemAccount): Promise<string> {
-    const [a] = await tx.select({ id: ledgerAccounts.id }).from(ledgerAccounts).where(and(eq(ledgerAccounts.kind, kind), isNull(ledgerAccounts.userId)));
-    if (!a) throw new Error(`System ledger account ${kind} is missing. Run the migrations.`);
+    const find = () => tx.select({ id: ledgerAccounts.id }).from(ledgerAccounts).where(and(eq(ledgerAccounts.kind, kind), isNull(ledgerAccounts.userId)));
+    let [a] = await find();
+    // Accounts added after the first release are created the first time they are used.
+    if (!a) { await tx.insert(ledgerAccounts).values({ kind }).onConflictDoNothing(); [a] = await find(); }
+    if (!a) throw new Error(`System ledger account ${kind} is missing.`);
     return a.id;
   }
 
