@@ -17,7 +17,7 @@ export const NAV: Item[] = [
   { href: '/payouts', label: 'Creator payouts', icon: Coins, area: 'payouts' },
   { group: 'MARKETPLACE', href: '/plans', label: 'Trip plans', icon: Map, area: 'plans' },
   { href: '/products', label: 'Shop products', icon: ShoppingBag, area: 'shop' },
-  { href: '/orders', label: 'Shop orders', icon: Truck, area: 'shop', badge: '23' },
+  { href: '/orders', label: 'Shop orders', icon: Truck, area: 'shop' },
   { group: 'ENGAGE', href: '/broadcasts', label: 'Notifications', icon: Megaphone, area: 'broadcasts' },
   { group: 'SYSTEM', href: '/admins', label: 'Admins & audit log', icon: ShieldCheck, area: 'settings' },
   { href: '/settings', label: 'Settings', icon: Settings, area: 'settings' },

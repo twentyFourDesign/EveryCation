@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import { naira, sample, type Advice, type BasketLine, type ItineraryItem, type Kobo } from '@everycation/shared';
+import { naira, type Advice, type BasketLine, type ItineraryItem, type Kobo } from '@everycation/shared';
 
 type PlanMode = 'private' | 'free' | 'sell';
 interface AppState {
@@ -20,7 +20,7 @@ interface AppState {
  * Sign-in lives in `session.ts` and the wallet in `wallet.ts`; both talk to the API.
  */
 export const useApp = create<AppState>((set) => ({
-  basket: sample.initialBasket,
+  basket: [],
   following: [], savedTips: [], bucket: [], likedComments: [], myAdvice: [], extraItinerary: [], ownedPlans: [],
   planListing: { mode: 'sell', price: naira(6500) }, readNotifications: false,
 

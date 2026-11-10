@@ -1,20 +1,16 @@
 import { router } from 'expo-router';
-import { Baby, BatteryCharging, BedDouble, BriefcaseMedical, Luggage, PackageOpen, Backpack, Shirt, ShieldCheck, Smartphone, Sparkles, Star, Sun, Umbrella } from 'lucide-react-native';
-import { useState } from 'react';
+import { Tag } from 'lucide-react-native';
 import { View } from 'react-native';
-import { sample } from '@everycation/shared';
-import { Empty, ListRow, Screen, SearchBar } from '@/ui';
-
-const icons = [Luggage, Backpack, PackageOpen, Sparkles, Sun, BatteryCharging, Smartphone, BedDouble, ShieldCheck, BriefcaseMedical, Umbrella, Shirt, Baby, Star];
+import { Empty, ListRow, Loading, Screen, T } from '@/ui';
+import { useCategories } from '@/lib/shop';
 
 export default function ShopCategories() {
-  const [term, setTerm] = useState('');
-  const list = sample.shopCategories.map((c, i) => ({ c, icon: icons[i]! })).filter((x) => x.c.toLowerCase().includes(term.toLowerCase()));
+  const { data, isLoading } = useCategories();
   return (
     <Screen title="Shop by category">
-      <SearchBar value={term} onChangeText={setTerm} placeholder="Search travel essentials" accessibilityLabel="Search categories" />
-      <View>{list.map(({ c, icon }) => <ListRow key={c} icon={icon} title={c} onPress={() => router.navigate('/shop')} />)}</View>
-      {list.length === 0 && <Empty>No category matches.</Empty>}
+      {isLoading && <Loading what="categories" />}
+      {data?.length === 0 && <Empty>No products yet.</Empty>}
+      <View>{data?.map((c) => <ListRow key={c.category} icon={Tag} title={c.category} right={<T v="small">{c.count}</T>} onPress={() => { router.dismissTo('/shop'); router.setParams({ category: c.category }); }} />)}</View>
     </Screen>
   );
 }
