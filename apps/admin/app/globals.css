@@ -1,0 +1,37 @@
+@import "tailwindcss";
+
+/* EveryCation tokens. Keep in step with packages/tokens. */
+@theme {
+  --color-gold: #ffc502;
+  --color-gold-light: #ffd80a;
+  --color-gold-soft: #fff1bc;
+  --color-navy: #002c82;
+  --color-blue: #004a9b;
+  --color-heading-blue: #1071b8;
+  --color-sky: #008dd2;
+  --color-cyan: #00b3f1;
+  --color-tint: #e6f0fa;
+  --color-ink: #262626;
+  --color-ink-muted: #5f636a;
+  --color-surface: #ffffff;
+  --color-surface-muted: #f1f1f1;
+  --color-line: #e3e3e3;
+  --color-control-border: #8a8f98;
+  --color-danger: #b42318;
+  --color-danger-soft: #fdecea;
+  --color-navy-soft: #dce3f2;
+  --font-sans: "Poppins", "Avenir Next", system-ui, sans-serif;
+  --radius-card: 20px;
+}
+
+@layer base {
+  body {
+    background: var(--color-surface-muted);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+  }
+  a { color: var(--color-heading-blue); }
+  a:hover { color: var(--color-blue); }
+  :focus-visible { outline: 3px solid var(--color-sky); outline-offset: 2px; border-radius: 6px; }
+}
+.tnum { font-variant-numeric: tabular-nums; }

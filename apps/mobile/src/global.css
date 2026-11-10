@@ -1,0 +1,9 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Web only: fields show focus with their border instead of the browser ring. */
+input:focus,
+textarea:focus {
+  outline: none;
+}
