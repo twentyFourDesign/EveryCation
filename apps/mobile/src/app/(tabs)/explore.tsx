@@ -1,9 +1,9 @@
-import { useQuery } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { Bell, Search } from 'lucide-react-native';
 import { Pressable, ScrollView, Text, View } from 'react-native';
-import { api, formatNaira } from '@everycation/shared';
-import { shortName as author } from '@/lib/people';
+import { formatNaira } from '@everycation/shared';
+import { usePlans } from '@/lib/plans';
+import { tripImage } from '@/lib/trips';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
 import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
 
@@ -12,7 +12,7 @@ const links: Record<string, string> = { Community: '/community', Places: '/place
 
 export default function Explore() {
   const tips = useTips('popular');
-  const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans });
+  const plans = usePlans('all', '');
   const unread = useUnread().data?.unread ?? 0;
   return (
     <Screen edges={['top']}>
@@ -41,12 +41,13 @@ export default function Explore() {
       )}
 
       <SectionTitle action="See all" onAction={() => router.push('/plans')}>Trip plans by creators</SectionTitle>
+      {plans.data?.length === 0 && <T v="small">No plans yet. Finished a trip? Share yours from My travels.</T>}
       {plans.data?.slice(0, 2).map((p) => (
-        <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.title} by ${author(p.authorId)}`} onPress={() => go(`/plans/${p.id}`)} className="flex-row gap-3 rounded-card bg-surface-muted p-3 active:opacity-80">
-          <Photo k={p.image} className="h-[88px] w-[88px] rounded-2xl" />
+        <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.title} by ${p.author.name}`} onPress={() => go(`/plans/${p.id}`)} className="flex-row gap-3 rounded-card bg-surface-muted p-3 active:opacity-80">
+          <Photo k={tripImage({ id: p.tripId, imageKey: p.imageKey })} className="h-[88px] w-[88px] rounded-2xl" />
           <View className="flex-1 justify-center gap-0.5">
             <T v="strong" numberOfLines={1}>{p.title}</T>
-            <T v="small">by {author(p.authorId)} · {p.stops} stops · {p.rating} rating</T>
+            <T v="small">by {p.author.name} · {p.days} days · {p.stops} stops</T>
             <T v="strong" className="text-navy">{p.price ? formatNaira(p.price) : 'Free'}</T>
           </View>
         </Pressable>

@@ -1,8 +1,7 @@
 import { Pressable, Text, View } from 'react-native';
-import { Empty, Loading, Note, Photo, Screen } from '@/ui';
+import { Empty, Loading, Note, Photo, Screen, go } from '@/ui';
 import { errorMessage } from '@/lib/api';
 import { countryName, placeImage, usePlaces } from '@/lib/community';
-import { go } from '@/ui';
 
 export default function Places() {
   const { data, isLoading, error } = usePlaces();
