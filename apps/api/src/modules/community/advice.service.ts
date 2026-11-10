@@ -1,15 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { and, desc, eq, inArray, isNull, or, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, or, sql, lte } from 'drizzle-orm';
 import { badRequest, conflict, forbidden, notFound } from '../../common/errors.js';
 import { notify } from '../../common/notify.js';
 import { Database } from '../../db/db.module.js';
-import { admins, advice, adviceHelpful, outbox, reports, tips, users } from '../../db/schema.js';
+import { admins, advice, adviceHelpful, outbox, reports, tips, users, trips } from '../../db/schema.js';
+import { lagosToday } from '../trips/trips.service.js';
 import { author } from './tips.service.js';
 
 export interface AdviceInput { countryCode: string; city: string; topic: string; body: string; visited?: string; showPassport?: boolean }
 type Status = (typeof advice.$inferSelect)['status'];
 const QUEUES = { waiting: ['in_review'], changes: ['changes_requested'], rereview: ['rereview'], decided: ['verified', 'rejected'] } as const satisfies Record<string, readonly Status[]>;
 export type Queue = keyof typeof QUEUES;
+
+const fmtDay = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 
 @Injectable()
 export class AdviceService {
@@ -75,15 +78,16 @@ export class AdviceService {
     const ids = [...new Set(rows.map((r) => r.u.id))];
     const record = ids.length ? await this.db.select({ userId: advice.userId, approved: sql<number>`count(*) FILTER (WHERE ${advice.status} = 'verified')::int`, rejected: sql<number>`count(*) FILTER (WHERE ${advice.status} = 'rejected')::int` }).from(advice).where(inArray(advice.userId, ids)).groupBy(advice.userId) : [];
     const tipCounts = ids.length ? await this.db.select({ userId: tips.userId, n: sql<number>`count(*)::int`, places: sql<string[]>`array_agg(DISTINCT ${tips.place})` }).from(tips).where(and(inArray(tips.userId, ids), eq(tips.status, 'published'))).groupBy(tips.userId) : [];
+    const visits = ids.length ? await this.db.select().from(trips).where(and(inArray(trips.userId, ids), lte(trips.startDate, lagosToday()))) : [];
     const reportCounts = rows.length ? await this.db.select({ id: reports.targetId, n: sql<number>`count(*)::int`, reasons: sql<string[]>`array_agg(DISTINCT ${reports.reason})` }).from(reports).where(and(eq(reports.targetType, 'advice'), inArray(reports.targetId, rows.map((r) => r.a.id)), isNull(reports.resolvedAt))).groupBy(reports.targetId) : [];
     return {
       counts: { waiting: counts.in_review ?? 0, changes: counts.changes_requested ?? 0, rereview: counts.rereview ?? 0, decided: (counts.verified ?? 0) + (counts.rejected ?? 0) },
       items: rows.map(({ a, u, reviewer }) => {
         const r = record.find((x) => x.userId === u.id); const t = tipCounts.find((x) => x.userId === u.id); const rep = reportCounts.find((x) => x.id === a.id);
-        // Until trips are stored, the only evidence of a visit is a tip the author posted from the same place.
+        // Evidence of a visit: a trip to that country on the author's timeline that has started, and tips posted from the same place.
         const matchingTips = (t?.places ?? []).filter((p) => p.toLowerCase().includes(a.city.toLowerCase()) || a.city.toLowerCase().includes(p.split(',')[0]!.toLowerCase()));
         return { id: a.id, countryCode: a.countryCode, city: a.city, topic: a.topic, body: a.body, visited: a.visited, status: a.status, submittedAt: a.createdAt, reviewNote: a.reviewNote, reviewedBy: reviewer, reviewedAt: a.reviewedAt,
-          reports: rep?.n ?? 0, reportReasons: rep?.reasons ?? [], evidence: matchingTips.map((p) => `Posted a tip from ${p}`),
+          reports: rep?.n ?? 0, reportReasons: rep?.reasons ?? [], evidence: [...visits.filter((v) => v.userId === u.id && v.countryCode === a.countryCode).map((v) => `Trip on timeline: ${v.title}, ${fmtDay(v.startDate)} to ${fmtDay(v.endDate)}${v.endDate >= lagosToday() ? ' (still there)' : ''}`), ...matchingTips.map((p) => `Posted a tip from ${p}`)],
           author: { id: u.id, name: u.name ?? 'Traveller', since: u.createdAt, passportCountry: u.passportCountry, tips: t?.n ?? 0, approved: r?.approved ?? 0, rejected: r?.rejected ?? 0 } };
       }),
     };

@@ -29,6 +29,13 @@
       "when": 1794344886292,
       "tag": "0003_notifications",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1794345087280,
+      "tag": "0004_trips",
+      "breakpoints": true
     }
   ]
 }

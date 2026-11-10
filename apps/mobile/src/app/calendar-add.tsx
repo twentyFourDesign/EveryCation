@@ -1,37 +1,43 @@
-import { zodResolver } from '@hookform/resolvers/zod';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarCheck } from 'lucide-react-native';
-import { Controller, useForm, useWatch } from 'react-hook-form';
+import { useState } from 'react';
 import { View } from 'react-native';
-import type { z } from 'zod';
-import { calendarItemSchema } from '@everycation/shared';
-import { Button, Chips, FormInput, Screen, Segmented, T, Toggle } from '@/ui';
-import { useApp } from '@/lib/store';
+import { Button, Chips, Input, Loading, Note, Screen, T } from '@/ui';
+import { errorMessage } from '@/lib/api';
+import { dayLabel, daysOf, useAddItem, useTrips } from '@/lib/trips';
 
-type Form = z.infer<typeof calendarItemSchema>;
-const kinds = ['Activity', 'Reminder', 'New trip'] as const;
-const kindKey = { Activity: 'activity', Reminder: 'reminder', 'New trip': 'trip' } as const;
 const reminders = ['1 hour before', '30 minutes before', 'The evening before'];
 
-export default function AddToCalendar() {
-  const { day = 'Mon 14' } = useLocalSearchParams<{ day?: string }>();
-  const addItinerary = useApp((s) => s.addItinerary);
-  const { control, handleSubmit, setValue } = useForm<Form>({ resolver: zodResolver(calendarItemSchema),
-    defaultValues: { kind: 'activity', title: '', date: `${day} Dec`, from: '06:30', to: '09:00', location: '', remind: reminders[0], google: true } });
-  const kind = useWatch({ control, name: 'kind' });
-  const save = handleSubmit((v) => { addItinerary({ day: v.date.replace(/ Dec.*$/, ''), time: v.from, title: v.title, note: v.location || `Reminder ${v.remind}` }); router.back(); });
+/** Adds an activity to one of your trips. Opened from a trip or from the calendar. */
+export default function AddToItinerary() {
+  const p = useLocalSearchParams<{ tripId?: string; day?: string }>();
+  const { data: trips, isLoading } = useTrips();
+  const add = useAddItem();
+  const open = (trips ?? []).filter((t) => t.status !== 'past');
+  const [tripId, setTripId] = useState(p.tripId ?? ''); const [day, setDay] = useState(p.day ?? '');
+  const [title, setTitle] = useState(''); const [time, setTime] = useState('09:00'); const [note, setNote] = useState(''); const [remind, setRemind] = useState(reminders[0]!);
+  const [tried, setTried] = useState(false); const [error, setError] = useState('');
+  if (isLoading) return <Screen title="Add to itinerary"><Loading what="your trips" /></Screen>;
+  const trip = (trips ?? []).find((t) => t.id === tripId) ?? open[0];
+  if (!trip) return <Screen title="Add to itinerary"><View className="gap-4 pt-8"><T className="text-center text-ink-muted">Add a trip first, then plan what you&apos;ll do each day.</T><Button label="ADD A TRIP" onPress={() => router.replace('/trip/new')} /></View></Screen>;
+  const days = daysOf(trip); const chosen = days.includes(day) ? day : days[0]!; const labels = days.map(dayLabel);
+  const errors = { title: title.trim().length < 2 ? 'Add a title' : undefined, time: !/^([01]\d|2[0-3]):[0-5]\d$/.test(time) ? 'Use a time like 06:30' : undefined };
+  async function save() {
+    setTried(true); setError('');
+    if (errors.title || errors.time) return;
+    try { await add.mutateAsync({ tripId: trip!.id, day: chosen, time, title: title.trim(), note: note.trim() || undefined, remind }); router.back(); }
+    catch (e) { setError(errorMessage(e)); }
+  }
   return (
-    <Screen title="Add to calendar" footer={<Button label="SAVE" onPress={save} />}>
-      <Segmented options={kinds} value={kinds.find((k) => kindKey[k] === kind)!} onChange={(k) => setValue('kind', kindKey[k])} />
-      <FormInput control={control} name="title" label="Title *" placeholder="Lago di Braies at sunrise" />
-      {kind !== 'trip' && <View className="gap-1.5"><T v="label">Trip</T><View className="h-[52px] justify-center rounded-xl border-[1.5px] border-control-border px-4"><T>Dolomites trip · 12–19 Dec</T></View></View>}
-      <FormInput control={control} name="date" label="Date" placeholder="Mon 14 Dec" />
-      <View className="flex-row gap-3"><View className="flex-1"><FormInput control={control} name="from" label="From" placeholder="06:30" /></View><View className="flex-1"><FormInput control={control} name="to" label="To" placeholder="09:00" /></View></View>
-      <FormInput control={control} name="location" label="Location" placeholder="Lago di Braies, South Tyrol" />
-      <View className="gap-2"><T v="label">Remind me</T><Controller control={control} name="remind" render={({ field }) => <Chips wrap options={reminders} value={field.value} onChange={field.onChange} />} /></View>
-      <View className="flex-row items-center gap-3 rounded-card bg-tint p-3.5"><CalendarCheck size={22} color="#002C82" />
-        <View className="flex-1"><T v="strong">Also add to Google Calendar</T><T v="small">&quot;EveryCation trips&quot; · Oluwole O.</T></View>
-        <Controller control={control} name="google" render={({ field }) => <Toggle label="Also add to Google Calendar" value={field.value} onChange={field.onChange} />} /></View>
+    <Screen title="Add to itinerary" footer={<Button disabled={add.isPending} label={add.isPending ? 'SAVING…' : 'SAVE'} onPress={save} />}>
+      {open.length > 1 && <View className="gap-2"><T v="label">Trip</T><Chips wrap options={open.map((t) => t.title)} value={trip.title} onChange={(name) => { setTripId(open.find((t) => t.title === name)!.id); setDay(''); }} /></View>}
+      {open.length <= 1 && <T v="small">{trip.title}</T>}
+      <Input label="Title *" value={title} onChangeText={setTitle} placeholder="Lago di Braies at sunrise" maxLength={80} error={tried ? errors.title : undefined} />
+      <View className="gap-2"><T v="label">Day</T><Chips options={labels} value={dayLabel(chosen)} onChange={(l) => setDay(days[labels.indexOf(l)]!)} /></View>
+      <Input label="Time" value={time} onChangeText={setTime} placeholder="06:30" keyboardType="numbers-and-punctuation" maxLength={5} error={tried ? errors.time : undefined} />
+      <Input label="Place or note" value={note} onChangeText={setNote} placeholder="Lago di Braies, South Tyrol" maxLength={200} />
+      <View className="gap-2"><T v="label">Remind me</T><Chips wrap options={reminders} value={remind} onChange={setRemind} /></View>
+      <Note>Your reminder choice is saved with the activity. Phone reminders and Google Calendar sync switch on once notifications and Google are connected.</Note>
+      {!!error && <Note tone="danger">{error}</Note>}
     </Screen>
   );
 }

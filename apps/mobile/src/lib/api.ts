@@ -47,7 +47,7 @@ export function refreshSession(): Promise<boolean> {
   return refreshing;
 }
 
-export interface RequestOptions { method?: 'GET' | 'POST' | 'PUT' | 'PATCH'; body?: unknown; idempotencyKey?: string; auth?: boolean }
+export interface RequestOptions { method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE'; body?: unknown; idempotencyKey?: string; auth?: boolean }
 
 export async function api<T>(path: string, { method = 'GET', body, idempotencyKey, auth = true }: RequestOptions = {}): Promise<T> {
   const send = () => raw(path, {

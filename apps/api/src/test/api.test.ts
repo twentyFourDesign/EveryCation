@@ -412,3 +412,34 @@ describe('notifications, reports and staff invites', () => {
     await boss.post(`/staff/${me.id}/active`, { active: false }).expect(400);
   });
 });
+
+describe('trips and the bucket list', () => {
+  it('keeps a timeline with an itinerary, private to its owner', async () => {
+    const u = await named('Wole O.'); const other = await named('Other');
+    expect((await u.api.post('/trips', { title: 'Back to front', place: 'Rome', countryCode: 'IT', startDate: '2027-01-10', endDate: '2027-01-02' }, null).expect(400)).body.code).toBe('dates_out_of_order');
+    const future = (await u.api.post('/trips', { title: 'Dolomites trip', place: 'Dolomites, Italy', countryCode: 'it', startDate: '2099-12-12', endDate: '2099-12-19', travellers: 2 }, null).expect(201)).body;
+    expect(future).toMatchObject({ status: 'upcoming', nights: 7, countryCode: 'IT' }); expect(future.daysAway).toBeGreaterThan(1000);
+    await u.api.post('/trips', { title: 'Iceland ring road', place: 'Iceland', countryCode: 'IS', startDate: '2025-07-04', endDate: '2025-07-11' }, null).expect(201);
+    expect(((await u.api.get('/trips')).body as { status: string }[]).map((t) => t.status)).toEqual(['upcoming', 'past']);
+    expect((await u.api.post(`/trips/${future.id}/items`, { day: '2099-11-01', time: '09:00', title: 'Too early' }, null).expect(400)).body.code).toBe('day_outside_trip');
+    await u.api.post(`/trips/${future.id}/items`, { day: '2099-12-13', time: '09:00', title: 'Tre Cime loop hike', note: 'About 10 km' }, null).expect(201);
+    const full = (await u.api.post(`/trips/${future.id}/items`, { day: '2099-12-13', time: '07:30', title: 'Drive to Rifugio Auronzo' }, null).expect(201)).body;
+    expect(full.itinerary.map((i: { time: string }) => i.time)).toEqual(['07:30', '09:00']);
+    await other.api.get(`/trips/${future.id}`).expect(404);
+    await other.api.post(`/trips/${future.id}/items`, { day: '2099-12-13', time: '10:00', title: 'Not mine' }, null).expect(404);
+    await u.api.post('/bucket-list', { title: 'Swim a hidden cove', source: 'tip:abc' }, null).expect(200);
+    const list = (await u.api.post('/bucket-list', { title: 'Swim a hidden cove', source: 'tip:abc' }, null).expect(200)).body; // adding twice keeps one
+    expect(list).toHaveLength(1);
+    expect((await u.api.patch(`/bucket-list/${list[0].id}`, { state: 'done' }).expect(200)).body[0].state).toBe('done');
+  });
+  it('shows a matching past trip to the moderator as evidence of the visit', async () => {
+    const u = await named('Ifeoma N.'); const mod = await staff('moderator');
+    await u.api.post('/trips', { title: 'Accra weekend', place: 'Accra, Ghana', countryCode: 'GH', startDate: '2026-01-16', endDate: '2026-01-19' }, null).expect(201);
+    await u.api.post('/trips', { title: 'Tokyo next year', place: 'Tokyo, Japan', countryCode: 'JP', startDate: '2099-03-01', endDate: '2099-03-09' }, null).expect(201);
+    const gh = (await u.api.post('/advice', { countryCode: 'GH', city: 'Accra', topic: 'Getting around', body: 'Use the ride apps from Kotoka. The taxi rank quotes about double.' }, null)).body;
+    const jp = (await u.api.post('/advice', { countryCode: 'JP', city: 'Tokyo', topic: 'Money', body: 'You need cash for most small restaurants, so withdraw at the airport.' }, null)).body;
+    const items = (await mod.get('/advice?queue=waiting')).body.items as { id: string; evidence: string[] }[];
+    expect(items.find((x) => x.id === gh.id)!.evidence).toEqual(['Trip on timeline: Accra weekend, 16 Jan 2026 to 19 Jan 2026']);
+    expect(items.find((x) => x.id === jp.id)!.evidence).toEqual([]); // a trip that has not started proves nothing
+  });
+});

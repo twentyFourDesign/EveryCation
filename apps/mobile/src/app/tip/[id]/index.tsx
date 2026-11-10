@@ -10,6 +10,7 @@ import { initials, isUuid, tipImage, useLikeTip, useTip } from '@/lib/community'
 import { person } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { useApp } from '@/lib/store';
+import { useAddBucket, useBucket } from '@/lib/trips';
 
 /** One shape for the screen, whether the tip came from the API or is one of the bundled samples that place pages still link to. */
 function useTipView(id: string) {
@@ -28,10 +29,11 @@ export default function TipDetail() {
   const { tip, isLoading, error, live } = useTipView(id);
   const like = useLikeTip();
   const signedIn = useSession((s) => s.status === 'signedIn');
-  const { bucket, savedTips, toggle } = useApp();
+  const { savedTips, toggle } = useApp();
+  const bucket = useBucket(); const addBucket = useAddBucket();
   if (isLoading) return <Screen title=""><Loading what="this tip" /></Screen>;
   if (!tip) return <Screen title="Tip"><Note tone="danger">{error ? errorMessage(error) : 'This tip is no longer available.'}</Note></Screen>;
-  const inBucket = bucket.includes(tip.id); const saved = savedTips.includes(tip.id);
+  const source = `tip:${tip.id}`; const inBucket = !!bucket.data?.some((b) => b.source === source); const saved = savedTips.includes(tip.id);
   return (
     <View className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
@@ -63,7 +65,7 @@ export default function TipDetail() {
       </ScrollView>
       <SafeAreaView edges={['bottom']} className="border-t border-line bg-white">
         <View className="w-full max-w-[520px] self-center px-5 py-3">
-          <Button label={inBucket ? 'ON YOUR BUCKET LIST ✓' : 'ADD TO BUCKET LIST'} variant={inBucket ? 'outline' : 'primary'} onPress={() => toggle('bucket', tip.id)} />
+          <Button label={inBucket ? 'ON YOUR BUCKET LIST ✓' : 'ADD TO BUCKET LIST'} variant={inBucket ? 'outline' : 'primary'} disabled={inBucket} onPress={() => (signedIn ? addBucket.mutate({ title: tip.title, source }) : router.push('/sign-up'))} />
         </View>
       </SafeAreaView>
     </View>

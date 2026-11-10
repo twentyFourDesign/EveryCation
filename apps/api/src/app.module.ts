@@ -9,6 +9,7 @@ import { Database, DbModule } from './db/db.module.js';
 import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
 import { CommunityModule } from './modules/community/community.module.js';
+import { TripsModule } from './modules/trips/trips.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 
 @Controller('health')
@@ -31,6 +32,7 @@ class ConfigModule {}
     WalletModule,
     CommunityModule,
     AdminModule,
+    TripsModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: AuthGuard }],

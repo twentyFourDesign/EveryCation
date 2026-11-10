@@ -288,3 +288,41 @@ export const notifications = pgTable('notifications', {
   readAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)]);
+
+// ───────────── Trips ─────────────
+
+export const trips = pgTable('trips', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  title: text().notNull(),
+  place: text().notNull(),
+  countryCode: text().notNull(),
+  startDate: date().notNull(),
+  endDate: date().notNull(),
+  travellers: integer().notNull().default(1),
+  imageKey: text(),
+  createdAt: createdAt(),
+}, (t) => [index('trips_user_idx').on(t.userId, t.startDate), check('trips_dates_in_order', sql`${t.endDate} >= ${t.startDate}`)]);
+
+export const itineraryItems = pgTable('itinerary_items', {
+  id: id(),
+  tripId: uuid().notNull().references(() => trips.id, { onDelete: 'cascade' }),
+  day: date().notNull(),
+  time: text().notNull(),
+  title: text().notNull(),
+  note: text().notNull().default(''),
+  remind: text(),
+  createdAt: createdAt(),
+}, (t) => [index('itinerary_trip_idx').on(t.tripId, t.day, t.time)]);
+
+export const bucketState = pgEnum('bucket_state', ['dream', 'done']);
+export const bucketItems = pgTable('bucket_items', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  title: text().notNull(),
+  state: bucketState().notNull().default('dream'),
+  /** Where it came from: a tip or a place, so the same thing is not added twice. */
+  source: text(),
+  imageKey: text(),
+  createdAt: createdAt(),
+}, (t) => [index('bucket_user_idx').on(t.userId), uniqueIndex('bucket_source_once_idx').on(t.userId, t.source)]);

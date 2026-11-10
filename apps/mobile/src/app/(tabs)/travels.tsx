@@ -1,129 +1,135 @@
-import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarCheck, Check, ChevronLeft, ChevronRight, MapPin, Package, PiggyBank, Plane, Plus } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, MapPin, Plane, Plus, Trash2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { api, sample } from '@everycation/shared';
-import { Avatar, Badge, Button, Chips, IconButton, Input, Loading, Photo, Progress, Screen, Stats, T, colors, cx, go } from '@/ui';
-import { useApp } from '@/lib/store';
+import { Avatar, Badge, Button, Chips, Empty, IconButton, Input, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
+import { errorMessage } from '@/lib/api';
+import { countryName, initials } from '@/lib/community';
+import { useSession } from '@/lib/session';
+import { fmt, tripDates, tripImage, useAddBucket, useBucket, useRemoveBucket, useSetBucketState, useTrips, type Trip } from '@/lib/trips';
 
 const views = ['Timeline', 'Bucket list', 'Calendar', 'Map'] as const;
 type ViewName = (typeof views)[number];
 
-function Timeline() {
-  const { data, isLoading } = useQuery({ queryKey: ['trips'], queryFn: api.trips });
-  if (isLoading) return <Loading what="your trips" />;
-  const next = data?.find((t) => t.status === 'upcoming');
+function Timeline({ trips }: { trips: Trip[] }) {
+  const next = [...trips].reverse().find((t) => t.status !== 'past');
+  const past = trips.filter((t) => t.status === 'past');
   return (
     <>
+      {trips.length === 0 && <View className="gap-3 rounded-card bg-surface-muted p-4"><T v="strong">No trips yet</T><T v="small">Add a trip you are planning, or ones you have already taken. Past trips back up the advice you share.</T></View>}
       {next && (
-        <Pressable accessibilityRole="button" accessibilityLabel={`Next trip, ${next.place}, in ${next.daysAway} days`} onPress={() => go(`/trip/${next.id}`)} className="overflow-hidden rounded-card bg-navy active:opacity-90">
-          <Photo k={next.image} className="h-[170px]" />
-          <View className="gap-1 p-4"><Text className="font-pop-sb text-[11px] tracking-widest text-gold">NEXT TRIP</Text><Text className="font-pop-sb text-xl text-white">{next.place}</Text>
-            <Text className="font-pop text-[13px] text-navy-text-soft">12 – 19 Dec 2026</Text><Text className="pt-1 font-pop-sb text-[13px] text-gold">In {next.daysAway} days · View trip →</Text></View>
+        <Pressable accessibilityRole="button" accessibilityLabel={`Next trip, ${next.place}`} onPress={() => go(`/trip/${next.id}`)} className="overflow-hidden rounded-card bg-navy active:opacity-90">
+          <Photo k={tripImage(next)} className="h-[170px]" />
+          <View className="gap-1 p-4"><Text className="font-pop-sb text-[11px] tracking-widest text-gold">{next.status === 'now' ? 'HAPPENING NOW' : 'NEXT TRIP'}</Text><Text className="font-pop-sb text-xl text-white">{next.place}</Text>
+            <Text className="font-pop text-[13px] text-navy-text-soft">{tripDates(next)}</Text><Text className="pt-1 font-pop-sb text-[13px] text-gold">{next.status === 'upcoming' ? `In ${next.daysAway} days · ` : ''}View trip →</Text></View>
         </Pressable>
       )}
-      {data?.filter((t) => t.status === 'past').map((t) => (
+      {past.map((t) => (
         <View key={t.id} className="gap-2">
-          <T v="eyebrow" className="text-ink-muted">{t.month}</T>
+          <T v="eyebrow" className="text-ink-muted">{fmt(t.startDate, { month: 'long', year: 'numeric' }).toUpperCase()}</T>
           <Pressable accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/trip/${t.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3 active:opacity-80">
-            <Photo k={t.image} className="h-[72px] w-[72px] rounded-2xl" /><View className="flex-1"><T v="strong">{t.title}</T><T v="small">{t.nights} nights · {t.tipsRecorded} tips recorded</T></View><ChevronRight size={18} color={colors.inkMuted} />
+            <Photo k={tripImage(t)} className="h-[72px] w-[72px] rounded-2xl" /><View className="flex-1"><T v="strong">{t.title}</T><T v="small">{t.place} · {t.nights} nights</T></View><ChevronRight size={18} color={colors.inkMuted} />
           </Pressable>
         </View>
       ))}
+      <Button variant="outline" icon={Plus} label="Add a trip" onPress={() => router.push('/trip/new')} />
     </>
   );
 }
 
 function BucketList() {
-  const { data = [] } = useQuery({ queryKey: ['bucket'], queryFn: api.bucketList });
-  const { bucket } = useApp();
-  const { data: tips = [] } = useQuery({ queryKey: ['tips'], queryFn: () => api.tips() });
-  const [dream, setDream] = useState(''); const [adding, setAdding] = useState(false); const [mine, setMine] = useState<string[]>([]);
-  const added = [...tips.filter((t) => bucket.includes(t.id)).map((t) => ({ title: t.title, image: t.image })), ...sample.places.filter((p) => bucket.includes(`place:${p.id}`)).map((p) => ({ title: `Visit ${p.name}`, image: p.image }))];
+  const { data = [], isLoading, error } = useBucket();
+  const add = useAddBucket(); const setState = useSetBucketState(); const remove = useRemoveBucket();
+  const [dream, setDream] = useState('');
   const done = data.filter((b) => b.state === 'done').length;
+  if (isLoading) return <Loading what="your bucket list" />;
   return (
     <>
-      <View className="flex-row items-center justify-between"><T v="strong">{done} of {data.length + added.length + mine.length} ticked off</T><Button small variant="outline" icon={Plus} label="Add a dream" onPress={() => setAdding((v) => !v)} /></View>
-      {adding && <View className="flex-row items-end gap-2"><View className="flex-1"><Input label="What do you dream of doing?" value={dream} onChangeText={setDream} placeholder="See the northern lights" /></View><Button small variant="navy" label="Add" disabled={dream.trim().length < 3} onPress={() => { setMine((m) => [...m, dream.trim()]); setDream(''); setAdding(false); }} className="mb-1.5 h-[52px]" /></View>}
-      {mine.map((m) => <View key={m} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3"><View className="h-16 w-16 items-center justify-center rounded-2xl bg-tint"><MapPin size={24} color={colors.navy} /></View><View className="flex-1 gap-1"><Badge label="Dream" tone="neutral" /><T v="strong">{m}</T></View></View>)}
-      {added.map((a) => <View key={a.title} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3"><Photo k={a.image} className="h-16 w-16 rounded-2xl" /><View className="flex-1 gap-1"><Badge label="Dream · just added" tone="gold" /><T v="strong">{a.title}</T></View></View>)}
+      {!!error && <Note tone="danger">{errorMessage(error)}</Note>}
+      <T v="strong">{data.length ? `${done} of ${data.length} ticked off` : 'Start your bucket list'}</T>
+      <View className="flex-row items-end gap-2"><View className="flex-1"><Input value={dream} onChangeText={setDream} placeholder="See the northern lights" accessibilityLabel="Add a dream" maxLength={80} /></View>
+        <Button small variant="navy" label="Add" disabled={dream.trim().length < 3 || add.isPending} onPress={() => add.mutate({ title: dream.trim() }, { onSuccess: () => setDream('') })} className="h-[52px]" /></View>
+      {data.length === 0 && <Empty>Add places from tips and place pages, or type your own above.</Empty>}
       {data.map((b) => (
         <View key={b.id} className={cx('flex-row items-center gap-3 rounded-card bg-surface-muted p-3', b.state === 'done' && 'opacity-70')}>
-          <Photo k={b.image} className="h-16 w-16 rounded-2xl" />
-          <View className="flex-1 gap-1.5"><Badge icon={b.state === 'done' ? Check : undefined} label={b.label} tone={b.state === 'done' ? 'info' : b.state === 'dream' ? 'neutral' : 'gold'} /><T v="strong">{b.title}</T>
-            {b.savedPct !== undefined && <Pressable accessibilityRole="button" onPress={() => router.navigate('/wallet')} className="gap-1"><Progress pct={b.savedPct} /><T v="small" className="text-xs">{b.savedPct}% saved</T></Pressable>}
+          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: b.state === 'done' }} accessibilityLabel={`${b.title}, ${b.state === 'done' ? 'done' : 'not done yet'}`} hitSlop={8} onPress={() => setState.mutate({ id: b.id, state: b.state === 'done' ? 'dream' : 'done' })}
+            className={cx('h-8 w-8 items-center justify-center rounded-full border-2', b.state === 'done' ? 'border-navy bg-navy' : 'border-control-border bg-white')}>{b.state === 'done' && <Check size={16} color="#fff" strokeWidth={3} />}</Pressable>
+          <View className="flex-1 gap-1"><Badge label={b.state === 'done' ? 'Done' : 'Dream'} tone={b.state === 'done' ? 'info' : 'gold'} /><T v="strong">{b.title}</T>
             {b.state === 'dream' && <Text accessibilityRole="link" onPress={() => router.push({ pathname: '/wallet/new-goal', params: { name: b.title } })} className="font-pop-sb text-[13px] text-heading-blue">Start saving →</Text>}</View>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${b.title}`} hitSlop={10} onPress={() => remove.mutate(b.id)}><Trash2 size={18} color={colors.inkMuted} /></Pressable>
         </View>
       ))}
     </>
   );
 }
 
-function Calendar() {
-  const { data = [] } = useQuery({ queryKey: ['calendar'], queryFn: api.calendar });
-  const [picked, setPicked] = useState<number | null>(null);
-  const lead = 1; // 1 December 2026 is a Tuesday
-  const cells = [...Array<null>(lead).fill(null), ...Array.from({ length: 31 }, (_, i) => i + 1)];
-  const inTrip = (d: number) => d >= 12 && d <= 19; const fridays = [4, 11, 18, 25];
-  const icons = { trip: Plane, save: PiggyBank, order: Package };
-  const shown = data.filter((e) => picked === null || (e.kind === 'save' ? fridays.includes(picked) : picked >= e.day && picked <= (e.endDay ?? e.day)));
+function Calendar({ trips }: { trips: Trip[] }) {
+  const [month, setMonth] = useState(() => { const first = [...trips].reverse().find((t) => t.status !== 'past'); const d = first ? new Date(`${first.startDate}T00:00:00Z`) : new Date(); return { y: d.getUTCFullYear(), m: d.getUTCMonth() }; });
+  const [picked, setPicked] = useState<string | null>(null);
+  const first = new Date(Date.UTC(month.y, month.m, 1)); const count = new Date(Date.UTC(month.y, month.m + 1, 0)).getUTCDate(); const lead = (first.getUTCDay() + 6) % 7;
+  const iso = (d: number) => `${month.y}-${String(month.m + 1).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+  const on = (day: string) => trips.filter((t) => t.startDate <= day && t.endDate >= day);
+  const inMonth = trips.filter((t) => t.startDate <= iso(count) && t.endDate >= iso(1));
+  const shown = picked ? on(picked) : inMonth;
+  const step = (n: number) => { setPicked(null); setMonth(({ y, m }) => { const d = new Date(Date.UTC(y, m + n, 1)); return { y: d.getUTCFullYear(), m: d.getUTCMonth() }; }); };
   return (
     <>
       <View className="flex-row items-center justify-between">
-        <IconButton icon={ChevronLeft} label="Previous month" />
-        <View className="items-center"><T v="title">December 2026</T><View className="flex-row items-center gap-1"><CalendarCheck size={12} color={colors.navy} /><T v="small" className="text-xs">Synced with Google Calendar</T></View></View>
-        <IconButton icon={ChevronRight} label="Next month" />
+        <IconButton icon={ChevronLeft} label="Previous month" onPress={() => step(-1)} />
+        <T v="title">{first.toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' })}</T>
+        <IconButton icon={ChevronRight} label="Next month" onPress={() => step(1)} />
       </View>
       <View className="flex-row flex-wrap">
         {['M', 'T', 'W', 'T', 'F', 'S', 'S'].map((d, i) => <View key={i} className="w-[14.28%] items-center pb-1"><T v="small" className="text-xs">{d}</T></View>)}
-        {cells.map((d, i) => d === null ? <View key={`b${i}`} className="w-[14.28%]" /> : (
-          <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${d} December${inTrip(d) ? ', Dolomites trip' : ''}`} accessibilityState={{ selected: picked === d }} onPress={() => setPicked(picked === d ? null : d)} className="h-12 w-[14.28%] items-center justify-center">
-            <View className={cx('h-10 w-10 items-center justify-center rounded-full', inTrip(d) && 'bg-navy', picked === d && 'border-2 border-gold')}>
-              <Text className={cx('font-pop-md text-sm', inTrip(d) ? 'text-white' : 'text-ink')}>{d}</Text>
-              {(fridays.includes(d) || d === 9) && <View className={cx('absolute bottom-1 h-1 w-1 rounded-full', d === 9 ? 'bg-sky' : 'bg-gold')} />}
-            </View>
-          </Pressable>
-        ))}
+        {Array.from({ length: lead }, (_, i) => <View key={`b${i}`} className="w-[14.28%]" />)}
+        {Array.from({ length: count }, (_, i) => i + 1).map((d) => { const day = iso(d); const busy = on(day).length > 0; return (
+          <Pressable key={d} accessibilityRole="button" accessibilityLabel={`${fmt(day)}${busy ? `, ${on(day)[0]!.title}` : ''}`} accessibilityState={{ selected: picked === day }} onPress={() => setPicked(picked === day ? null : day)} className="h-12 w-[14.28%] items-center justify-center">
+            <View className={cx('h-10 w-10 items-center justify-center rounded-full', busy && 'bg-navy', picked === day && 'border-2 border-gold')}><Text className={cx('font-pop-md text-sm', busy ? 'text-white' : 'text-ink')}>{d}</Text></View>
+          </Pressable>); })}
       </View>
-      {shown.length === 0 && <T v="small" className="text-center">Nothing on {picked} December.</T>}
-      {shown.map((e) => { const Icon = icons[e.kind]; return (
-        <Pressable key={e.id} accessibilityRole="button" onPress={() => go(e.href)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5 active:opacity-80">
-          <View className={cx('h-10 w-10 items-center justify-center rounded-full', e.kind === 'trip' ? 'bg-navy' : e.kind === 'save' ? 'bg-gold-soft' : 'bg-tint')}><Icon size={20} color={e.kind === 'trip' ? '#fff' : colors.navy} /></View>
-          <View className="flex-1"><T v="strong">{e.title}</T><T v="small">{e.detail}</T></View><ChevronRight size={18} color={colors.inkMuted} />
-        </Pressable>); })}
+      {shown.length === 0 && <T v="small" className="text-center">{picked ? `Nothing on ${fmt(picked, { day: 'numeric', month: 'long' })}.` : 'No trips this month.'}</T>}
+      {shown.map((t) => (
+        <Pressable key={t.id} accessibilityRole="button" onPress={() => go(`/trip/${t.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5 active:opacity-80">
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-navy"><Plane size={20} color="#fff" /></View>
+          <View className="flex-1"><T v="strong">{t.title}</T><T v="small">{tripDates(t)} · {t.nights} nights</T></View><ChevronRight size={18} color={colors.inkMuted} />
+        </Pressable>
+      ))}
+      <T v="small" className="text-center text-xs">Google Calendar sync is not connected yet. Your trips are saved here.</T>
     </>
   );
 }
 
-const pins = [{ n: 'Lagos · home', x: 47, y: 56, k: 'home' }, { n: 'Iceland', x: 39, y: 14, k: 'visited' }, { n: 'Egypt', x: 56, y: 40, k: 'visited' }, { n: 'Bali', x: 84, y: 64, k: 'visited' }, { n: 'Dolomites', x: 51, y: 26, k: 'planned' }] as const;
-function TravelMap() {
-  const [place, setPlace] = useState(''); const [added, setAdded] = useState<string[]>([]);
-  const tone = { home: 'bg-gold', visited: 'bg-navy', planned: 'bg-cyan' };
+function TravelMap({ trips }: { trips: Trip[] }) {
+  const visited = [...new Set(trips.filter((t) => t.status !== 'upcoming').map((t) => t.countryCode))]; const planned = [...new Set(trips.filter((t) => t.status === 'upcoming').map((t) => t.countryCode))].filter((c) => !visited.includes(c));
+  const nights = trips.filter((t) => t.status === 'past').reduce((n, t) => n + t.nights, 0);
+  const Row = ({ code, tone }: { code: string; tone: string }) => <View className="flex-row items-center gap-3 border-b border-line py-3"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="strong" className="flex-1">{countryName(code)}</T><MapPin size={16} color={colors.inkMuted} /></View>;
   return (
     <>
-      {/* Placeholder until Mapbox tiles are wired in (needs an access token and a development build). */}
-      <View accessibilityLabel="Map of places you have visited and planned" className="h-[300px] overflow-hidden rounded-card bg-tint">
-        {pins.map((p) => <View key={p.n} style={{ left: `${p.x}%`, top: `${p.y}%` }} className="absolute items-center"><View className={cx('h-4 w-4 rounded-full border-2 border-white', tone[p.k])} /><Text className="font-pop-sb text-[10px] text-navy">{p.n}</Text></View>)}
-        <Text className="absolute bottom-2 right-3 font-pop text-[10px] text-ink-muted">Map tiles: Mapbox (to be connected)</Text>
-      </View>
-      <View className="flex-row items-end gap-2"><View className="flex-1"><Input value={place} onChangeText={setPlace} placeholder="Add a place you've been" accessibilityLabel="Add a place you've been" /></View><Button small variant="navy" label="Add" disabled={place.trim().length < 2} onPress={() => { setAdded((a) => [...a, place.trim()]); setPlace(''); }} className="h-[52px]" /></View>
-      {added.length > 0 && <T v="small">Added: {added.join(', ')}</T>}
       <T v="title" className="text-lg">Your travel map</T>
-      <Stats items={[[3 + added.length, 'countries'], [21, 'nights away'], [9, 'tips shared']]} />
-      <View className="flex-row gap-4">{(['visited', 'planned', 'home'] as const).map((k) => <View key={k} className="flex-row items-center gap-1.5"><View className={cx('h-3 w-3 rounded-full', tone[k])} /><T v="small" className="capitalize">{k}</T></View>)}</View>
+      <Stats items={[[visited.length, 'countries'], [nights, 'nights away'], [trips.length, 'trips']]} />
+      {/* The world map itself needs Mapbox tiles (an access token and a development build); the countries come from your trips. */}
+      {visited.length + planned.length === 0 ? <Empty>Add a trip and the countries you have visited show here.</Empty> : (
+        <View>{visited.map((c) => <Row key={c} code={c} tone="bg-navy" />)}{planned.map((c) => <Row key={c} code={c} tone="bg-cyan" />)}</View>
+      )}
+      <View className="flex-row gap-4">{([['Visited', 'bg-navy'], ['Planned', 'bg-cyan']] as const).map(([l, tone]) => <View key={l} className="flex-row items-center gap-1.5"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="small">{l}</T></View>)}</View>
     </>
   );
 }
 
 export default function MyTravels() {
   const params = useLocalSearchParams<{ view?: string }>();
+  const { status, me } = useSession();
+  const { data: trips, isLoading, error } = useTrips();
   const [view, setView] = useState<ViewName>(views.includes(params.view as ViewName) ? (params.view as ViewName) : 'Timeline');
+  if (status !== 'signedIn') return (
+    <Screen edges={['top']} title="My travels" back={false}><View className="gap-4 pt-10"><T v="h2" className="text-center">Keep every journey in one place</T><T className="text-center text-ink-muted">Sign in to save your trips, plan each day and build a bucket list.</T><Button label="SIGN IN" onPress={() => router.push('/sign-up')} /></View></Screen>
+  );
   return (
     <Screen edges={['top']} title="My travels" back={false}
-      right={view === 'Calendar' ? <IconButton icon={Plus} label="Add to calendar" onPress={() => router.push('/calendar-add')} /> : <View className="pr-2"><Avatar initials={sample.me.initials} onPress={() => router.push('/profile')} /></View>}>
+      right={view === 'Calendar' ? <IconButton icon={Plus} label="Add to itinerary" onPress={() => router.push('/calendar-add')} /> : <View className="pr-2"><Avatar initials={initials(me?.name ?? 'You')} onPress={() => router.push('/profile')} /></View>}>
       <Chips options={views} value={view} onChange={setView} />
-      {view === 'Timeline' ? <Timeline /> : view === 'Bucket list' ? <BucketList /> : view === 'Calendar' ? <Calendar /> : <TravelMap />}
+      {!!error && <Note tone="danger">{errorMessage(error)}</Note>}
+      {isLoading ? <Loading what="your trips" /> : view === 'Timeline' ? <Timeline trips={trips ?? []} /> : view === 'Bucket list' ? <BucketList /> : view === 'Calendar' ? <Calendar trips={trips ?? []} /> : <TravelMap trips={trips ?? []} />}
     </Screen>
   );
 }
