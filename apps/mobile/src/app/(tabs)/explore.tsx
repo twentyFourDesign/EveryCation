@@ -8,7 +8,7 @@ import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, color
 import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
 
 const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Advice'] as const;
-const links: Record<string, string> = { Community: '/community', Places: '/place/bali', 'Trip plans': '/plans', Advice: '/advice' };
+const links: Record<string, string> = { Community: '/community', Places: '/places', 'Trip plans': '/plans', Advice: '/advice' };
 
 export default function Explore() {
   const tips = useTips('popular');
@@ -22,7 +22,7 @@ export default function Explore() {
       </View>
       <T v="h1">Where to next?</T>
       <Pressable accessibilityRole="search" accessibilityLabel="Search places, tips and trip plans" onPress={() => router.push('/search')} className="h-[52px] flex-row items-center gap-3 rounded-full bg-surface-muted px-4">
-        <Search size={20} color={colors.inkMuted} /><T className="text-ink-muted">Search places, tips, trip plans</T>
+        <Search size={20} color={colors.inkMuted} /><T className="text-ink-muted">Search places, tips, travellers</T>
       </Pressable>
       <Chips options={sections} value="For you" onChange={(s) => links[s] && go(links[s])} />
 

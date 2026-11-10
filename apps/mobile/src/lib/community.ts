@@ -55,3 +55,16 @@ export const useReport = () => useMutation({ mutationFn: (b: { targetType: 'tip'
 export const useShareAdvice = () => useMutation({ mutationFn: (b: { countryCode: string; city: string; topic: string; body: string; visited?: string; showPassport: boolean }) => api<{ id: string }>('/advice', { method: 'POST', body: b }), onSuccess: refreshAdvice });
 export const useReviseAdvice = () => useMutation({ mutationFn: (b: { id: string; body: string }) => api(`/advice/${b.id}`, { method: 'PATCH', body: { body: b.body } }), onSuccess: refreshAdvice });
 export const useMarkHelpful = () => useMutation({ mutationFn: (id: string) => api<{ markedHelpful: boolean; helpful: number }>(`/advice/${id}/helpful`, { method: 'POST' }), onSuccess: refreshAdvice });
+
+// ───────────── Places, travellers, search ─────────────
+export interface Place { id: string; name: string; kind: string; countryCode: string; summary: string; bestTime: string | null; currency: string | null; imageKey: string | null }
+export interface PlaceDetail extends Place { tips: Tip[]; verifiedAdvice: number }
+export interface Traveller extends Profile { followers: number; following: number; followedByMe: boolean; isMe: boolean }
+export interface SearchResults { places: Place[]; tips: Tip[]; travellers: (Author & { tips: number })[]; advice: { countryCode: string; city: string; verified: number }[] }
+export const placeImage = (p: Pick<Place, 'imageKey'>): ImageKey => (p.imageKey && p.imageKey in photos ? (p.imageKey as ImageKey) : 'lagoon-aerial');
+export const usePlaces = () => useQuery({ queryKey: ['places'], queryFn: () => api<Place[]>('/places') });
+export const usePlace = (id: string) => { const w = useWho(); return useQuery({ queryKey: ['places', id, w], queryFn: () => api<PlaceDetail>(`/places/${id}`) }); };
+export const useTraveller = (id: string) => { const w = useWho(); return useQuery({ queryKey: ['traveller', id, w], queryFn: () => api<Traveller>(`/travellers/${id}`), enabled: isUuid(id) }); };
+export const useSearch = (q: string) => { const w = useWho(); return useQuery({ queryKey: ['search', q, w], queryFn: () => api<SearchResults>(`/search?q=${encodeURIComponent(q)}`), enabled: q.trim().length >= 2, placeholderData: (p) => p }); };
+export const useFollowingFeed = (on: boolean) => { const w = useWho(); return useQuery({ queryKey: ['tips', 'following', w], queryFn: () => api<Tip[]>('/feed/following'), enabled: on && w !== 'guest' }); };
+export const useFollow = () => useMutation({ mutationFn: (id: string) => api<{ following: boolean }>(`/travellers/${id}/follow`, { method: 'POST' }), onSuccess: () => queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'traveller' || q.queryKey[0] === 'tips' }) });

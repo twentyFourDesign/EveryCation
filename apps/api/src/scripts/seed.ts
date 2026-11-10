@@ -4,7 +4,7 @@ import { eq } from 'drizzle-orm';
 import { AppModule } from '../app.module.js';
 import { CONFIG, type Config } from '../config.js';
 import { Database } from '../db/db.module.js';
-import { admins, advice, comments, tips, users } from '../db/schema.js';
+import { admins, advice, comments, places, tips, users } from '../db/schema.js';
 import { AdminAuthService } from '../modules/admin/admin-auth.js';
 import { otpauthUrl, totpCode } from '../modules/admin/totp.js';
 
@@ -54,6 +54,15 @@ if (!existing) {
   ]);
   console.log('Added 3 travellers, 5 tips, 3 comments and 7 pieces of advice (3 waiting for review).');
 } else console.log('Sample travellers already exist.');
+
+await db.insert(places).values([
+  { slug: 'bali', name: 'Bali', kind: 'Island', countryCode: 'ID', imageKey: 'bali-temple', bestTime: 'Apr – Oct', currency: 'Rupiah (IDR)', summary: 'Temples on lakes, rice terraces, surf beaches and day trips to the Nusa islands.' },
+  { slug: 'dolomites', name: 'Dolomites', kind: 'Mountains', countryCode: 'IT', imageKey: 'alpine-lake', bestTime: 'Jun – Sep, Dec – Mar', currency: 'Euro (EUR)', summary: 'Sharp limestone peaks, mirror lakes and mountain huts linked by well-marked trails.' },
+  { slug: 'venice', name: 'Venice', kind: 'City', countryCode: 'IT', imageKey: 'venice-canal', bestTime: 'Apr – Jun, Sep – Oct', currency: 'Euro (EUR)', summary: 'Canals, islands of glass and lace, and no cars at all.' },
+  { slug: 'accra', name: 'Accra', kind: 'City', countryCode: 'GH', imageKey: 'lagoon-aerial', bestTime: 'Nov – Mar', currency: 'Cedi (GHS)', summary: 'Beach bars, markets, live music and a short flight from Lagos.' },
+  { slug: 'iceland', name: 'Iceland', kind: 'Country', countryCode: 'IS', imageKey: 'waterfall', bestTime: 'Jun – Aug', currency: 'Króna (ISK)', summary: 'Waterfalls, glaciers and a ring road that links them all.' },
+]).onConflictDoNothing();
+console.log('Places are in place.');
 
 const email = 'admin@everycation.app';
 let [admin] = await db.select().from(admins).where(eq(admins.email, email));

@@ -3,7 +3,7 @@ import { BadgeCheck, Clock, PenLine, Share2 } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { sample } from '@everycation/shared';
-import { Avatar, Badge, Button, Chips, Empty, IconButton, Loading, Note, Screen, T, Toggle, cx } from '@/ui';
+import { Avatar, Badge, Button, Chips, Empty, IconButton, Loading, Note, Screen, T, Toggle, cx, go } from '@/ui';
 import { errorMessage } from '@/lib/api';
 import { countryName, initials, useCountryAdvice, useMarkHelpful, useReport, type Advice } from '@/lib/community';
 import { useSession } from '@/lib/session';
@@ -50,7 +50,7 @@ export default function CountryAdvice() {
         return (
           <View key={a.id} className="gap-3 rounded-card bg-surface-muted p-4">
             <View className="flex-row items-center gap-3">
-              <Avatar initials={initials(a.author.name)} />
+              <Avatar initials={initials(a.author.name)} onPress={() => go(`/traveller/${a.author.id}`)} />
               <View className="flex-1 gap-1"><T v="strong">{a.mine ? 'You' : a.author.name}</T>
                 <View className="flex-row flex-wrap items-center gap-1.5"><Badge icon={verified ? BadgeCheck : Clock} tone={s.tone} label={s.label} /><T v="small" className="text-xs">{a.city}{a.visited ? ` · ${a.visited}` : ''}</T></View></View>
             </View>

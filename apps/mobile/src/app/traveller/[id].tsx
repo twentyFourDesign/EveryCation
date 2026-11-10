@@ -1,43 +1,40 @@
-import { useQuery } from '@tanstack/react-query';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { Share2 } from 'lucide-react-native';
-import { useState } from 'react';
 import { Pressable, Share, View } from 'react-native';
-import { api, sample } from '@everycation/shared';
-import { Avatar, Badge, Button, Empty, IconButton, Photo, Screen, Segmented, Stats, T, go } from '@/ui';
-import { useApp } from '@/lib/store';
-
-const tabs = ['Tips', 'Places visited', 'Bucket list'] as const;
+import { Avatar, Button, Empty, IconButton, Loading, Note, Photo, Screen, SectionTitle, Stats, T, go } from '@/ui';
+import { errorMessage } from '@/lib/api';
+import { initials, tipImage, tipPhoto, useFollow, useTipsBy, useTraveller } from '@/lib/community';
+import { useSession } from '@/lib/session';
 
 export default function TravellerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { data: t } = useQuery({ queryKey: ['traveller', id], queryFn: () => api.traveller(id) });
-  const { data: tips = [] } = useQuery({ queryKey: ['tips', id], queryFn: () => api.tips({ authorId: id }) });
-  const [tab, setTab] = useState<(typeof tabs)[number]>('Tips');
-  const { following, toggle } = useApp();
-  if (!t) return null;
-  const follows = following.includes(t.id);
-  const share = () => Share.share({ message: `${t.name} on EveryCation · ${t.handle}` });
+  const { data: t, isLoading, error } = useTraveller(id);
+  const { data: tips = [] } = useTipsBy(id);
+  const follow = useFollow();
+  const signedIn = useSession((s) => s.status === 'signedIn');
+  if (isLoading) return <Screen title=""><Loading what="this profile" /></Screen>;
+  if (!t) return <Screen title="Traveller"><Note tone="danger">{error ? errorMessage(error) : 'This traveller could not be found.'}</Note></Screen>;
+  const share = () => Share.share({ message: `${t.name} on EveryCation${t.handle ? ` · @${t.handle}` : ''}` });
   return (
     <Screen title="" right={<IconButton icon={Share2} label="Share profile" onPress={share} />}>
       <View className="items-center gap-2">
-        <Avatar initials={t.initials} size={88} />
-        <T v="h2">{t.name}</T><T v="small">{t.handle} · {t.city}</T>
-        {t.badge && <Badge label={t.badge} tone="gold" />}
-        <T className="text-center">{t.bio}</T>
+        <Avatar initials={initials(t.name)} size={88} />
+        <T v="h2">{t.name}</T>
+        {(t.handle || t.city) && <T v="small">{[t.handle && `@${t.handle}`, t.city].filter(Boolean).join(' · ')}</T>}
+        {!!t.bio && <T className="text-center">{t.bio}</T>}
       </View>
-      <Stats items={[[t.countries, 'countries'], [t.tips, 'tips'], [t.followers, 'followers']]} />
-      <View className="flex-row gap-3">
-        <Button className="flex-1" variant={follows ? 'outline' : 'primary'} label={follows ? 'FOLLOWING' : 'FOLLOW'} onPress={() => toggle('following', t.id)} />
-        <Button className="flex-1" variant="outline" label="Share profile" onPress={share} />
-      </View>
-      <Segmented options={tabs} value={tab} onChange={setTab} />
-      {tab === 'Tips' && (tips.length ? (
+      <Stats items={[[t.countries, 'countries'], [t.tips, 'tips'], [t.followers, 'followers'], [t.verifiedAdvice, 'verified advice']]} />
+      {t.isMe ? <Button variant="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} /> : (
+        <View className="flex-row gap-3">
+          <Button className="flex-1" disabled={follow.isPending} variant={t.followedByMe ? 'outline' : 'primary'} label={t.followedByMe ? 'FOLLOWING' : 'FOLLOW'} onPress={() => (signedIn ? follow.mutate(t.id) : router.push('/sign-up'))} />
+          <Button className="flex-1" variant="outline" label="Share profile" onPress={share} />
+        </View>
+      )}
+      <SectionTitle>Tips</SectionTitle>
+      {tips.length === 0 ? <Empty>No tips yet.</Empty> : (
         <View className="flex-row flex-wrap gap-2">
-          {tips.map((tip) => <Pressable key={tip.id} accessibilityRole="button" accessibilityLabel={tip.title} onPress={() => go(`/tip/${tip.id}`)} className="w-[31.8%]"><Photo k={tip.image} className="aspect-square rounded-xl" /></Pressable>)}
-        </View>) : <Empty>No tips yet.</Empty>)}
-      {tab === 'Places visited' && [...new Set(tips.map((x) => x.place))].map((p) => <T key={p} v="strong" className="border-b border-line py-3">{p}</T>)}
-      {tab === 'Bucket list' && sample.bucketList.slice(1, 3).map((b) => <View key={b.id} className="flex-row items-center gap-3"><Photo k={b.image} className="h-14 w-14 rounded-xl" /><T v="strong">{b.title}</T></View>)}
+          {tips.map((tip) => <Pressable key={tip.id} accessibilityRole="button" accessibilityLabel={tip.title} onPress={() => go(`/tip/${tip.id}`)} className="w-[31.8%]"><Photo k={tipImage(tip)} uri={tipPhoto(tip)} className="aspect-square rounded-xl" /></Pressable>)}
+        </View>)}
     </Screen>
   );
 }

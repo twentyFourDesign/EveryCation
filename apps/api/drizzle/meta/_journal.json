@@ -43,6 +43,13 @@
       "when": 1794345295663,
       "tag": "0005_media",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1794345414221,
+      "tag": "0006_places_follows",
+      "breakpoints": true
     }
   ]
 }

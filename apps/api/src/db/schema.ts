@@ -341,3 +341,25 @@ export const media = pgTable('media', {
   key: text().notNull(),
   createdAt: createdAt(),
 });
+
+// ───────────── Places and follows ─────────────
+
+export const places = pgTable('places', {
+  id: id(),
+  slug: text().notNull().unique(),
+  name: text().notNull(),
+  kind: text().notNull(),
+  countryCode: text().notNull(),
+  summary: text().notNull(),
+  bestTime: text(),
+  currency: text(),
+  imageKey: text(),
+  published: boolean().notNull().default(true),
+  createdAt: createdAt(),
+});
+
+export const follows = pgTable('follows', {
+  followerId: uuid().notNull().references(() => users.id),
+  followeeId: uuid().notNull().references(() => users.id),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('follows_once_idx').on(t.followerId, t.followeeId), index('follows_followee_idx').on(t.followeeId), check('follows_not_self', sql`${t.followerId} <> ${t.followeeId}`)]);

@@ -24,7 +24,7 @@ function useTipView(id: string) {
   const bundled = useQuery({ queryKey: ['sample-tip', id], queryFn: () => sampleApi.tip(id), enabled: !isUuid(id) });
   if (isUuid(id)) {
     const t = live.data;
-    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), photo: tipPhoto(t), video: t.media?.kind === 'video' ? t.media.url : null, body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: null as string | null } };
+    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), photo: tipPhoto(t), video: t.media?.kind === 'video' ? t.media.url : null, body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: `/traveller/${t.author.id}` as string | null } };
   }
   const s = bundled.data; const a = s && person(s.authorId);
   return { isLoading: bundled.isLoading, error: bundled.error, live: false, tip: s && a && { id: s.id, title: s.title, place: s.place, category: s.category, image: s.image, photo: null as string | null, video: null as string | null, body: s.body, goodToKnow: s.goodToKnow, visited: s.visited, likes: s.likes, liked: false, comments: s.comments, authorName: a.name, authorInitials: a.initials, authorLink: `/traveller/${a.id}` as string | null } };

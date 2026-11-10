@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Database } from '../db/db.module.js';
-import { bankAccounts, ledgerAccounts, outbox } from '../db/schema.js';
+import { bankAccounts, ledgerAccounts, outbox, places } from '../db/schema.js';
 import { createApp } from '../main.js';
 import { Ledger } from '../modules/wallet/ledger.service.js';
 import { AdminAuthService, type AdminRole } from '../modules/admin/admin-auth.js';
@@ -463,5 +463,34 @@ describe('media on tips', () => {
     expect((await upload(u.token, Buffer.from('<script>alert(1)</script>'), 'evil.jpg', 'image/jpeg').expect(400)).body.code).toBe('file_type');
     expect((await upload(u.token, Buffer.concat([png, Buffer.alloc(9 * 1024 * 1024)]), 'big.png', 'image/png').expect(400)).body.code).toBe('file_too_large');
     expect((await http().post('/v1/media').set('Authorization', `Bearer ${u.token}`).expect(400)).body.code).toBe('file_required');
+  });
+});
+
+describe('places, search and following', () => {
+  it('finds places, tips and travellers, and shows a place with its tips', async () => {
+    await db.insert(places).values({ slug: 'zanzibar', name: 'Zanzibar', kind: 'Island', countryCode: 'TZ', summary: 'Spice farms and white sand.' }).onConflictDoNothing();
+    const zed = await named('Zuri Zanzibar-Fan');
+    const tip = (await zed.api.post('/tips', { title: 'Book the Stone Town ferry a day ahead', place: 'Zanzibar, Tanzania', countryCode: 'TZ', category: 'Getting there', body: 'Morning boats sell out.' }, null)).body;
+    const found = (await http().get('/v1/search?q=zanzib').expect(200)).body;
+    expect(found.places.map((p: { id: string }) => p.id)).toEqual(['zanzibar']);
+    expect(found.tips.some((t: { id: string }) => t.id === tip.id)).toBe(true);
+    expect(found.travellers[0]).toMatchObject({ name: 'Zuri Zanzibar-Fan', tips: 1 });
+    expect((await http().get('/v1/search?q=z').expect(200)).body.tips).toEqual([]);
+    const place = (await http().get('/v1/places/zanzibar').expect(200)).body;
+    expect(place).toMatchObject({ name: 'Zanzibar', countryCode: 'TZ' }); expect(place.tips.map((t: { id: string }) => t.id)).toContain(tip.id);
+    await http().get('/v1/places/nowhere').expect(404);
+  });
+  it('lets travellers follow each other and builds a following feed', async () => {
+    const a = await named('Amaka O.'); const b = await named('Wole O.');
+    const tip = (await a.api.post('/tips', { title: 'Temple mornings beat the crowds', place: 'Ubud, Indonesia', category: 'Sights', body: 'Be there at opening.' }, null)).body;
+    expect((await b.api.get('/feed/following')).body).toEqual([]);
+    expect((await b.api.post(`/travellers/${a.id}/follow`, {}, null).expect(200)).body).toEqual({ following: true });
+    await b.api.post(`/travellers/${b.id}/follow`, {}, null).expect(400);
+    expect((await b.api.get(`/travellers/${a.id}`)).body).toMatchObject({ name: 'Amaka O.', followers: 1, followedByMe: true, isMe: false, tips: 1 });
+    expect((await http().get(`/v1/travellers/${a.id}`)).body).toMatchObject({ followers: 1, followedByMe: false });
+    expect(((await b.api.get('/feed/following')).body as { id: string }[]).map((t) => t.id)).toEqual([tip.id]);
+    expect((await a.api.get('/notifications')).body.items[0]).toMatchObject({ text: 'Wole O. started following you', href: `/traveller/${b.id}` });
+    expect((await b.api.post(`/travellers/${a.id}/follow`, {}, null)).body).toEqual({ following: false });
+    expect((await b.api.get(`/travellers/${a.id}`)).body.followers).toBe(0);
   });
 });
