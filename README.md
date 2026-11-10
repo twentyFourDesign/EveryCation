@@ -92,17 +92,23 @@ In the sandbox identity check any 11-digit number passes unless it starts with 0
 
 Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countries, country page, share) are live too. Search, places, traveller profiles, plans, trips and the shop still run on sample data. Buying a plan and placing a shop order charge nothing yet.
 
+## What runs on the API now
+
+**App:** sign-in, profile, wallet, tips with photo and video uploads, comments, travel advice, notifications, search, places, traveller profiles and following, trips with itineraries, the bucket list, trip plans (browse, buy, share, sell), creator studio, and the shop (products, basket, checkout from the wallet, order tracking).
+
+**Console:** sign-in, Advice review, Reports, Wallet & withdrawals, Creator payouts, Shop orders, Admins & audit log (with staff invites).
+
 ## Not wired yet
 
-These need accounts, keys or native builds, so the screens are in place with a stand-in:
-
-- **Apps to API**: mobile sign-in and wallet use `apps/api` (`apps/mobile/src/lib/api.ts`, `session.ts`, `wallet.ts`). Everything else, and the whole admin console, still reads `packages/shared/src/api.ts` sample data. Device state lives in `apps/mobile/src/lib/store.ts`.
-- **Admin console**: sign-in, Advice review, Wallet & withdrawals and Admins & audit log use the API. The other pages (Overview, Reports, Users, Payouts, Trip plans, Shop, Notifications, Settings) and the sidebar's Reports and Orders badges are still sample data.
-- **Map** (My travels → Map): placeholder pins. Add `@rnmapbox/maps` and a Mapbox token.
-- **Recording** (Record a tip): timer and controls only. Add `expo-camera` and `expo-audio` capture and the upload.
-- **Payments, BVN/NIN checks, bank name lookup, SMS codes, Google sign-in, Google Calendar sync, push**: UI and validation only.
-- **Offline cache** (MMKV), **i18n**, **Sentry**, **PostHog**, **Maestro/Playwright test suites**: not added yet.
-- **Travel packages and bookings**: left out on purpose; they are a later release.
+- **Partners:** SMS, BVN/NIN, bank transfers, cards and delivery are stand-ins (`modules/auth/sms.ts`, `modules/wallet/partners.ts`, the webhook format). Delivery prices in `config.ts` are placeholders.
+- **Media storage:** uploads are saved to disk (`MEDIA_DIR`). Swap `DiskStorage` for S3 and a CDN in production. Videos are stored as uploaded; there is no transcoding. Voice tips are not built.
+- **Push and email:** notifications are in-app only. The `outbox` worker (BullMQ) is not built, so nothing is sent outside the app.
+- **Scheduled work:** auto-saves and a Friday payout timer do not run by themselves. Finance approves payouts from the console.
+- **Map tiles** (My travels → Map lists countries from your trips), **Google sign-in and Calendar sync**, **phone reminders**.
+- **Console pages still on sample data:** Overview, Places & content, Users & KYC, Trip plans, Shop products, Notifications, Settings. Places and products are added by the seed or straight in the database for now.
+- **Plans:** no ratings or reviews, and no refund flow when a plan is removed.
+- **Offline cache, i18n, Sentry, PostHog, saved Maestro/Playwright suites.**
+- **Travel packages and bookings:** left out on purpose; they are a later release.
 
 ## Notes on versions
 
