@@ -1,7 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { BadgeCheck, ChevronLeft, Lock, Share2, Star } from 'lucide-react-native';
-import { useState } from 'react';
 import { ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, formatNaira } from '@everycation/shared';
@@ -12,15 +11,11 @@ import { useApp } from '@/lib/store';
 export default function PlanDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: p } = useQuery({ queryKey: ['plan', id], queryFn: () => api.plan(id) });
-  const { ownedPlans, buyPlan, following, toggle, available } = useApp();
-  const [error, setError] = useState('');
+  const { ownedPlans, buyPlan, following, toggle } = useApp();
   if (!p) return <Loading what="this plan" />;
   const a = person(p.authorId); const owned = ownedPlans.includes(p.id) || a.id === 'wole'; const follows = following.includes(a.id);
-  function buy() {
-    if (p!.price > available) return setError(`Your available balance is ${formatNaira(available)}. Add money or pay by card.`);
-    if (p!.price > 0) useApp.setState((s) => ({ available: s.available - p!.price, txns: [{ id: `t${Date.now()}`, group: 'TODAY', title: `Trip plan · ${p!.title}`, detail: 'From available balance', amount: -p!.price, direction: 'out', type: 'withdrawal' }, ...s.txns] }));
-    buyPlan(p!.id);
-  }
+  // Sample purchase: plan sales are not connected to the wallet API yet, so nothing is charged.
+  const buy = () => buyPlan(p.id);
   return (
     <View className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}><View className="w-full max-w-[520px] self-center">
@@ -45,7 +40,6 @@ export default function PlanDetail() {
           ))}
           {owned ? <Note icon={BadgeCheck}>This plan is yours. The full itinerary, map and budget sheet are in My travels.</Note>
             : p.days > 1 && <Note icon={Lock} tone="gold">{`${p.days - 1} more day${p.days > 2 ? 's' : ''} after you ${p.price ? 'buy' : 'save it'}`}</Note>}
-          {!!error && <Note tone="danger">{error}</Note>}
         </View>
       </View></ScrollView>
       <SafeAreaView edges={['bottom']} className="border-t border-line bg-white"><View className="w-full max-w-[520px] flex-row items-center gap-4 self-center px-5 py-3">

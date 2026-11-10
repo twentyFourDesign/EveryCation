@@ -1,9 +1,12 @@
-import { Link, router } from 'expo-router';
+import { Link, Redirect, router } from 'expo-router';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Mark, Photo, T } from '@/ui';
+import { useSession } from '@/lib/session';
 
 export default function Welcome() {
+  const signedIn = useSession((s) => s.status === 'signedIn');
+  if (signedIn) return <Redirect href="/explore" />;
   return (
     <View className="flex-1 bg-navy">
       <Photo k="lagoon-aerial" className="absolute inset-0 opacity-40" />

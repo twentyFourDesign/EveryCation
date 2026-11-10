@@ -7,15 +7,17 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { api, percent } from '@everycation/shared';
 import { Badge, Button, Chips, Empty, IconButton, Loading, Note, Photo, Progress, T, colors, go } from '@/ui';
 import { useApp } from '@/lib/store';
+import { useWallet } from '@/lib/wallet';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: t } = useQuery({ queryKey: ['trip', id], queryFn: () => api.trip(id) });
-  const { extraItinerary, goals } = useApp();
+  const extraItinerary = useApp((s) => s.extraItinerary);
+  const { data: wallet } = useWallet();
   const [day, setDay] = useState('Sun 13');
   if (!t) return <Loading what="your trip" />;
   const upcoming = t.status === 'upcoming';
-  const goal = goals.find((g) => g.id === t.goalId);
+  const goal = wallet?.goals.find((g) => t.title.toLowerCase().includes(g.name.toLowerCase().replace(/ trip$/, '')));
   const stops = [...(t.itinerary ?? []), ...extraItinerary].filter((i) => i.day === day).sort((a, b) => a.time.localeCompare(b.time));
   const events = (t.itinerary?.length ?? 0) + extraItinerary.length + 3;
   return (
@@ -41,7 +43,7 @@ export default function TripDetail() {
                 </View>
               ))}
               <View className="flex-row gap-3">
-                {goal && <Pressable accessibilityRole="button" onPress={() => go(`/wallet/goal/${goal.id}`)} className="flex-1 gap-2 rounded-card bg-tint p-3.5 active:opacity-80"><T v="small" className="text-xs">Trip savings</T><T v="strong">{percent(goal.saved, goal.target)}% saved</T><Progress pct={percent(goal.saved, goal.target)} /></Pressable>}
+                {goal && <Pressable accessibilityRole="button" onPress={() => go(`/wallet/goal/${goal.id}`)} className="flex-1 gap-2 rounded-card bg-tint p-3.5 active:opacity-80"><T v="small" className="text-xs">Trip savings</T><T v="strong">{goal.percent}% saved</T><Progress pct={goal.percent} /></Pressable>}
                 {t.packed && <View className="flex-1 gap-2 rounded-card bg-gold-soft p-3.5"><T v="small" className="text-xs">Packing list</T><T v="strong">{t.packed[0]} of {t.packed[1]} packed</T><Progress tone="gold" pct={percent(t.packed[0], t.packed[1])} /></View>}
               </View>
             </>

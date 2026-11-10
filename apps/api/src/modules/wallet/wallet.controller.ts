@@ -1,9 +1,11 @@
-import { Body, Controller, Get, Headers, HttpCode, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { Body, Controller, Get, Headers, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Put, Query } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { ApiBearerAuth, ApiHeader, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
 import { CurrentUser, type AuthUser } from '../../common/auth.guard.js';
-import { badRequest } from '../../common/errors.js';
+import { badRequest, notFound } from '../../common/errors.js';
+import { CONFIG, type Config } from '../../config.js';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { WalletService } from './wallet.service.js';
 
@@ -17,6 +19,7 @@ const goalPatch = goalBody.pick({ name: true, target: true, targetDate: true, lo
 const moveBody = z.object({ amount: kobo, direction: z.enum(['in', 'out']) });
 const withdrawBody = z.object({ amount: kobo, source: z.union([z.literal('available'), z.uuid()]), bankAccountId: z.uuid().optional(), pin });
 const freezeBody = z.object({ frozen: z.boolean() });
+const devDepositBody = z.object({ amount: kobo, goalId: z.uuid().optional(), channel: z.enum(['transfer', 'card']).default('transfer') });
 
 /** Money endpoints need an Idempotency-Key so a retried request can never move money twice. */
 const requireKey = (key?: string) => { if (!key || key.length < 8 || key.length > 80) throw badRequest('idempotency_key_required', 'Send an Idempotency-Key header (a fresh UUID per attempt).'); return key; };
@@ -24,7 +27,7 @@ const requireKey = (key?: string) => { if (!key || key.length < 8 || key.length 
 @ApiTags('wallet') @ApiBearerAuth()
 @Controller('wallet')
 export class WalletController {
-  constructor(private readonly wallet: WalletService) {}
+  constructor(private readonly wallet: WalletService, @Inject(CONFIG) private readonly config: Config) {}
 
   @Get() overview(@CurrentUser() u: AuthUser) { return this.wallet.overview(u.id); }
 
@@ -58,5 +61,16 @@ export class WalletController {
   @Post('withdrawals')
   withdraw(@CurrentUser() u: AuthUser, @Body(new ZodPipe(withdrawBody)) b: z.infer<typeof withdrawBody>, @Headers('idempotency-key') key?: string) {
     return this.wallet.withdraw(u.id, b, requireKey(key));
+  }
+
+  /**
+   * Development only: stands in for the bank partner confirming a transfer or card payment,
+   * so the apps can be tested before a partner is connected. Does not exist in production.
+   */
+  @HttpCode(200)
+  @Post('dev/deposit')
+  devDeposit(@CurrentUser() u: AuthUser, @Body(new ZodPipe(devDepositBody)) b: z.infer<typeof devDepositBody>) {
+    if (this.config.NODE_ENV === 'production') throw notFound('Page');
+    return this.wallet.creditDeposit({ userId: u.id, amount: b.amount, goalId: b.goalId, channel: b.channel, partnerReference: `DEV-${randomUUID()}` });
   }
 }

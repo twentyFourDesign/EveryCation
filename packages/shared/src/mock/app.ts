@@ -146,7 +146,7 @@ export const bucketList: T.BucketItem[] = [
 
 export const calendarEvents: T.CalendarEvent[] = [
   { id: 'e1', day: 12, endDay: 19, title: 'Dolomites trip', detail: 'Sat 12 – Sat 19 Dec · 7 nights', kind: 'trip', href: '/trip/dolomites' },
-  { id: 'e2', day: 4, title: 'Auto-save ₦25,000', detail: 'Every Friday into Dolomites trip', kind: 'save', href: '/wallet/goal/g-dolomites' },
+  { id: 'e2', day: 4, title: 'Auto-save ₦25,000', detail: 'Every Friday into Dolomites trip', kind: 'save', href: '/wallet' },
   { id: 'e3', day: 9, title: 'Shop order arrives', detail: 'Wed 9 Dec · Dakota backpack', kind: 'order', href: '/shop/order' },
 ];
 
@@ -200,7 +200,7 @@ export const order = {
 
 export const notifications: T.AppNotification[] = [
   { id: 'n1', group: 'Today', type: 'community', actor: 'tunde', text: 'Tunde A. replied to your tip "Take the early boat to Nusa Penida"', when: '2h', href: '/tip/early-boat/comments' },
-  { id: 'n2', group: 'Today', type: 'wallet', text: 'Your Dolomites trip goal passed 60%. ₦300,000 to go.', when: '5h', href: '/wallet/goal/g-dolomites' },
+  { id: 'n2', group: 'Today', type: 'wallet', text: 'Your Dolomites trip goal passed 60%. ₦300,000 to go.', when: '5h', href: '/wallet' },
   { id: 'n3', group: 'Today', type: 'trips', text: "Your Dolomites trip is 5 weeks away. Check Italy's entry rules for your passport.", when: '8h', href: '/advice/IT' },
   { id: 'n4', group: 'This week', type: 'community', actor: 'amaka', text: 'Amaka O. started following you', when: 'Thu', href: '/traveller/amaka', action: 'Follow back' },
   { id: 'n5', group: 'This week', type: 'wallet', text: 'Auto-save of ₦25,000 added to Dolomites trip', when: 'Fri', href: '/wallet/history' },

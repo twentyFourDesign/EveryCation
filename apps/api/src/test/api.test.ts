@@ -105,6 +105,14 @@ describe('money in', () => {
   });
 });
 
+describe('development tools', () => {
+  it('can stand in for the bank with a test deposit', async () => {
+    const u = await readyUser();
+    await u.api.post('/wallet/dev/deposit', { amount: N(40_000) }, null).expect(200);
+    expect((await balance(u.api)).available).toBe(N(40_000));
+  });
+});
+
 describe('savings goals', () => {
   it('moves money in, reports totals, and keeps a locked goal locked', async () => {
     const u = await readyUser(120_000);

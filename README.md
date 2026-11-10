@@ -73,13 +73,17 @@ Admins & audit log, Settings. The sidebar and every page respect the role table 
 | Wallet | add money, withdraw, PIN, receipt, history, new goal, goal detail, settings, identity check, create PIN, link bank |
 | Shop | categories, product, basket, checkout, order tracking |
 
-Sample user starts signed in with a verified wallet. Wallet PIN in the sample: **2580**.
+**Sign-in and the wallet are live against `apps/api`.** Start the API first, copy `apps/mobile/.env.example` to `.env`, then run the app.
+Outside production the server shows the SMS code on the verify screen, and Add money has a "test money" button that stands in for the bank.
+In the sandbox identity check any 11-digit number passes unless it starts with 000; a bank account starting 111 is "in another name" and 999 "does not exist".
+
+The rest of the app (community, advice, plans, trips, shop) still runs on sample data. Buying a plan and placing a shop order charge nothing yet.
 
 ## Not wired yet
 
 These need accounts, keys or native builds, so the screens are in place with a stand-in:
 
-- **Apps to API**: the apps still read `packages/shared/src/api.ts` sample data; they are not connected to `apps/api` yet. Device state lives in `apps/mobile/src/lib/store.ts`.
+- **Apps to API**: mobile sign-in and wallet use `apps/api` (`apps/mobile/src/lib/api.ts`, `session.ts`, `wallet.ts`). Everything else, and the whole admin console, still reads `packages/shared/src/api.ts` sample data. Device state lives in `apps/mobile/src/lib/store.ts`.
 - **Admin auth**: the session is a demo kept in the browser (`apps/admin/lib/session.ts`). Replace with the API's cookie session.
 - **Map** (My travels → Map): placeholder pins. Add `@rnmapbox/maps` and a Mapbox token.
 - **Recording** (Record a tip): timer and controls only. Add `expo-camera` and `expo-audio` capture and the upload.

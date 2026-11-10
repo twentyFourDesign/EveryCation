@@ -52,7 +52,7 @@ function BucketList() {
         <View key={b.id} className={cx('flex-row items-center gap-3 rounded-card bg-surface-muted p-3', b.state === 'done' && 'opacity-70')}>
           <Photo k={b.image} className="h-16 w-16 rounded-2xl" />
           <View className="flex-1 gap-1.5"><Badge icon={b.state === 'done' ? Check : undefined} label={b.label} tone={b.state === 'done' ? 'info' : b.state === 'dream' ? 'neutral' : 'gold'} /><T v="strong">{b.title}</T>
-            {b.savedPct !== undefined && <Pressable accessibilityRole="button" onPress={() => go(`/wallet/goal/${b.goalId}`)} className="gap-1"><Progress pct={b.savedPct} /><T v="small" className="text-xs">{b.savedPct}% saved</T></Pressable>}
+            {b.savedPct !== undefined && <Pressable accessibilityRole="button" onPress={() => router.navigate('/wallet')} className="gap-1"><Progress pct={b.savedPct} /><T v="small" className="text-xs">{b.savedPct}% saved</T></Pressable>}
             {b.state === 'dream' && <Text accessibilityRole="link" onPress={() => router.push({ pathname: '/wallet/new-goal', params: { name: b.title } })} className="font-pop-sb text-[13px] text-heading-blue">Start saving →</Text>}</View>
         </View>
       ))}

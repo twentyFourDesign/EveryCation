@@ -3,14 +3,14 @@ import { CalendarDays } from 'lucide-react-native';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Badge, Button, ListRow, Screen, T, Toggle } from '@/ui';
-import { useApp } from '@/lib/store';
+import { useSession } from '@/lib/session';
 
 const Group = ({ title, children }: { title: string; children: React.ReactNode }) => <View><T v="eyebrow" className="mb-1 text-ink-muted">{title}</T>{children}</View>;
 
 export default function Settings() {
   const [bio, setBio] = useState(true);
   const [visibility, setVisibility] = useState<'Followers' | 'Everyone' | 'Only me'>('Followers');
-  const signOut = useApp((s) => s.signOut);
+  const { status, signOut } = useSession();
   const nextVisibility = () => setVisibility((v) => (v === 'Followers' ? 'Everyone' : v === 'Everyone' ? 'Only me' : 'Followers'));
   return (
     <Screen title="Settings">
@@ -32,7 +32,9 @@ export default function Settings() {
         <ListRow title="Who can see my trips" right={<T v="small">{visibility}</T>} onPress={nextVisibility} />
         <ListRow title="Help and support" onPress={() => {}} />
       </Group>
-      <Button variant="danger" label="Log out" onPress={() => { signOut(); router.replace('/'); }} />
+      {status === 'signedIn'
+        ? <Button variant="danger" label="Log out" onPress={async () => { await signOut(); router.dismissAll(); router.replace('/'); }} />
+        : <Button label="SIGN IN" onPress={() => router.push('/sign-up')} />}
     </Screen>
   );
 }

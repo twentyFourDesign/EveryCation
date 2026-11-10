@@ -5,6 +5,7 @@ import { Pressable, View } from 'react-native';
 import { api, formatNaira } from '@everycation/shared';
 import { Button, KeyValue, Note, Photo, Screen, T, colors } from '@/ui';
 import { basketCount, useApp } from '@/lib/store';
+import { useWallet } from '@/lib/wallet';
 
 export function useBasket() {
   const { data: products = [] } = useQuery({ queryKey: ['products'], queryFn: api.products });
@@ -15,8 +16,8 @@ export function useBasket() {
 
 export default function Basket() {
   const { lines, subtotal, count } = useBasket();
-  const { setQty, goals } = useApp();
-  const shopping = goals.find((g) => g.kind === 'shopping');
+  const setQty = useApp((s) => s.setQty);
+  const shopping = useWallet().data?.goals.find((g) => g.kind === 'shopping');
   const Step = ({ icon: Icon, label, onPress }: { icon: typeof Plus; label: string; onPress: () => void }) => (
     <Pressable accessibilityRole="button" accessibilityLabel={label} hitSlop={6} onPress={onPress} className="h-9 w-9 items-center justify-center rounded-full border-[1.5px] border-control-border"><Icon size={16} color={colors.ink} /></Pressable>);
   if (count === 0) return <Screen title="Basket"><View className="items-center gap-4 pt-16"><T v="h2">Your basket is empty</T><T className="text-center text-ink-muted">Add travel essentials and we&apos;ll deliver them before you fly.</T><Button label="GO TO THE SHOP" onPress={() => router.dismissTo('/shop')} /></View></Screen>;

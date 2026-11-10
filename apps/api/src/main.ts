@@ -9,6 +9,8 @@ export async function createApp() {
   // rawBody keeps the exact bytes of each request so webhook signatures can be checked.
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { rawBody: true, logger: process.env.NODE_ENV === 'test' ? false : undefined });
   app.setGlobalPrefix('v1');
+  // The mobile apps are not browsers and need no CORS; this is for the Expo web build and the admin console in development.
+  if (process.env.NODE_ENV !== 'production') app.enableCors({ origin: true, allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'] });
   app.disable('x-powered-by');
   app.enableShutdownHooks();
   return app;
