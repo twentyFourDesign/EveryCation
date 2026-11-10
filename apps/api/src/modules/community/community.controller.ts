@@ -10,7 +10,7 @@ import { TipsService } from './tips.service.js';
 
 const text = (min: number, max: number, message: string) => z.string().trim().min(min, message).max(max);
 const tipBody = z.object({ title: text(8, 80, 'Write a headline of at least 8 characters'), place: text(2, 80, 'Add the place'), countryCode: z.string().length(2).optional(), category: text(2, 30, 'Choose a category'), format: z.enum(['write', 'video', 'voice']).default('write'),
-  body: z.string().trim().max(1200).default(''), goodToKnow: z.array(z.string().trim().min(1).max(160)).max(5).optional(), imageKey: z.string().max(40).optional(), visited: z.string().trim().max(40).optional() });
+  body: z.string().trim().max(1200).default(''), goodToKnow: z.array(z.string().trim().min(1).max(160)).max(5).optional(), imageKey: z.string().max(40).optional(), mediaId: z.uuid().optional(), visited: z.string().trim().max(40).optional() });
 const commentBody = z.object({ body: text(1, 500, 'Write a comment') });
 const adviceBody = z.object({ countryCode: z.string().length(2, 'Choose a country'), city: text(2, 60, 'Choose a location'), topic: text(2, 30, 'Choose a topic'), body: text(30, 600, 'Write at least 30 characters so it is useful'), visited: z.string().trim().max(40).optional(), showPassport: z.boolean().optional() });
 const reviseBody = adviceBody.pick({ body: true });

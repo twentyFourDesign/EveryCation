@@ -7,6 +7,10 @@ const schema = z.object({
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   OTP_SECRET: z.string().min(32, 'OTP_SECRET must be at least 32 characters'),
   PARTNER_WEBHOOK_SECRET: z.string().min(16),
+  /** Where uploads are kept on disk in development. In production, point MediaStorage at S3 instead. */
+  MEDIA_DIR: z.string().default('./uploads'),
+  /** The address clients reach this API on, used to build media links. */
+  PUBLIC_URL: z.string().optional(),
 });
 
 export type Config = z.infer<typeof schema>;

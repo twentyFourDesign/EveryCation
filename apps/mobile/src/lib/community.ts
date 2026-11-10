@@ -8,7 +8,7 @@ import { useSession } from './session';
 export interface Author { id: string; name: string; handle: string | null; city: string | null }
 export interface Tip {
   id: string; title: string; place: string; countryCode: string | null; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow: string[];
-  imageKey: string | null; visited: string | null; likes: number; comments: number; createdAt: string; author: Author; liked: boolean; mine: boolean;
+  imageKey: string | null; visited: string | null; likes: number; comments: number; createdAt: string; author: Author; liked: boolean; mine: boolean; media: { kind: 'image' | 'video' | 'audio'; url: string } | null;
 }
 export interface TipComment { id: string; body: string; createdAt: string; author: Author; isTipAuthor: boolean; mine: boolean }
 export type AdviceStatus = 'in_review' | 'changes_requested' | 'verified' | 'rejected' | 'rereview';
@@ -21,6 +21,8 @@ export const isUuid = (s: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-
 export const initials = (name: string) => name.replace(/[^\p{L}\s]/gu, '').split(/\s+/).filter(Boolean).map((w) => w[0]).join('').slice(0, 2).toUpperCase() || 'T';
 /** Tips carry a bundled sample photo until media uploads are connected; others get a stock one. */
 export const tipImage = (t: Pick<Tip, 'imageKey' | 'id'>): ImageKey => (t.imageKey && t.imageKey in photos ? (t.imageKey as ImageKey) : (['lagoon-aerial', 'alpine-lake', 'jungle-cove', 'waterfall'] as const)[t.id.charCodeAt(0) % 4]!);
+/** The uploaded photo's address, when the tip has one. Videos fall back to a stock photo as their poster. */
+export const tipPhoto = (t: Pick<Tip, 'media'>) => (t.media?.kind === 'image' ? t.media.url : null);
 export const timeAgo = (iso: string) => { const m = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000)); return m < 1 ? 'now' : m < 60 ? `${m}m` : m < 1440 ? `${Math.round(m / 60)}h` : m < 43200 ? `${Math.round(m / 1440)}d` : new Date(iso).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }); };
 export const countryName = (code: string) => sample.countries.find((c) => c.code === code.toUpperCase())?.name ?? code;
 /** "London, United Kingdom" or "Ghana" → the country it names, if we know it. */
@@ -46,7 +48,7 @@ export const useMarkRead = () => useMutation({ mutationFn: () => api('/notificat
 const refreshTips = () => queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'tips' || q.queryKey[0] === 'tip' });
 const refreshAdvice = () => queryClient.invalidateQueries({ queryKey: ['advice'] });
 
-export const useCreateTip = () => useMutation({ mutationFn: (b: { title: string; place: string; category: string; format: Tip['format']; body?: string; countryCode?: string }) => api<Tip>('/tips', { method: 'POST', body: b }), onSuccess: refreshTips });
+export const useCreateTip = () => useMutation({ mutationFn: (b: { title: string; place: string; category: string; format: Tip['format']; body?: string; countryCode?: string; mediaId?: string }) => api<Tip>('/tips', { method: 'POST', body: b }), onSuccess: refreshTips });
 export const useLikeTip = () => useMutation({ mutationFn: (id: string) => api<{ liked: boolean; likes: number }>(`/tips/${id}/like`, { method: 'POST' }), onSuccess: refreshTips });
 export const useAddComment = (tipId: string) => useMutation({ mutationFn: (body: string) => api<TipComment[]>(`/tips/${tipId}/comments`, { method: 'POST', body: { body } }), onSuccess: refreshTips });
 export const useReport = () => useMutation({ mutationFn: (b: { targetType: 'tip' | 'comment' | 'advice'; targetId: string; reason: string }) => api<{ alreadyReported: boolean }>('/reports', { method: 'POST', body: b }), onSuccess: refreshAdvice });

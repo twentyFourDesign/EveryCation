@@ -4,6 +4,7 @@ import type { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { AppModule } from './app.module.js';
 import { CONFIG, type Config } from './config.js';
+import { DiskStorage } from './modules/media/media.service.js';
 
 export async function createApp() {
   // rawBody keeps the exact bytes of each request so webhook signatures can be checked.
@@ -12,6 +13,8 @@ export async function createApp() {
   // The mobile apps are not browsers and need no CORS; this is for the Expo web build and the admin console in development.
   if (process.env.NODE_ENV !== 'production') app.enableCors({ origin: true, allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'] });
   app.disable('x-powered-by');
+  // Uploaded media in development. In production the CDN serves these straight from object storage.
+  app.useStaticAssets(app.get(DiskStorage).root, { prefix: '/media', maxAge: '7d', index: false });
   app.enableShutdownHooks();
   return app;
 }

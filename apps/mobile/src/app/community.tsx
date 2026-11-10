@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar, Button, Chips, Empty, IconButton, Loading, Note, Photo, Screen, T, colors, go } from '@/ui';
 import { errorMessage } from '@/lib/api';
-import { initials, timeAgo, tipImage, useLikeTip, useTips } from '@/lib/community';
+import { initials, timeAgo, tipImage, tipPhoto, useLikeTip, useTips } from '@/lib/community';
 import { useSession } from '@/lib/session';
 import { useApp } from '@/lib/store';
 
@@ -28,8 +28,8 @@ export default function CommunityFeed() {
           <View key={t.id} className="gap-3 border-b border-line pb-5">
             <View className="flex-row items-center gap-3"><Avatar initials={initials(t.author.name)} /><View><T v="strong">{t.author.name}</T><T v="small">{t.place} · {timeAgo(t.createdAt)}</T></View></View>
             <Pressable accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/tip/${t.id}`)} className="gap-2.5 active:opacity-80">
-              <View><Photo k={tipImage(t)} className="h-[210px] rounded-card" />
-                {t.format !== 'write' && <View className="absolute bottom-3 left-3 flex-row items-center gap-1 rounded-full bg-navy px-2.5 py-1"><Play size={12} color="#fff" fill="#fff" /><Text className="font-pop-sb text-xs capitalize text-white">{t.format}</Text></View>}</View>
+              <View><Photo k={tipImage(t)} uri={tipPhoto(t)} className="h-[210px] rounded-card" />
+                {(t.media?.kind === 'video' || t.format !== 'write') && <View className="absolute bottom-3 left-3 flex-row items-center gap-1 rounded-full bg-navy px-2.5 py-1"><Play size={12} color="#fff" fill="#fff" /><Text className="font-pop-sb text-xs capitalize text-white">{t.media?.kind === 'video' ? 'Video' : t.format}</Text></View>}</View>
               <T v="title">{t.title}</T>
               {!!t.body && <T className="text-ink-muted" numberOfLines={2}>{t.body}</T>}
             </Pressable>

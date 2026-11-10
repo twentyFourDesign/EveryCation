@@ -3,20 +3,22 @@ import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { conflict, notFound } from '../../common/errors.js';
 import { RULES } from '../../config.js';
 import { notify } from '../../common/notify.js';
+import { MediaService } from '../media/media.service.js';
 import { Database } from '../../db/db.module.js';
 import { advice, comments, reports, tipLikes, tips, users } from '../../db/schema.js';
 
-export interface TipInput { title: string; place: string; countryCode?: string; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow?: string[]; imageKey?: string; visited?: string }
+export interface TipInput { title: string; place: string; countryCode?: string; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow?: string[]; imageKey?: string; mediaId?: string; visited?: string }
 export const author = (u: { id: string; name: string | null; handle: string | null; city: string | null }) => ({ id: u.id, name: u.name ?? 'Traveller', handle: u.handle, city: u.city });
 
 @Injectable()
 export class TipsService {
-  constructor(private readonly database: Database) {}
+  constructor(private readonly database: Database, private readonly media: MediaService) {}
   private get db() { return this.database.db; }
 
   private async view(rows: { t: typeof tips.$inferSelect; u: typeof users.$inferSelect }[], viewerId?: string) {
     const liked = viewerId && rows.length ? new Set((await this.db.select({ id: tipLikes.tipId }).from(tipLikes).where(and(eq(tipLikes.userId, viewerId), inArray(tipLikes.tipId, rows.map((r) => r.t.id))))).map((l) => l.id)) : new Set<string>();
-    return rows.map(({ t, u }) => ({ id: t.id, title: t.title, place: t.place, countryCode: t.countryCode, category: t.category, format: t.format, body: t.body, goodToKnow: t.goodToKnow, imageKey: t.imageKey, visited: t.visited,
+    const files = await this.media.views(rows.map((r) => r.t.mediaId).filter((x): x is string => !!x));
+    return rows.map(({ t, u }) => ({ media: (t.mediaId && files.get(t.mediaId)) || null, id: t.id, title: t.title, place: t.place, countryCode: t.countryCode, category: t.category, format: t.format, body: t.body, goodToKnow: t.goodToKnow, imageKey: t.imageKey, visited: t.visited,
       likes: t.likeCount, comments: t.commentCount, createdAt: t.createdAt, author: author(u), liked: liked.has(t.id), mine: t.userId === viewerId }));
   }
 
@@ -35,6 +37,7 @@ export class TipsService {
   }
 
   async create(userId: string, input: TipInput) {
+    if (input.mediaId && !(await this.media.owned(userId, input.mediaId))) throw notFound('That upload');
     const [t] = await this.db.insert(tips).values({ userId, ...input, countryCode: input.countryCode?.toUpperCase() }).returning({ id: tips.id });
     return this.get(t!.id, userId);
   }

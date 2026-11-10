@@ -1,16 +1,22 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
 import { Bookmark, ChevronLeft, Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { useVideoPlayer, VideoView } from 'expo-video';
 import { ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { api as sampleApi } from '@everycation/shared';
 import { Avatar, Badge, Button, IconButton, Loading, Note, Photo, Screen, T, go } from '@/ui';
 import { errorMessage } from '@/lib/api';
-import { initials, isUuid, tipImage, useLikeTip, useTip } from '@/lib/community';
+import { initials, isUuid, tipImage, tipPhoto, useLikeTip, useTip } from '@/lib/community';
 import { person } from '@/lib/people';
 import { useSession } from '@/lib/session';
 import { useApp } from '@/lib/store';
 import { useAddBucket, useBucket } from '@/lib/trips';
+
+function TipVideo({ url }: { url: string }) {
+  const player = useVideoPlayer(url);
+  return <VideoView player={player} style={{ width: '100%', height: 340, backgroundColor: '#000' }} contentFit="cover" nativeControls accessibilityLabel="Tip video" />;
+}
 
 /** One shape for the screen, whether the tip came from the API or is one of the bundled samples that place pages still link to. */
 function useTipView(id: string) {
@@ -18,10 +24,10 @@ function useTipView(id: string) {
   const bundled = useQuery({ queryKey: ['sample-tip', id], queryFn: () => sampleApi.tip(id), enabled: !isUuid(id) });
   if (isUuid(id)) {
     const t = live.data;
-    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: null as string | null } };
+    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), photo: tipPhoto(t), video: t.media?.kind === 'video' ? t.media.url : null, body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: null as string | null } };
   }
   const s = bundled.data; const a = s && person(s.authorId);
-  return { isLoading: bundled.isLoading, error: bundled.error, live: false, tip: s && a && { id: s.id, title: s.title, place: s.place, category: s.category, image: s.image, body: s.body, goodToKnow: s.goodToKnow, visited: s.visited, likes: s.likes, liked: false, comments: s.comments, authorName: a.name, authorInitials: a.initials, authorLink: `/traveller/${a.id}` as string | null } };
+  return { isLoading: bundled.isLoading, error: bundled.error, live: false, tip: s && a && { id: s.id, title: s.title, place: s.place, category: s.category, image: s.image, photo: null as string | null, video: null as string | null, body: s.body, goodToKnow: s.goodToKnow, visited: s.visited, likes: s.likes, liked: false, comments: s.comments, authorName: a.name, authorInitials: a.initials, authorLink: `/traveller/${a.id}` as string | null } };
 }
 
 export default function TipDetail() {
@@ -38,7 +44,7 @@ export default function TipDetail() {
     <View className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="w-full max-w-[520px] self-center">
-          <Photo k={tip.image} className="h-[340px]" alt={`Photo for ${tip.title}`} />
+          {tip.video ? <TipVideo url={tip.video} /> : <Photo k={tip.image} uri={tip.photo} className="h-[340px]" alt={`Photo for ${tip.title}`} />}
           <SafeAreaView edges={['top']} className="absolute left-0 right-0 top-0">
             <View className="flex-row gap-2 px-4 pt-2">
               <IconButton tone="glass" icon={ChevronLeft} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore'))} />

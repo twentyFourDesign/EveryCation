@@ -43,7 +43,16 @@
           "image": "./assets/images/splash-icon.png",
           "imageWidth": 120
         }
-      ]
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Choose photos and videos to add to your travel tips.",
+          "cameraPermission": "Take photos and videos for your travel tips.",
+          "microphonePermission": "Record sound with the videos for your travel tips."
+        }
+      ],
+      "expo-video"
     ],
     "experiments": {
       "typedRoutes": true,

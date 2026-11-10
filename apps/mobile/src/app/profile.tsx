@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { Settings, Store } from 'lucide-react-native';
 import { Pressable, View } from 'react-native';
 import { Avatar, Button, Empty, IconButton, ListRow, Photo, Screen, SectionTitle, Stats, T, go } from '@/ui';
-import { initials, tipImage, useProfile, useTipsBy } from '@/lib/community';
+import { initials, tipImage, tipPhoto, useProfile, useTipsBy } from '@/lib/community';
 import { useSession } from '@/lib/session';
 
 export default function Profile() {
@@ -29,7 +29,7 @@ export default function Profile() {
       <SectionTitle>My tips</SectionTitle>
       {tips.length === 0 ? <Empty>You have not shared a tip yet. Use the + button to post your first.</Empty> : (
         <View className="flex-row flex-wrap gap-2">
-          {tips.map((t) => <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/tip/${t.id}`)} className="w-[31.8%]"><Photo k={tipImage(t)} className="aspect-square rounded-xl" /></Pressable>)}
+          {tips.map((t) => <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/tip/${t.id}`)} className="w-[31.8%]"><Photo k={tipImage(t)} uri={tipPhoto(t)} className="aspect-square rounded-xl" /></Pressable>)}
         </View>)}
     </Screen>
   );

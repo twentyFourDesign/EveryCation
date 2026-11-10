@@ -30,10 +30,11 @@ export function T({ v = 'body', className, ...p }: TextProps & { v?: keyof typeo
   return <Text className={cx(variants[v], className)} {...p} />;
 }
 
-export function Photo({ k, className, alt }: { k: ImageKey; className?: string; alt?: string }) {
+/** A bundled sample photo (`k`), or an uploaded one when `uri` is given. */
+export function Photo({ k, uri, className, alt }: { k: ImageKey; uri?: string | null; className?: string; alt?: string }) {
   return (
     <View className={cx('overflow-hidden bg-surface-muted', className)}>
-      <Image source={photos[k]} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityLabel={alt} accessible={!!alt} transition={150} />
+      <Image source={uri ? { uri } : photos[k]} style={{ width: '100%', height: '100%' }} contentFit="cover" accessibilityLabel={alt} accessible={!!alt} transition={150} />
     </View>
   );
 }

@@ -5,7 +5,7 @@ import { KeyboardAvoidingView, Platform, Pressable, Text, TextInput, View } from
 import { commentSchema } from '@everycation/shared';
 import { Avatar, Badge, Button, Empty, Loading, Note, Photo, Screen, T, colors, cx } from '@/ui';
 import { errorMessage } from '@/lib/api';
-import { initials, isUuid, timeAgo, tipImage, useAddComment, useReport, useTip, useTipComments } from '@/lib/community';
+import { initials, isUuid, timeAgo, tipImage, tipPhoto, useAddComment, useReport, useTip, useTipComments } from '@/lib/community';
 import { useSession } from '@/lib/session';
 
 export default function Comments() {
@@ -41,7 +41,7 @@ export default function Comments() {
           </View>
           <T v="small" className="text-center text-xs">Keep it kind and useful. Community guidelines</T>
         </>) : <Button label="SIGN IN TO COMMENT" onPress={() => router.push('/sign-up')} />}>
-        {tip && <View className="flex-row items-center gap-3 rounded-2xl bg-surface-muted p-2.5"><Photo k={tipImage(tip)} className="h-12 w-12 rounded-xl" /><View className="flex-1"><T v="label" numberOfLines={1}>{tip.title}</T><T v="small">{tip.author.name}</T></View></View>}
+        {tip && <View className="flex-row items-center gap-3 rounded-2xl bg-surface-muted p-2.5"><Photo k={tipImage(tip)} uri={tipPhoto(tip)} className="h-12 w-12 rounded-xl" /><View className="flex-1"><T v="label" numberOfLines={1}>{tip.title}</T><T v="small">{tip.author.name}</T></View></View>}
         {isLoading && <Loading what="comments" />}
         {(!!error || !!problem) && <Note tone="danger">{problem || errorMessage(error)}</Note>}
         {data?.length === 0 && <Empty>No comments yet. Be the first to add one.</Empty>}

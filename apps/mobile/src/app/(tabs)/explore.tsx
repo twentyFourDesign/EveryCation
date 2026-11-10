@@ -5,7 +5,7 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { api, formatNaira } from '@everycation/shared';
 import { shortName as author } from '@/lib/people';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
-import { tipImage, useTips, useUnread } from '@/lib/community';
+import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
 
 const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Advice'] as const;
 const links: Record<string, string> = { Community: '/community', Places: '/place/bali', 'Trip plans': '/plans', Advice: '/advice' };
@@ -33,7 +33,7 @@ export default function Explore() {
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">
           {tips.data.slice(0, 4).map((t) => (
             <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.title}, tip by ${t.author.name}`} onPress={() => go(`/tip/${t.id}`)} className="w-[250px] overflow-hidden rounded-card bg-surface-muted active:opacity-80">
-              <Photo k={tipImage(t)} className="h-[150px]" />
+              <Photo k={tipImage(t)} uri={tipPhoto(t)} className="h-[150px]" />
               <View className="gap-1 p-3.5"><T v="eyebrow">{t.place.toUpperCase()}</T><T v="strong" numberOfLines={2}>{t.title}</T><T v="small">by {t.author.name} · {Math.max(1, Math.round(t.body.split(/\s+/).length / 60))} min read</T></View>
             </Pressable>
           ))}

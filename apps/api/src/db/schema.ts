@@ -213,6 +213,7 @@ export const tips = pgTable('tips', {
   goodToKnow: jsonb().$type<string[]>().notNull().default([]),
   /** Media storage is not connected yet; this names a bundled photo, or is empty. */
   imageKey: text(),
+  mediaId: uuid(),
   visited: text(),
   status: contentStatus().notNull().default('published'),
   likeCount: integer().notNull().default(0),
@@ -326,3 +327,17 @@ export const bucketItems = pgTable('bucket_items', {
   imageKey: text(),
   createdAt: createdAt(),
 }, (t) => [index('bucket_user_idx').on(t.userId), uniqueIndex('bucket_source_once_idx').on(t.userId, t.source)]);
+
+// ───────────── Media ─────────────
+
+/** An uploaded photo, video or voice note. Files live in object storage; this row is the record of who uploaded what. */
+export const media = pgTable('media', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  kind: text().notNull(),
+  contentType: text().notNull(),
+  size: integer().notNull(),
+  /** Storage key, e.g. tips/2026/11/<uuid>.jpg. The public URL is built from it. */
+  key: text().notNull(),
+  createdAt: createdAt(),
+});

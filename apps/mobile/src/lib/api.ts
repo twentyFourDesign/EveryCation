@@ -68,3 +68,16 @@ export async function api<T>(path: string, { method = 'GET', body, idempotencyKe
   }
   return data as T;
 }
+
+/** Uploads a picked photo or video and returns its id to attach to a tip. */
+export async function uploadMedia(asset: { uri: string; mimeType?: string | null; fileName?: string | null; file?: File }): Promise<{ id: string; kind: 'image' | 'video' | 'audio'; url: string }> {
+  const form = new FormData();
+  if (asset.file) form.append('file', asset.file); // web
+  else form.append('file', { uri: asset.uri, name: asset.fileName ?? 'upload', type: asset.mimeType ?? 'application/octet-stream' } as unknown as Blob); // iOS and Android
+  const send = () => raw('/media', { method: 'POST', headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : undefined, body: form });
+  let res = await send();
+  if (res.status === 401 && (await refreshSession())) res = await send();
+  const data = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  if (!res.ok) throw new ApiError(res.status, String(data.code ?? 'error'), typeof data.message === 'string' ? data.message : res.status === 413 ? 'That file is too large.' : 'The upload did not go through. Please try again.');
+  return data as { id: string; kind: 'image' | 'video' | 'audio'; url: string };
+}

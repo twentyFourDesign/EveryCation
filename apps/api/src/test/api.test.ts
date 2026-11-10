@@ -443,3 +443,25 @@ describe('trips and the bucket list', () => {
     expect(items.find((x) => x.id === jp.id)!.evidence).toEqual([]); // a trip that has not started proves nothing
   });
 });
+
+describe('media on tips', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082', 'hex');
+  const upload = (token: string, data: Buffer, name: string, type: string) => http().post('/v1/media').set('Authorization', `Bearer ${token}`).attach('file', data, { filename: name, contentType: type });
+  it('accepts a real photo, attaches it to a tip and serves it', async () => {
+    const u = await named('Photo Person'); const other = await named('Someone Else');
+    await http().post('/v1/media').attach('file', png, 'a.png').expect(401);
+    const up = (await upload(u.token, png, 'a.png', 'image/png').expect(201)).body;
+    expect(up).toMatchObject({ kind: 'image' }); expect(up.url).toMatch(/\/media\/tips\/\d{4}\/\d{2}\/.+\.png$/);
+    const served = await http().get(new URL(up.url).pathname).expect(200);
+    expect(served.headers['content-type']).toBe('image/png');
+    const tip = (await u.api.post('/tips', { title: 'Sunrise at the lake is worth it', place: 'Braies, Italy', category: 'Sights', body: 'Be there by six.', mediaId: up.id }, null).expect(201)).body;
+    expect(tip.media).toEqual({ kind: 'image', url: up.url });
+    await other.api.post('/tips', { title: 'Borrowing a photo that is not mine', place: 'Braies, Italy', category: 'Sights', mediaId: up.id }, null).expect(404);
+  });
+  it('refuses files that are not what they claim to be', async () => {
+    const u = await named('Uploader');
+    expect((await upload(u.token, Buffer.from('<script>alert(1)</script>'), 'evil.jpg', 'image/jpeg').expect(400)).body.code).toBe('file_type');
+    expect((await upload(u.token, Buffer.concat([png, Buffer.alloc(9 * 1024 * 1024)]), 'big.png', 'image/png').expect(400)).body.code).toBe('file_too_large');
+    expect((await http().post('/v1/media').set('Authorization', `Bearer ${u.token}`).expect(400)).body.code).toBe('file_required');
+  });
+});
