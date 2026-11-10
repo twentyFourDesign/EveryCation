@@ -2,10 +2,12 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import type { z } from 'zod';
 import { adminSignInSchema } from '@everycation/shared';
 import { Button, Field, Input } from '@/components/ui';
+import { errorMessage } from '@/lib/api';
 import { useSession } from '@/lib/session';
 
 type Form = z.infer<typeof adminSignInSchema>;
@@ -14,7 +16,12 @@ export default function SignIn() {
   const router = useRouter();
   const signIn = useSession((s) => s.signIn);
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<Form>({ resolver: zodResolver(adminSignInSchema) });
-  const submit = handleSubmit((v) => { signIn(v.email); router.push('/overview'); });
+  const [error, setError] = useState('');
+  const submit = handleSubmit(async (v) => {
+    setError('');
+    try { await signIn(v.email, v.password, v.code.replace(/\s/g, '')); router.push('/overview'); }
+    catch (e) { setError(errorMessage(e)); }
+  });
   return (
     <div className="flex min-h-screen flex-wrap">
       <section className="flex flex-[1_1_420px] flex-col justify-between gap-10 bg-navy p-8 text-white sm:p-14">
@@ -32,7 +39,8 @@ export default function SignIn() {
           <Field label="Work email" error={errors.email?.message}><Input type="email" autoComplete="username" placeholder="you@everycation.app" aria-invalid={!!errors.email} {...register('email')} /></Field>
           <Field label="Password" error={errors.password?.message}><Input type="password" autoComplete="current-password" aria-invalid={!!errors.password} {...register('password')} /></Field>
           <Field label="6-digit code from your authenticator app" error={errors.code?.message}><Input inputMode="numeric" autoComplete="one-time-code" placeholder="000 000" aria-invalid={!!errors.code} {...register('code')} /></Field>
-          <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>SIGN IN</Button>
+          {error && <p role="alert" className="rounded-xl bg-danger-soft px-4 py-3 text-sm font-medium text-danger">{error}</p>}
+          <Button type="submit" variant="primary" size="lg" disabled={isSubmitting}>{isSubmitting ? 'SIGNING IN…' : 'SIGN IN'}</Button>
           <a href="mailto:security@everycation.app" className="text-center text-[13px] font-semibold no-underline">Lost access to your authenticator?</a>
         </form>
       </main>

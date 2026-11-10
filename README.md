@@ -39,6 +39,19 @@ Built so far:
 - **Withdrawals**: PIN, daily limit of ₦300,000 and 24-hour new-bank rule (both hold the request for Finance), paid or returned on the partner's verdict.
 - **Ledger**: double entry in whole kobo. The database itself refuses an overdraft, an unbalanced transaction and any edit to past entries.
 
+- **Tips**: post, like, comment, search; guests can read.
+- **Advice**: always starts in review. It shows as Verified only after a moderator approves it; three reports from different people send verified advice back for re-review.
+- **Staff**: password plus authenticator code, sessions that end after 12 hours, a role table enforced on every route, and an audit log of every decision.
+- **Finance**: totals from the ledger, held withdrawals to release or reject, and the ledger itself.
+
+```bash
+pnpm --filter @everycation/api db:seed                                   # sample travellers, tips, advice and one staff account (development only)
+pnpm --filter @everycation/api admin:create you@company.com "Your Name" super_admin
+pnpm --filter @everycation/api admin:code admin@everycation.app          # the current authenticator code, development only
+```
+
+The seed prints the development staff sign-in. For the console, set `NEXT_PUBLIC_API_URL` (default `http://localhost:4000/v1`).
+
 Money endpoints require an `Idempotency-Key` header. Outside production the code request returns `devCode`, and SMS is written to the log.
 
 Stand-ins to replace when partners are chosen: `modules/auth/sms.ts` (SMS), `modules/wallet/partners.ts` (identity and bank lookup), `modules/wallet/webhook.controller.ts` (event format). Follow-up work is written to the `outbox` table; the worker that sends it (BullMQ) is not built yet.
@@ -77,14 +90,14 @@ Admins & audit log, Settings. The sidebar and every page respect the role table 
 Outside production the server shows the SMS code on the verify screen, and Add money has a "test money" button that stands in for the bank.
 In the sandbox identity check any 11-digit number passes unless it starts with 000; a bank account starting 111 is "in another name" and 999 "does not exist".
 
-The rest of the app (community, advice, plans, trips, shop) still runs on sample data. Buying a plan and placing a shop order charge nothing yet.
+Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countries, country page, share) are live too. Search, places, traveller profiles, plans, trips and the shop still run on sample data. Buying a plan and placing a shop order charge nothing yet.
 
 ## Not wired yet
 
 These need accounts, keys or native builds, so the screens are in place with a stand-in:
 
 - **Apps to API**: mobile sign-in and wallet use `apps/api` (`apps/mobile/src/lib/api.ts`, `session.ts`, `wallet.ts`). Everything else, and the whole admin console, still reads `packages/shared/src/api.ts` sample data. Device state lives in `apps/mobile/src/lib/store.ts`.
-- **Admin auth**: the session is a demo kept in the browser (`apps/admin/lib/session.ts`). Replace with the API's cookie session.
+- **Admin console**: sign-in, Advice review, Wallet & withdrawals and Admins & audit log use the API. The other pages (Overview, Reports, Users, Payouts, Trip plans, Shop, Notifications, Settings) and the sidebar's Reports and Orders badges are still sample data.
 - **Map** (My travels → Map): placeholder pins. Add `@rnmapbox/maps` and a Mapbox token.
 - **Recording** (Record a tip): timer and controls only. Add `expo-camera` and `expo-audio` capture and the upload.
 - **Payments, BVN/NIN checks, bank name lookup, SMS codes, Google sign-in, Google Calendar sync, push**: UI and validation only.

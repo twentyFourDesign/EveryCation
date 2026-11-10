@@ -6,7 +6,9 @@ import { sql } from 'drizzle-orm';
 import { AuthGuard, Public } from './common/auth.guard.js';
 import { CONFIG, loadConfig, RULES, type Config } from './config.js';
 import { Database, DbModule } from './db/db.module.js';
+import { AdminModule } from './modules/admin/admin.module.js';
 import { AuthModule } from './modules/auth/auth.module.js';
+import { CommunityModule } from './modules/community/community.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 
 @Controller('health')
@@ -27,6 +29,8 @@ class ConfigModule {}
     ThrottlerModule.forRootAsync({ inject: [CONFIG], useFactory: (c: Config) => ({ throttlers: [{ ttl: 60_000, limit: 120 }], skipIf: () => c.NODE_ENV === 'test' }) }),
     AuthModule,
     WalletModule,
+    CommunityModule,
+    AdminModule,
   ],
   controllers: [HealthController],
   providers: [{ provide: APP_GUARD, useClass: ThrottlerGuard }, { provide: APP_GUARD, useClass: AuthGuard }],

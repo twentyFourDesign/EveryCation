@@ -26,9 +26,10 @@ export const NAV: Item[] = [
 export function Sidebar() {
   const pathname = usePathname();
   const router = useRouter();
-  const { admin, signOut } = useSession();
+  const { admin, signOut, counts } = useSession();
+  const live: Record<string, number> = { '/advice': counts.adviceWaiting, '/transactions': counts.heldWithdrawals };
   if (!admin) return null;
-  const items = NAV.filter((i) => i.area === 'any' || accessFor(admin.role, i.area));
+  const items = NAV.filter((i) => i.area === 'any' || accessFor(admin.role, i.area)).map((i) => (i.href in live ? { ...i, badge: live[i.href] ? String(live[i.href]) : undefined } : i));
   return (
     <aside className="flex w-full flex-none flex-col bg-navy text-white lg:sticky lg:top-0 lg:h-screen lg:w-62">
       <div className="flex items-center gap-2.5 px-5 pt-6 pb-3">
@@ -53,8 +54,8 @@ export function Sidebar() {
       </nav>
       <div className="flex items-center gap-3 border-t border-white/15 px-5 py-4 max-lg:hidden">
         <span aria-hidden className="grid size-9 place-items-center rounded-full bg-gold text-[13px] font-bold text-ink">{admin.initials}</span>
-        <span className="flex flex-1 flex-col leading-tight"><b className="text-sm font-semibold">{admin.name}</b><span className="text-xs text-navy-soft">{admin.role}</span></span>
-        <button aria-label="Sign out" onClick={() => { signOut(); router.replace('/'); }} className="cursor-pointer rounded-lg p-2 hover:bg-white/10"><LogOut className="size-[18px]" /></button>
+        <span className="flex flex-1 flex-col leading-tight"><b className="text-sm font-semibold">{admin.name}</b><span className="text-xs text-navy-soft">{admin.roleLabel}</span></span>
+        <button aria-label="Sign out" onClick={async () => { await signOut(); router.replace('/'); }} className="cursor-pointer rounded-lg p-2 hover:bg-white/10"><LogOut className="size-[18px]" /></button>
       </div>
     </aside>
   );

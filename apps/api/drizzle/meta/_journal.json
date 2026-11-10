@@ -15,6 +15,13 @@
       "when": 1794341774783,
       "tag": "0001_ledger_zero_sum",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1794343253527,
+      "tag": "0002_staff_and_community",
+      "breakpoints": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Patch, Post } from '@nestjs/common';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { z } from 'zod';
@@ -8,6 +8,7 @@ import { AuthService } from './auth.service.js';
 
 const requestBody = z.object({ phone: z.string().min(7).max(20) });
 const verifyBody = z.object({ phone: z.string().min(7).max(20), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'), device: z.string().max(120).optional() });
+const profileBody = z.object({ name: z.string().trim().min(2, 'Enter your name').max(60), handle: z.string().trim().regex(/^[a-zA-Z0-9._]{3,24}$/, 'Use 3 to 24 letters, numbers, dots or underscores'), city: z.string().trim().max(60), bio: z.string().trim().max(200) }).partial();
 const refreshBody = z.object({ refreshToken: z.string().min(20) });
 
 @ApiTags('auth')
@@ -34,4 +35,8 @@ export class AuthController {
   @ApiBearerAuth()
   @Get('me')
   me(@CurrentUser() user: AuthUser) { return this.auth.me(user.id); }
+
+  @ApiBearerAuth()
+  @Patch('me')
+  update(@CurrentUser() user: AuthUser, @Body(new ZodPipe(profileBody)) body: z.infer<typeof profileBody>) { return this.auth.updateProfile(user.id, body); }
 }

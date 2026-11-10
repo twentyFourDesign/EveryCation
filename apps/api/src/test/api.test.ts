@@ -8,6 +8,8 @@ import { Database } from '../db/db.module.js';
 import { bankAccounts, ledgerAccounts, outbox } from '../db/schema.js';
 import { createApp } from '../main.js';
 import { Ledger } from '../modules/wallet/ledger.service.js';
+import { AdminAuthService, type AdminRole } from '../modules/admin/admin-auth.js';
+import { totpCode } from '../modules/admin/totp.js';
 import { WalletService } from '../modules/wallet/wallet.service.js';
 import { signPayload } from '../modules/wallet/webhook.controller.js';
 
@@ -204,6 +206,136 @@ describe('withdrawals', () => {
     expect(refused).toHaveLength(15);
     expect(refused.every((r) => r.body.code === 'insufficient_funds')).toBe(true);
     expect((await balance(u.api)).available).toBe(0);
+  });
+});
+
+let adminSeq = 0;
+/** A signed-in staff member with the given role. */
+async function staff(role: AdminRole) {
+  const email = `staff${++adminSeq}@everycation.app`; const password = 'correct-horse-battery';
+  const { totpSecret } = await app.get(AdminAuthService).createAdmin({ email, name: `Staff ${adminSeq}`, role, password });
+  const res = await http().post('/v1/admin/auth/login').send({ email, password, code: totpCode(totpSecret) }).expect(200);
+  const h = { Authorization: `Bearer ${res.body.token}` };
+  return { email, password, totpSecret, get: (p: string) => http().get(`/v1/admin${p}`).set(h), post: (p: string, body?: object) => http().post(`/v1/admin${p}`).set(h).send(body) };
+}
+async function named(name: string) { const u = await signUp(); const api = authed(u.token); await api.patch('/auth/me', { name }).expect(200); return { ...u, api }; }
+
+describe('staff sign-in', () => {
+  it('needs the right password and authenticator code, and never says which was wrong', async () => {
+    const s = await staff('finance');
+    const bad1 = await http().post('/v1/admin/auth/login').send({ email: s.email, password: 'wrong-password', code: totpCode(s.totpSecret) }).expect(401);
+    const bad2 = await http().post('/v1/admin/auth/login').send({ email: s.email, password: s.password, code: '000000' }).expect(401);
+    const bad3 = await http().post('/v1/admin/auth/login').send({ email: 'nobody@everycation.app', password: s.password, code: '123456' }).expect(401);
+    expect(new Set([bad1.body.message, bad2.body.message, bad3.body.message]).size).toBe(1);
+    expect((await s.get('/me').expect(200)).body).toMatchObject({ admin: { role: 'finance' }, access: { wallet: 'edit', moderation: null } });
+    await s.post('/auth/logout').expect(204);
+    await s.get('/me').expect(401);
+  });
+  it('keeps customers and staff apart', async () => {
+    const u = await signUp();
+    await http().get('/v1/admin/wallet/summary').set('Authorization', `Bearer ${u.token}`).expect(401);
+    await http().get('/v1/admin/wallet/summary').expect(401);
+  });
+});
+
+describe('Finance and held withdrawals', () => {
+  it('lets Finance release or reject, records it in the audit log, and stops other roles', async () => {
+    const u = await readyUser(700_000); const finance = await staff('finance'); const moderator = await staff('moderator'); const support = await staff('support'); const boss = await staff('super_admin');
+    await u.api.post('/wallet/withdrawals', { amount: N(290_000), source: 'available', pin: '2580' }).expect(201);
+    const a = (await u.api.post('/wallet/withdrawals', { amount: N(100_000), source: 'available', pin: '2580' }).expect(201)).body;
+    const b = (await u.api.post('/wallet/withdrawals', { amount: N(50_000), source: 'available', pin: '2580' }).expect(201)).body;
+    const held = (await finance.get('/wallet/withdrawals?status=held').expect(200)).body;
+    expect(held.find((w: { id: string }) => w.id === a.id)).toMatchObject({ reason: 'Over daily limit', amount: N(100_000), to: 'GTBank •••• 4821' });
+    await moderator.get('/wallet/withdrawals').expect(403);
+    await support.get('/wallet/withdrawals').expect(200);
+    await support.post(`/wallet/withdrawals/${a.id}/release`).expect(403);
+    expect((await finance.post(`/wallet/withdrawals/${a.id}/reject`).expect(200)).body.status).toBe('rejected');
+    expect((await finance.post(`/wallet/withdrawals/${b.id}/release`).expect(200)).body.status).toBe('processing');
+    await finance.post(`/wallet/withdrawals/${b.id}/release`).expect(409);
+    expect((await balance(u.api)).available).toBe(N(360_000));
+    const summary = (await finance.get('/wallet/summary').expect(200)).body;
+    expect(summary.totalHeld).toBe(summary.available + summary.inGoals);
+    expect((await finance.get('/wallet/ledger').expect(200)).body[0]).toHaveProperty('reference');
+    const log = (await boss.get('/audit').expect(200)).body;
+    expect(log.slice(0, 2).map((l: { action: string }) => l.action)).toEqual(['Released held withdrawal', 'Rejected withdrawal, money returned']);
+    expect(log[0].item).toContain(b.reference);
+    await finance.get('/staff').expect(200); await moderator.get('/audit').expect(403);
+  });
+});
+
+describe('tips', () => {
+  it('lets a signed-in traveller post, like and comment, and guests read', async () => {
+    const amaka = await named('Amaka O.'); const tunde = await named('Tunde A.');
+    await http().post('/v1/tips').send({ title: 'x' }).expect(401);
+    expect((await amaka.api.post('/tips', { title: 'short', place: 'Bali', category: 'Temples' }, null).expect(400)).body.code).toBe('invalid_input');
+    const tip = (await amaka.api.post('/tips', { title: 'Reach Ulun Danu before the tour buses', place: 'Bali, Indonesia', countryCode: 'id', category: 'Temples', body: 'Go at opening time.', goodToKnow: ['Bring a sarong.'] }, null).expect(201)).body;
+    expect(tip).toMatchObject({ countryCode: 'ID', author: { name: 'Amaka O.' }, likes: 0, mine: true });
+    expect((await tunde.api.post(`/tips/${tip.id}/like`, {}, null).expect(200)).body).toEqual({ liked: true, likes: 1 });
+    expect((await authed(tunde.token).get(`/tips/${tip.id}`)).body.liked).toBe(true);
+    expect((await tunde.api.post(`/tips/${tip.id}/like`, {}, null).expect(200)).body).toEqual({ liked: false, likes: 0 });
+    await tunde.api.post(`/tips/${tip.id}/like`, {}, null);
+    const thread = (await tunde.api.post(`/tips/${tip.id}/comments`, { body: 'Confirmed, went last month.' }, null).expect(201)).body;
+    await amaka.api.post(`/tips/${tip.id}/comments`, { body: 'Thanks!' }, null).expect(201);
+    expect(thread[0]).toMatchObject({ author: { name: 'Tunde A.' }, isTipAuthor: false, mine: true });
+    const guest = (await http().get(`/v1/tips/${tip.id}`).expect(200)).body;
+    expect(guest).toMatchObject({ likes: 1, comments: 2, liked: false, mine: false });
+    expect((await http().get('/v1/tips?q=ulun').expect(200)).body.some((t: { id: string }) => t.id === tip.id)).toBe(true);
+    expect((await http().get(`/v1/tips?authorId=${amaka.id}`).expect(200)).body).toHaveLength(1);
+    expect((await http().get(`/v1/users/${amaka.id}`).expect(200)).body).toMatchObject({ name: 'Amaka O.', tips: 1, countries: 1 });
+    expect((await amaka.api.post('/reports', { targetType: 'tip', targetId: tip.id, reason: 'Spam' }, null).expect(409)).body.code).toBe('own_content');
+    expect((await tunde.api.post('/reports', { targetType: 'tip', targetId: tip.id, reason: 'Spam links' }, null).expect(200)).body.alreadyReported).toBe(false);
+    expect((await tunde.api.post('/reports', { targetType: 'tip', targetId: tip.id, reason: 'Spam links' }, null).expect(200)).body.alreadyReported).toBe(true);
+  });
+});
+
+describe('advice and the review queue', () => {
+  const text = 'Almost everywhere took cards, even small cafés. I only needed cash once.';
+  it('shows advice as Verified only after a moderator approves it', async () => {
+    const wole = await named('Wole O.'); const reader = await named('Reader'); const mod = await staff('moderator'); const finance = await staff('finance');
+    const sent = (await wole.api.post('/advice', { countryCode: 'is', city: 'Reykjavík', topic: 'Money', body: text, visited: 'July 2025', status: 'verified' }, null).expect(201)).body;
+    expect(sent.status).toBe('in_review'); // a client cannot mark its own advice verified
+    const see = async (who: typeof wole, verifiedOnly = true) => ((await who.api.get(`/advice?country=IS&verifiedOnly=${verifiedOnly}`)).body as { id: string; status: string }[]).find((a) => a.id === sent.id);
+    expect(await see(reader)).toBeUndefined();
+    expect((await see(reader, false))?.status).toBe('in_review');
+    expect((await see(wole))?.status).toBe('in_review'); // the author always sees their own
+
+    await finance.get('/advice').expect(403);
+    const queue = (await mod.get('/advice?queue=waiting').expect(200)).body;
+    expect(queue.items.find((a: { id: string }) => a.id === sent.id)).toMatchObject({ city: 'Reykjavík', author: { name: 'Wole O.', approved: 0 }, evidence: [] });
+    expect((await mod.post(`/advice/${sent.id}/decision`, { decision: 'changes' }).expect(400)).body.code).toBe('note_required');
+    await mod.post(`/advice/${sent.id}/decision`, { decision: 'changes', note: 'Please say which month this applied to.' }).expect(200);
+    expect(await see(reader, false)).toBeUndefined();
+    expect(await see(wole)).toMatchObject({ status: 'changes_requested', reviewNote: 'Please say which month this applied to.' });
+    await reader.api.patch(`/advice/${sent.id}`, { body: text + ' Edited by someone else.' }).expect(404);
+    await wole.api.patch(`/advice/${sent.id}`, { body: text + ' This was in July 2025.' }).expect(200);
+
+    expect((await mod.post(`/advice/${sent.id}/decision`, { decision: 'approve' }).expect(200)).body.status).toBe('verified');
+    await mod.post(`/advice/${sent.id}/decision`, { decision: 'reject', note: 'Changed my mind' }).expect(409);
+    expect((await see(reader))?.status).toBe('verified');
+    expect((await http().get('/v1/advice/countries').expect(200)).body.find((c: { code: string }) => c.code === 'IS')).toMatchObject({ verified: 1 });
+    expect((await reader.api.post(`/advice/${sent.id}/helpful`, {}, null).expect(200)).body).toEqual({ markedHelpful: true, helpful: 1 });
+    await wole.api.post(`/advice/${sent.id}/helpful`, {}, null).expect(403);
+    await wole.api.patch(`/advice/${sent.id}`, { body: text + ' Sneaky edit after approval.' }).expect(409);
+    const decided = (await mod.get('/advice?queue=decided')).body;
+    expect(decided.items.find((a: { id: string }) => a.id === sent.id)).toMatchObject({ status: 'verified', reviewedBy: expect.stringContaining('Staff') });
+  });
+  it('sends verified advice back to review after three reports from different people', async () => {
+    const author = await named('Chidi E.'); const mod = await staff('moderator');
+    const a = (await author.api.post('/advice', { countryCode: 'GB', city: 'London', topic: 'Entry & visa', body: 'No bank statement is needed for a visit visa at all.' }, null)).body;
+    await mod.post(`/advice/${a.id}/decision`, { decision: 'approve' }).expect(200);
+    const status = async () => ((await author.api.get('/advice?country=GB')).body as { id: string; status: string }[]).find((x) => x.id === a.id)?.status;
+    const r1 = await named('R1'); const r2 = await named('R2'); const r3 = await named('R3');
+    await r1.api.post('/reports', { targetType: 'advice', targetId: a.id, reason: 'Out of date' }, null).expect(200);
+    await r1.api.post('/reports', { targetType: 'advice', targetId: a.id, reason: 'Out of date' }, null).expect(200); // same person twice counts once
+    await r2.api.post('/reports', { targetType: 'advice', targetId: a.id, reason: 'Out of date' }, null).expect(200);
+    expect(await status()).toBe('verified');
+    await r3.api.post('/reports', { targetType: 'advice', targetId: a.id, reason: 'Wrong' }, null).expect(200);
+    expect(await status()).toBe('rereview');
+    expect(((await r1.api.get('/advice?country=GB')).body as { id: string }[]).some((x) => x.id === a.id)).toBe(false);
+    const q = (await mod.get('/advice?queue=rereview')).body;
+    expect(q.items.find((x: { id: string }) => x.id === a.id)).toMatchObject({ reports: 3 });
+    await mod.post(`/advice/${a.id}/decision`, { decision: 'reject', note: 'Out of date since 2025.' }).expect(200);
+    expect(await status()).toBe('rejected');
   });
 });
 

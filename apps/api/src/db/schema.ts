@@ -15,6 +15,9 @@ export const users = pgTable('users', {
   email: text().unique(),
   name: text(),
   handle: text().unique(),
+  city: text(),
+  bio: text(),
+  passportCountry: text().notNull().default('NG'),
   status: userStatus().notNull().default('active'),
   kycStatus: kycStatus().notNull().default('none'),
   kycMethod: text(),
@@ -155,3 +158,119 @@ export const outbox = pgTable('outbox', {
   processedAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [index('outbox_pending_idx').on(t.createdAt).where(sql`${t.processedAt} IS NULL`)]);
+
+// ───────────── Staff ─────────────
+
+export const adminRole = pgEnum('admin_role', ['super_admin', 'moderator', 'finance', 'shop_ops', 'support']);
+
+export const admins = pgTable('admins', {
+  id: id(),
+  email: text().notNull().unique(),
+  name: text().notNull(),
+  role: adminRole().notNull(),
+  passwordHash: text().notNull(),
+  /** Base32 secret for the authenticator app. Every staff account has two-step sign-in. */
+  totpSecret: text().notNull(),
+  active: boolean().notNull().default(true),
+  lastActiveAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+export const adminSessions = pgTable('admin_sessions', {
+  id: id(),
+  adminId: uuid().notNull().references(() => admins.id),
+  tokenHash: text().notNull().unique(),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  revokedAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** Every staff action that changes something. Append-only by convention; never updated. */
+export const auditLog = pgTable('audit_log', {
+  id: id(),
+  adminId: uuid().notNull().references(() => admins.id),
+  action: text().notNull(),
+  item: text().notNull(),
+  ip: text(),
+  userAgent: text(),
+  createdAt: createdAt(),
+}, (t) => [index('audit_created_idx').on(t.createdAt)]);
+
+// ───────────── Community: tips and comments ─────────────
+
+export const contentStatus = pgEnum('content_status', ['published', 'removed']);
+export const tipFormat = pgEnum('tip_format', ['write', 'video', 'voice']);
+
+export const tips = pgTable('tips', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  title: text().notNull(),
+  place: text().notNull(),
+  countryCode: text(),
+  category: text().notNull(),
+  format: tipFormat().notNull().default('write'),
+  body: text().notNull().default(''),
+  goodToKnow: jsonb().$type<string[]>().notNull().default([]),
+  /** Media storage is not connected yet; this names a bundled photo, or is empty. */
+  imageKey: text(),
+  visited: text(),
+  status: contentStatus().notNull().default('published'),
+  likeCount: integer().notNull().default(0),
+  commentCount: integer().notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('tips_feed_idx').on(t.status, t.createdAt), index('tips_user_idx').on(t.userId)]);
+
+export const tipLikes = pgTable('tip_likes', {
+  tipId: uuid().notNull().references(() => tips.id),
+  userId: uuid().notNull().references(() => users.id),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('tip_likes_once_idx').on(t.tipId, t.userId)]);
+
+export const comments = pgTable('comments', {
+  id: id(),
+  tipId: uuid().notNull().references(() => tips.id),
+  userId: uuid().notNull().references(() => users.id),
+  body: text().notNull(),
+  status: contentStatus().notNull().default('published'),
+  createdAt: createdAt(),
+}, (t) => [index('comments_tip_idx').on(t.tipId, t.createdAt)]);
+
+// ───────────── Travel advice ─────────────
+
+/** `verified` only ever follows an admin approval (locked rule). `rereview` is verified advice sent back by reports. */
+export const adviceStatus = pgEnum('advice_status', ['in_review', 'changes_requested', 'verified', 'rejected', 'rereview']);
+
+export const advice = pgTable('advice', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  countryCode: text().notNull(),
+  city: text().notNull(),
+  topic: text().notNull(),
+  body: text().notNull(),
+  visited: text(),
+  showPassport: boolean().notNull().default(true),
+  status: adviceStatus().notNull().default('in_review'),
+  reviewNote: text(),
+  reviewedBy: uuid().references(() => admins.id),
+  reviewedAt: timestamp({ withTimezone: true }),
+  helpfulCount: integer().notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('advice_country_idx').on(t.countryCode, t.status), index('advice_queue_idx').on(t.status, t.createdAt)]);
+
+export const adviceHelpful = pgTable('advice_helpful', {
+  adviceId: uuid().notNull().references(() => advice.id),
+  userId: uuid().notNull().references(() => users.id),
+}, (t) => [uniqueIndex('advice_helpful_once_idx').on(t.adviceId, t.userId)]);
+
+export const reportTarget = pgEnum('report_target', ['tip', 'comment', 'advice']);
+
+/** One report per person per item. */
+export const reports = pgTable('reports', {
+  id: id(),
+  targetType: reportTarget().notNull(),
+  targetId: uuid().notNull(),
+  reporterId: uuid().notNull().references(() => users.id),
+  reason: text().notNull(),
+  resolvedAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('reports_once_idx').on(t.targetType, t.targetId, t.reporterId), index('reports_target_idx').on(t.targetType, t.targetId)]);

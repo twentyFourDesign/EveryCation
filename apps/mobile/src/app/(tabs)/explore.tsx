@@ -5,13 +5,14 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { api, formatNaira } from '@everycation/shared';
 import { shortName as author } from '@/lib/people';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
+import { tipImage, useTips } from '@/lib/community';
 import { useApp } from '@/lib/store';
 
 const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Advice'] as const;
 const links: Record<string, string> = { Community: '/community', Places: '/place/bali', 'Trip plans': '/plans', Advice: '/advice' };
 
 export default function Explore() {
-  const tips = useQuery({ queryKey: ['tips'], queryFn: () => api.tips() });
+  const tips = useTips('popular');
   const plans = useQuery({ queryKey: ['plans'], queryFn: api.plans });
   const unread = useApp((s) => !s.readNotifications);
   return (
@@ -27,12 +28,14 @@ export default function Explore() {
       <Chips options={sections} value="For you" onChange={(s) => links[s] && go(links[s])} />
 
       <SectionTitle action="See all" onAction={() => router.push('/community')}>Tips from travellers</SectionTitle>
-      {tips.isLoading ? <Loading what="tips" /> : (
+      {tips.isLoading ? <Loading what="tips" /> : !tips.data?.length ? (
+        <T v="small">{tips.error ? 'Tips could not be loaded. Pull down on Community to try again.' : 'No tips yet. Be the first to share one with the + button.'}</T>
+      ) : (
         <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">
-          {tips.data?.slice(0, 4).map((t) => (
-            <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.title}, tip by ${author(t.authorId)}`} onPress={() => go(`/tip/${t.id}`)} className="w-[250px] overflow-hidden rounded-card bg-surface-muted active:opacity-80">
-              <Photo k={t.image} className="h-[150px]" />
-              <View className="gap-1 p-3.5"><T v="eyebrow">{t.region}</T><T v="strong" numberOfLines={2}>{t.title}</T><T v="small">by {author(t.authorId)} · {t.readMins} min read</T></View>
+          {tips.data.slice(0, 4).map((t) => (
+            <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={`${t.title}, tip by ${t.author.name}`} onPress={() => go(`/tip/${t.id}`)} className="w-[250px] overflow-hidden rounded-card bg-surface-muted active:opacity-80">
+              <Photo k={tipImage(t)} className="h-[150px]" />
+              <View className="gap-1 p-3.5"><T v="eyebrow">{t.place.toUpperCase()}</T><T v="strong" numberOfLines={2}>{t.title}</T><T v="small">by {t.author.name} · {Math.max(1, Math.round(t.body.split(/\s+/).length / 60))} min read</T></View>
             </Pressable>
           ))}
         </ScrollView>

@@ -1,0 +1,9 @@
+import { Module } from '@nestjs/common';
+import { CommunityModule } from '../community/community.module.js';
+import { WalletModule } from '../wallet/wallet.module.js';
+import { AdminAuthService, AdminGuard } from './admin-auth.js';
+import { AdminController, AdminLoginController } from './admin.controller.js';
+import { AdminWalletService } from './admin.service.js';
+
+@Module({ imports: [WalletModule, CommunityModule], controllers: [AdminLoginController, AdminController], providers: [AdminAuthService, AdminGuard, AdminWalletService], exports: [AdminAuthService] })
+export class AdminModule {}

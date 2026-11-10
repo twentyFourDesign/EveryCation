@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api, clearTokens, refreshSession, saveTokens, setSignedOutHandler } from './api';
 import { queryClient } from './query';
 
-export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean }
+export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean }
 interface Session {
   status: 'loading' | 'guest' | 'signedIn';
   me: Me | null;
@@ -10,6 +10,8 @@ interface Session {
   restore: () => Promise<void>;
   requestCode: (phone: string) => Promise<{ sentTo: string; resendInSeconds: number; devCode?: string }>;
   verifyCode: (phone: string, code: string) => Promise<void>;
+  /** Saves the name shown on tips, comments and advice. */
+  setName: (name: string) => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -28,6 +30,7 @@ export const useSession = create<Session>((set, get) => ({
     await saveTokens(tokens);
     set({ status: 'signedIn', me: await api<Me>('/auth/me') });
   },
+  setName: async (name) => set({ me: await api<Me>('/auth/me', { method: 'PATCH', body: { name } }) }),
   signOut: async () => {
     if (get().status === 'signedIn') await api('/auth/logout', { method: 'POST' }).catch(() => {});
     await clearTokens();

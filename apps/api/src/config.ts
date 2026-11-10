@@ -31,4 +31,7 @@ export const RULES = {
   dailyWithdrawalLimitKobo: 300_000_00,
   newBankHoldHours: 24,
   minMoneyKobo: 1_000_00,
+  adminSessionHours: 12,
+  /** Verified advice goes back to review after this many reports from different users. */
+  reportsToRereview: 3,
 } as const;

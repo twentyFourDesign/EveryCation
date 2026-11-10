@@ -78,7 +78,13 @@ export class AuthService {
   async me(userId: string) {
     const [u] = await this.db.select().from(users).where(eq(users.id, userId));
     if (!u) throw unauthorized();
-    return { id: u.id, phone: u.phone, email: u.email, name: u.name, handle: u.handle, kycStatus: u.kycStatus, hasPin: !!u.pinHash, walletFrozen: u.walletFrozen };
+    return { id: u.id, phone: u.phone, email: u.email, name: u.name, handle: u.handle, city: u.city, bio: u.bio, kycStatus: u.kycStatus, hasPin: !!u.pinHash, walletFrozen: u.walletFrozen };
+  }
+
+  async updateProfile(userId: string, patch: { name?: string; handle?: string; city?: string; bio?: string }) {
+    try { await this.db.update(users).set({ ...patch, handle: patch.handle?.toLowerCase() }).where(eq(users.id, userId)); }
+    catch { throw badRequest('handle_taken', 'That username is taken. Try another.'); }
+    return this.me(userId);
   }
 
   private async issueTokens(userId: string, familyId: string, device?: string) {
