@@ -6,7 +6,7 @@ import { queryClient } from './query';
 import { useSession } from './session';
 import { useApp } from './store';
 
-export interface Product { id: string; name: string; brand: string | null; category: string; price: number; imageKey: string | null; variant: string | null; description: string; pickedNote: string | null; digital: boolean; inStock: boolean; lowStock: boolean }
+export interface Product { id: string; name: string; brand: string | null; category: string; price: number; imageKey: string | null; imageUrl: string | null; variant: string | null; description: string; pickedNote: string | null; digital: boolean; inStock: boolean; lowStock: boolean }
 export interface Order { id: string; reference: string; status: 'placed' | 'packed' | 'shipped' | 'delivered' | 'cancelled'; subtotal: number; deliveryFee: number; total: number; paidFromGoal: number; goalName: string | null; delivery: string; address: string; placedAt: string; items: { productId: string; name: string; imageKey: string | null; price: number; qty: number }[] }
 export interface DeliveryOption { id: 'standard' | 'express'; fee: number; label: string; eta: string }
 

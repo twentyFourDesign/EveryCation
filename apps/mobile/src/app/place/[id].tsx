@@ -20,7 +20,7 @@ export default function PlaceDetail() {
     <View className="flex-1 bg-white">
       <ScrollView showsVerticalScrollIndicator={false}>
         <View className="w-full max-w-[520px] self-center">
-          <Photo k={placeImage(p)} className="h-[320px]" alt={p.name} />
+          <Photo k={placeImage(p)} uri={p.imageUrl} className="h-[320px]" alt={p.name} />
           <SafeAreaView edges={['top']} className="absolute left-0 right-0 top-0"><View className="px-4 pt-2"><IconButton tone="glass" icon={ChevronLeft} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore'))} /></View></SafeAreaView>
           <View className="-mt-6 gap-5 rounded-t-[28px] bg-white px-5 pb-6 pt-6">
             <View className="gap-1"><T v="eyebrow">{p.kind.toUpperCase()} · {country.toUpperCase()}</T><T v="display">{p.name}</T><T className="text-ink-muted">{p.summary}</T></View>

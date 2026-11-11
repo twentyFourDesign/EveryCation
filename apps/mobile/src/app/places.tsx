@@ -12,7 +12,7 @@ export default function Places() {
       {data?.length === 0 && <Empty>No places have been published yet.</Empty>}
       {data?.map((p) => (
         <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.name}, ${countryName(p.countryCode)}`} onPress={() => go(`/place/${p.id}`)} className="overflow-hidden rounded-card active:opacity-80">
-          <Photo k={placeImage(p)} className="h-[160px]" />
+          <Photo k={placeImage(p)} uri={p.imageUrl} className="h-[160px]" />
           <View className="absolute bottom-0 left-0 right-0 bg-navy/80 px-4 py-2.5"><Text className="font-pop-sb text-[11px] tracking-widest text-gold">{p.kind.toUpperCase()} · {countryName(p.countryCode).toUpperCase()}</Text><Text className="font-pop-sb text-lg text-white">{p.name}</Text></View>
         </Pressable>
       ))}

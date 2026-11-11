@@ -57,6 +57,17 @@ export class MediaService {
     return { id, kind, url: this.storage.url(key) };
   }
 
+  /** Stores a photo chosen by staff for a product or place and returns its address. No per-user record is kept. */
+  async storeImage(folder: 'products' | 'places', file: { buffer: Buffer; size: number } | undefined) {
+    if (!file?.buffer?.length) throw badRequest('file_required', 'Choose a photo to upload.');
+    const type = sniff(file.buffer);
+    if (!type?.startsWith('image/')) throw badRequest('file_type', 'Use a JPEG, PNG or WebP photo.');
+    if (file.size > LIMITS.image) throw badRequest('file_too_large', `That photo is too large. The limit is ${LIMITS.image / MB} MB.`);
+    const key = `${folder}/${randomUUID()}.${EXT[type]}`;
+    await this.storage.put(key, file.buffer, type);
+    return { url: this.storage.url(key) };
+  }
+
   /** Media a user may attach: it must be their own upload. */
   async owned(userId: string, id: string) {
     const [m] = await this.database.db.select().from(media).where(and(eq(media.id, id), eq(media.userId, userId)));

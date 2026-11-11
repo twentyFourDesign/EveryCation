@@ -64,6 +64,13 @@
       "when": 1794345825134,
       "tag": "0008_shop",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1794427229690,
+      "tag": "0009_admin_content",
+      "breakpoints": true
     }
   ]
 }

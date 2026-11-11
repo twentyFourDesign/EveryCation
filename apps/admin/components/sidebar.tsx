@@ -11,7 +11,7 @@ export const NAV: Item[] = [
   { href: '/overview', label: 'Overview', icon: LayoutDashboard, area: 'any' },
   { group: 'MODERATION', href: '/advice', label: 'Advice review', icon: BadgeCheck, area: 'moderation', badge: '42' },
   { href: '/reports', label: 'Reports', icon: Flag, area: 'moderation', badge: '17' },
-  { href: '/content', label: 'Places & content', icon: ImageIcon, area: 'moderation' },
+  { href: '/content', label: 'Places', icon: ImageIcon, area: 'moderation' },
   { group: 'PEOPLE', href: '/users', label: 'Users & KYC', icon: Users, area: 'users' },
   { group: 'MONEY', href: '/transactions', label: 'Wallet & withdrawals', icon: Wallet, area: 'wallet', badge: '8' },
   { href: '/payouts', label: 'Creator payouts', icon: Coins, area: 'payouts' },

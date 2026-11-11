@@ -6,7 +6,7 @@ import { Database } from '../../db/db.module.js';
 import { advice, follows, places, tips, users } from '../../db/schema.js';
 import { TipsService, author } from '../community/tips.service.js';
 
-const placeView = (p: typeof places.$inferSelect) => ({ id: p.slug, name: p.name, kind: p.kind, countryCode: p.countryCode, summary: p.summary, bestTime: p.bestTime, currency: p.currency, imageKey: p.imageKey });
+const placeView = (p: typeof places.$inferSelect) => ({ id: p.slug, name: p.name, kind: p.kind, countryCode: p.countryCode, summary: p.summary, bestTime: p.bestTime, currency: p.currency, imageKey: p.imageKey, imageUrl: p.imageUrl });
 
 /** Places, traveller profiles, following and search. */
 @Injectable()
@@ -22,6 +22,21 @@ export class DiscoverService {
     const tipList = await this.tipsService.list({ feed: 'popular', search: p.name, limit: 12 }, viewerId);
     const [a] = await this.db.select({ n: sql<number>`count(*)::int` }).from(advice).where(and(eq(advice.countryCode, p.countryCode), eq(advice.status, 'verified')));
     return { ...placeView(p), tips: tipList, verifiedAdvice: a?.n ?? 0 };
+  }
+
+  // ───────────── Staff: places ─────────────
+  async adminPlaces() {
+    const rows = await this.db.select().from(places).orderBy(places.name);
+    const tipCounts = await this.db.execute(sql`SELECT p.id, (SELECT count(*)::int FROM tips t WHERE t.status = 'published' AND t.place ILIKE '%' || p.name || '%') AS tips, (SELECT count(*)::int FROM advice a WHERE a.country_code = p.country_code AND a.status = 'verified') AS verified FROM places p`);
+    const by = new Map((tipCounts.rows as { id: string; tips: number; verified: number }[]).map((r) => [r.id, r]));
+    return rows.map((p) => ({ ...placeView(p), uuid: p.id, published: p.published, tips: by.get(p.id)?.tips ?? 0, verifiedAdvice: by.get(p.id)?.verified ?? 0 }));
+  }
+  async savePlace(id: string | null, input: { name?: string; kind?: string; countryCode?: string; summary?: string; bestTime?: string | null; currency?: string | null; imageUrl?: string | null; published?: boolean }) {
+    const values = { ...input, countryCode: input.countryCode?.toUpperCase() };
+    if (id) { const [p] = await this.db.update(places).set(values).where(eq(places.id, id)).returning(); if (!p) throw notFound('Place'); return placeView(p); }
+    const slug = input.name!.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    try { const [p] = await this.db.insert(places).values({ ...values, slug, name: input.name!, kind: input.kind!, countryCode: values.countryCode!, summary: input.summary! }).returning(); return placeView(p!); }
+    catch { throw badRequest('place_exists', 'There is already a place with that name.'); }
   }
 
   async profile(userId: string, viewerId?: string) {

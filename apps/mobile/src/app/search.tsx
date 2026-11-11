@@ -31,7 +31,7 @@ export default function SearchResults() {
       {query.length < 2 ? <Empty>Type a place, a tip or a traveller&apos;s name.</Empty> : !data && isFetching ? <Loading what="results" /> : none ? <Empty>{`Nothing found for "${query}". Check the spelling or try a country.`}</Empty> : null}
       {query.length >= 2 && show('Places') && data?.places.map((p) => (
         <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={`${p.name}, ${countryName(p.countryCode)}`} onPress={() => go(`/place/${p.id}`)} className="overflow-hidden rounded-card active:opacity-80">
-          <Photo k={placeImage(p)} className="h-[150px]" />
+          <Photo k={placeImage(p)} uri={p.imageUrl} className="h-[150px]" />
           <View className="absolute bottom-0 left-0 right-0 flex-row items-center justify-between bg-navy/80 px-4 py-2.5"><View><Text className="font-pop-sb text-[11px] tracking-widest text-gold">PLACE</Text><Text className="font-pop-sb text-base text-white">{p.name}, {countryName(p.countryCode)}</Text></View><ChevronRight size={20} color="#fff" /></View>
         </Pressable>
       ))}

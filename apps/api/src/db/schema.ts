@@ -354,6 +354,7 @@ export const places = pgTable('places', {
   bestTime: text(),
   currency: text(),
   imageKey: text(),
+  imageUrl: text(),
   published: boolean().notNull().default(true),
   createdAt: createdAt(),
 });
@@ -392,6 +393,8 @@ export const planPurchases = pgTable('plan_purchases', {
   /** Set when Finance pays the seller. Null means the seller's share is still waiting. */
   payoutReference: text(),
   paidOutAt: timestamp({ withTimezone: true }),
+  /** Set when the plan was removed and the buyer got their money back. */
+  refundedAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('plan_purchase_once_idx').on(t.planId, t.buyerId), index('plan_purchase_seller_idx').on(t.sellerId, t.paidOutAt)]);
 
@@ -406,6 +409,8 @@ export const products = pgTable('products', {
   /** Units in stock. Null means a digital item (an eSIM) that never runs out. */
   stock: integer(),
   imageKey: text(),
+  /** Address of an uploaded photo. Takes priority over the bundled sample photo. */
+  imageUrl: text(),
   variant: text(),
   description: text().notNull().default(''),
   pickedNote: text(),

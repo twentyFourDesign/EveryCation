@@ -11,7 +11,7 @@ import { WalletService } from '../wallet/wallet.service.js';
 const naira = (k: number) => `₦${(k / 100).toLocaleString('en-NG')}`;
 type Delivery = keyof typeof RULES.delivery;
 export interface OrderInput { items: { productId: string; qty: number }[]; delivery: Delivery; address: string; phone: string; goalId?: string; pin: string }
-const productView = (p: typeof products.$inferSelect) => ({ id: p.id, name: p.name, brand: p.brand, category: p.category, price: p.price, imageKey: p.imageKey, variant: p.variant, description: p.description, pickedNote: p.pickedNote, digital: p.stock === null, inStock: p.stock === null || p.stock > 0, lowStock: p.stock !== null && p.stock > 0 && p.stock < 10 });
+const productView = (p: typeof products.$inferSelect) => ({ id: p.id, name: p.name, brand: p.brand, category: p.category, price: p.price, imageKey: p.imageKey, imageUrl: p.imageUrl, variant: p.variant, description: p.description, pickedNote: p.pickedNote, digital: p.stock === null, inStock: p.stock === null || p.stock > 0, lowStock: p.stock !== null && p.stock > 0 && p.stock < 10 });
 const NEXT: Record<string, string[]> = { placed: ['packed', 'cancelled'], packed: ['shipped', 'cancelled'], shipped: ['delivered'], delivered: [], cancelled: [] };
 
 @Injectable()
@@ -83,6 +83,19 @@ export class ShopService {
   }
   async order(userId: string, id: string) { const [o] = await this.db.select().from(orders).where(and(eq(orders.id, id), eq(orders.userId, userId))); if (!o) throw notFound('Order'); return this.orderView(o); }
   async myOrders(userId: string) { const rows = await this.db.select().from(orders).where(eq(orders.userId, userId)).orderBy(desc(orders.createdAt)).limit(50); return Promise.all(rows.map((o) => this.orderView(o))); }
+
+  // ───────────── Shop ops: products ─────────────
+  async adminProducts() {
+    const rows = await this.db.select().from(products).orderBy(desc(products.createdAt)).limit(500);
+    const sold = await this.db.execute(sql`SELECT i.product_id AS id, COALESCE(SUM(i.qty), 0)::int AS n FROM order_items i JOIN orders o ON o.id = i.order_id WHERE o.status <> 'cancelled' AND o.created_at > now() - interval '30 days' GROUP BY i.product_id`);
+    const by = new Map((sold.rows as { id: string; n: number }[]).map((r) => [r.id, r.n]));
+    return rows.map((p) => ({ ...productView(p), stock: p.stock, active: p.active, sold30d: by.get(p.id) ?? 0 }));
+  }
+  async saveProduct(id: string | null, input: Partial<typeof products.$inferInsert>) {
+    if (id) { const [p] = await this.db.update(products).set(input).where(eq(products.id, id)).returning(); if (!p) throw notFound('Product'); return p; }
+    const [p] = await this.db.insert(products).values(input as typeof products.$inferInsert).returning();
+    return p!;
+  }
 
   // ───────────── Shop ops ─────────────
   async allOrders(status?: string) {

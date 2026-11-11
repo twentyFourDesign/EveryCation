@@ -216,7 +216,7 @@ async function staff(role: AdminRole) {
   const { totpSecret } = await app.get(AdminAuthService).createAdmin({ email, name: `Staff ${adminSeq}`, role, password });
   const res = await http().post('/v1/admin/auth/login').send({ email, password, code: totpCode(totpSecret) }).expect(200);
   const h = { Authorization: `Bearer ${res.body.token}` };
-  return { email, password, totpSecret, get: (p: string) => http().get(`/v1/admin${p}`).set(h), post: (p: string, body?: object) => http().post(`/v1/admin${p}`).set(h).send(body) };
+  return { email, password, totpSecret, token: res.body.token as string, get: (p: string) => http().get(`/v1/admin${p}`).set(h), post: (p: string, body?: object) => http().post(`/v1/admin${p}`).set(h).send(body), patch: (p: string, body: object) => http().patch(`/v1/admin${p}`).set(h).send(body) };
 }
 async function named(name: string) { const u = await signUp(); const api = authed(u.token); await api.patch('/auth/me', { name }).expect(200); return { ...u, api }; }
 
@@ -589,5 +589,34 @@ describe('shop', () => {
     expect((await balance(u.api)).available).toBe(before + N(18_000));
     expect(((await ops.get('/shop/orders?status=shipped')).body.orders as { id: string }[]).some((o) => o.id === order.id)).toBe(true);
     expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
+  });
+});
+
+describe('staff manage products and places', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082', 'hex');
+  it('lets Shop ops add, restock and hide a product with a photo', async () => {
+    const ops = await staff('shop_ops'); const mod = await staff('moderator');
+    await mod.get('/shop/products').expect(403);
+    const up = await http().post('/v1/admin/uploads/products').set('Authorization', `Bearer ${ops.token}`).attach('file', png, { filename: 'p.png', contentType: 'image/png' }).expect(201);
+    await http().post('/v1/admin/uploads/places').set('Authorization', `Bearer ${ops.token}`).attach('file', png, 'p.png').expect(403);
+    expect((await ops.post('/shop/products', { name: 'X', category: 'Luggage & suitcases', price: N(10_000), stock: 1 }).expect(400)).body.code).toBe('invalid_input');
+    const { id } = (await ops.post('/shop/products', { name: 'Compression packing cubes, set of 6', category: 'Packing cubes & organisers', price: N(14_500), stock: 3, imageUrl: up.body.url, description: 'Six sizes that squeeze the air out.' }).expect(201)).body;
+    expect((await http().get(`/v1/shop/products/${id}`).expect(200)).body).toMatchObject({ price: N(14_500), imageUrl: up.body.url, lowStock: true });
+    await ops.patch(`/shop/products/${id}`, { stock: 80, price: N(15_000) }).expect(200);
+    const row = ((await ops.get('/shop/products')).body as { id: string; stock: number; active: boolean; sold30d: number }[]).find((p) => p.id === id);
+    expect(row).toMatchObject({ stock: 80, active: true, sold30d: 0 });
+    await ops.patch(`/shop/products/${id}`, { active: false }).expect(200);
+    await http().get(`/v1/shop/products/${id}`).expect(404);
+  });
+  it('lets a moderator add a place, and keeps drafts out of the app', async () => {
+    const mod = await staff('moderator'); const ops = await staff('shop_ops');
+    await ops.post('/places', { name: 'Nope', kind: 'City', countryCode: 'NG', summary: 'Shop ops cannot add places to the app.' }).expect(403);
+    const draft = (await mod.post('/places', { name: 'Cape Coast', kind: 'City', countryCode: 'gh', summary: 'Castles, fishing boats and the canopy walk at Kakum.', published: false }).expect(201)).body;
+    expect(draft).toMatchObject({ id: 'cape-coast', countryCode: 'GH' });
+    await http().get('/v1/places/cape-coast').expect(404);
+    expect((await mod.post('/places', { name: 'Cape Coast', kind: 'City', countryCode: 'GH', summary: 'A second one with the same name.' }).expect(400)).body.code).toBe('place_exists');
+    const row = ((await mod.get('/places')).body as { id: string; uuid: string; published: boolean }[]).find((p) => p.id === 'cape-coast')!;
+    await mod.patch(`/places/${row.uuid}`, { published: true, bestTime: 'Nov – Mar' }).expect(200);
+    expect((await http().get('/v1/places/cape-coast').expect(200)).body).toMatchObject({ name: 'Cape Coast', bestTime: 'Nov – Mar' });
   });
 });
