@@ -620,3 +620,52 @@ describe('staff manage products and places', () => {
     expect((await http().get('/v1/places/cape-coast').expect(200)).body).toMatchObject({ name: 'Cape Coast', bestTime: 'Nov – Mar' });
   });
 });
+
+describe('staff: users, plans and the overview', () => {
+  it('lets Support find a customer and act on the account', async () => {
+    const u = await readyUser(40_000); await u.api.patch('/auth/me', { name: 'Kemi Bello' }); const support = await staff('support'); const mod = await staff('moderator');
+    const found = (await support.get('/users?q=kemi%20bel').expect(200)).body;
+    expect(found.users.find((x: { id: string }) => x.id === u.id)).toMatchObject({ name: 'Kemi Bello', kyc: 'verified', wallet: N(40_000), status: 'active' });
+    expect(JSON.stringify(found)).not.toContain(u.phone); // phone numbers are masked
+    const detail = (await support.get(`/users/${u.id}`).expect(200)).body;
+    expect(detail).toMatchObject({ hasPin: true, wallet: { available: N(40_000), inGoals: 0 }, banks: [{ bank: 'GTBank', account: '•••• 4821' }] });
+    await mod.post(`/users/${u.id}/action`, { action: 'freeze' }).expect(403); // moderators can look but not act
+    expect((await support.post(`/users/${u.id}/action`, { action: 'freeze' }).expect(200)).body.walletFrozen).toBe(true);
+    expect((await u.api.post('/wallet/withdrawals', { amount: N(5_000), source: 'available', pin: '2580' }).expect(403)).body.code).toBe('wallet_frozen');
+    await support.post(`/users/${u.id}/action`, { action: 'unfreeze' }).expect(200);
+    expect((await support.post(`/users/${u.id}/action`, { action: 'reset_pin' }).expect(200)).body.hasPin).toBe(false);
+    expect((await u.api.post('/wallet/withdrawals', { amount: N(5_000), source: 'available', pin: '2580' }).expect(403)).body.code).toBe('pin_required');
+    await u.api.put('/wallet/pin', { pin: '7391' }).expect(204);
+    await support.post(`/users/${u.id}/action`, { action: 'suspend' }).expect(200);
+    await u.api.get('/auth/me').expect(403);
+    expect(((await support.get('/users?filter=suspended')).body.users as { id: string }[]).some((x) => x.id === u.id)).toBe(true);
+    await support.post(`/users/${u.id}/action`, { action: 'reinstate' }).expect(200);
+    await u.api.get('/auth/me').expect(200);
+  });
+  it('removes a plan and refunds buyers whose money has not been paid out', async () => {
+    const seller = await named('Scam Seller'); await seller.api.post('/wallet/identity', { method: 'BVN', number: '22212345678', dateOfBirth: '1990-01-01' });
+    const trip = (await seller.api.post('/trips', { title: 'Dubai on a zero visa', place: 'Dubai, UAE', countryCode: 'AE', startDate: '2026-08-01', endDate: '2026-08-05' }, null)).body;
+    for (const t of ['08:00', '12:00', '18:00']) await seller.api.post(`/trips/${trip.id}/items`, { day: '2026-08-02', time: t, title: `Stop at ${t}` }, null);
+    const plan = (await seller.api.put(`/trips/${trip.id}/plan`, { mode: 'sell', price: N(15_000) })).body;
+    const buyer = await readyUser(20_000); const mod = await staff('moderator'); const finance = await staff('finance');
+    await buyer.api.post(`/plans/${plan.id}/buy`, { pin: '2580' }).expect(200);
+    expect((await balance(buyer.api)).available).toBe(N(5_000));
+    expect(((await mod.get('/plans').expect(200)).body as { id: string; used: number }[]).find((p) => p.id === plan.id)).toMatchObject({ used: 1, status: 'on_sale' });
+    await finance.post(`/plans/${plan.id}/remove`, { refund: true }).expect(403);
+    expect((await mod.post(`/plans/${plan.id}/remove`, { refund: true }).expect(200)).body).toMatchObject({ refunded: 1, total: N(15_000), alreadyPaidOut: 0 });
+    await mod.post(`/plans/${plan.id}/remove`, { refund: true }).expect(409);
+    expect((await balance(buyer.api)).available).toBe(N(20_000));
+    await http().get(`/v1/plans/${plan.id}`).expect(404);
+    expect(((await finance.get('/payouts')).body.sellers as { sellerId: string }[]).some((x) => x.sellerId === seller.id)).toBe(false); // nothing left to pay the seller
+    expect((await buyer.api.get('/notifications')).body.items[0].text).toContain('returned ₦15,000 to your wallet');
+    expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
+  });
+  it('reports real totals on the overview', async () => {
+    const boss = await staff('super_admin');
+    const o = (await boss.get('/overview').expect(200)).body;
+    expect(o.users.total).toBeGreaterThan(20); expect(o.signups).toHaveLength(8); expect(o.signups.at(-1).value).toBe(o.users.total);
+    expect(o.money.heldForCustomers).toBeGreaterThan(0); expect(o.money.planFees).toBeGreaterThan(0);
+    expect(o.attention).toMatchObject({ openReports: expect.any(Number), ordersToPack: expect.any(Number) });
+    expect(o.activity[0]).toMatchObject({ action: expect.any(String) });
+  });
+});

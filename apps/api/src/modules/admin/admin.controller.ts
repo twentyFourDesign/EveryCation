@@ -18,7 +18,7 @@ import { ShopService } from '../shop/shop.service.js';
 import { Ledger } from '../wallet/ledger.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { AdminAuthService, AdminGuard, can, CurrentAdmin, PERMISSIONS, Staff, type Admin } from './admin-auth.js';
-import { AdminWalletService } from './admin.service.js';
+import { AdminUsersService, AdminWalletService } from './admin.service.js';
 
 const loginBody = z.object({ email: z.email('Enter your work email'), password: z.string().min(1).max(200), code: z.string().regex(/^\d{3}\s?\d{3}$/, 'Enter the 6-digit code') });
 const decisionBody = z.object({ decision: z.enum(['approve', 'changes', 'reject']), note: z.string().trim().max(500).optional() });
@@ -30,6 +30,8 @@ const productBody = z.object({ name: z.string().trim().min(2, 'Enter the product
   stock: z.number().int().min(0).nullable(), variant: z.string().trim().max(60).nullish(), description: z.string().trim().max(600).default(''), pickedNote: z.string().trim().max(200).nullish(), imageUrl: z.url().nullish(), active: z.boolean().default(true) });
 const placeBody = z.object({ name: z.string().trim().min(2, 'Enter the place name').max(60), kind: z.string().trim().min(2, 'Say what kind of place it is').max(30), countryCode: z.string().length(2, 'Choose a country'), summary: z.string().trim().min(20, 'Write a summary of at least 20 characters').max(300),
   bestTime: z.string().trim().max(40).nullish(), currency: z.string().trim().max(40).nullish(), imageUrl: z.url().nullish(), published: z.boolean().default(true) });
+const userAction = z.object({ action: z.enum(['suspend', 'reinstate', 'freeze', 'unfreeze', 'reset_kyc', 'reset_pin']) });
+const removePlanBody = z.object({ refund: z.boolean().default(true) });
 const queues: Queue[] = ['waiting', 'changes', 'rereview', 'decided'];
 const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString('en-NG')}`;
 const bearer = (req: Request) => (req.headers.authorization ?? '').split(' ')[1] ?? '';
@@ -49,7 +51,7 @@ export class AdminLoginController {
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService, private readonly shop: ShopService, private readonly discover: DiscoverService, private readonly media: MediaService) {}
+  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService, private readonly shop: ShopService, private readonly discover: DiscoverService, private readonly media: MediaService, private readonly people: AdminUsersService) {}
 
   @Get('me')
   async me(@CurrentAdmin() admin: Admin) {
@@ -57,6 +59,28 @@ export class AdminController {
     return { admin, access, counts: await this.money.counts() };
   }
   @HttpCode(204) @Post('auth/logout') logout(@Req() req: Request) { return this.auth.logout(bearer(req)); }
+
+  @Get('overview') overview() { return this.people.overview(); }
+
+  // ───────────── Users ─────────────
+  @Staff('users') @Get('users') users(@Query('q') q?: string, @Query('filter') filter?: string) { return this.people.list({ search: q, filter }); }
+  @Staff('users') @Get('users/:id') async user(@Param('id', ParseUUIDPipe) id: string) { const u = await this.people.detail(id); if (!u) throw notFound('User'); return u; }
+  @Staff('users', 'edit') @HttpCode(200) @Post('users/:id/action')
+  async userAction(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(userAction)) b: z.infer<typeof userAction>, @Req() req: Request) {
+    const r = await this.people.act(id, b.action);
+    if (!r) throw notFound('User');
+    await this.auth.record(admin, r.did, r.who, req);
+    return this.people.detail(id);
+  }
+
+  // ───────────── Trip plans ─────────────
+  @Staff('plans') @Get('plans') allPlans() { return this.plans.adminList(); }
+  @Staff('plans', 'edit') @HttpCode(200) @Post('plans/:id/remove')
+  async removePlan(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(removePlanBody)) b: z.infer<typeof removePlanBody>, @Req() req: Request) {
+    const r = await this.plans.remove(id, b.refund);
+    await this.auth.record(admin, r.refunded ? `Removed plan, refunded ${r.refunded} buyer${r.refunded === 1 ? '' : 's'}` : 'Removed plan', `${r.title}${r.total ? ` · ${naira(r.total)}` : ''}`, req);
+    return r;
+  }
 
   // ───────────── Wallet & withdrawals ─────────────
   @Staff('wallet') @Get('wallet/summary') summary() { return this.money.summary(); }

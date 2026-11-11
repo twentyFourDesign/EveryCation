@@ -105,7 +105,7 @@ Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countr
 - **Push and email:** notifications are in-app only. The `outbox` worker (BullMQ) is not built, so nothing is sent outside the app.
 - **Scheduled work:** auto-saves and a Friday payout timer do not run by themselves. Finance approves payouts from the console.
 - **Map tiles** (My travels → Map lists countries from your trips), **Google sign-in and Calendar sync**, **phone reminders**.
-- **Console pages still on sample data:** Overview, Places & content, Users & KYC, Trip plans, Shop products, Notifications, Settings. Places and products are added by the seed or straight in the database for now.
+- **Console pages still on sample data:** Notifications (broadcasts) and Settings. Every other console page reads and writes the API: Overview totals, Users & KYC (freeze wallet, reset PIN, retry ID check, suspend), Trip plans (remove, with refunds for sales not yet paid out), Places, Shop products and orders.
 - **Plans:** no ratings or reviews, and no refund flow when a plan is removed.
 - **Offline cache, i18n, Sentry, PostHog, saved Maestro/Playwright suites.**
 - **Travel packages and bookings:** left out on purpose; they are a later release.

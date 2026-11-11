@@ -6,7 +6,7 @@ import { ShopModule } from '../shop/shop.module.js';
 import { WalletModule } from '../wallet/wallet.module.js';
 import { AdminAuthService, AdminGuard } from './admin-auth.js';
 import { AdminController, AdminLoginController } from './admin.controller.js';
-import { AdminWalletService } from './admin.service.js';
+import { AdminUsersService, AdminWalletService } from './admin.service.js';
 
-@Module({ imports: [WalletModule, CommunityModule, PlansModule, ShopModule, DiscoverModule], controllers: [AdminLoginController, AdminController], providers: [AdminAuthService, AdminGuard, AdminWalletService], exports: [AdminAuthService] })
+@Module({ imports: [WalletModule, CommunityModule, PlansModule, ShopModule, DiscoverModule], controllers: [AdminLoginController, AdminController], providers: [AdminAuthService, AdminGuard, AdminWalletService, AdminUsersService], exports: [AdminAuthService] })
 export class AdminModule {}
