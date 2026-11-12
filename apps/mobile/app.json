@@ -12,7 +12,8 @@
       "supportsTablet": false,
       "infoPlist": {
         "NSFaceIDUsageDescription": "Approve wallet withdrawals with Face ID."
-      }
+      },
+      "usesAppleSignIn": true
     },
     "android": {
       "package": "app.everycation.mobile",
@@ -59,7 +60,9 @@
           "microphonePermission": "Record voice tips to share with other travellers.",
           "enableBackgroundPlayback": false
         }
-      ]
+      ],
+      "expo-apple-authentication",
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,

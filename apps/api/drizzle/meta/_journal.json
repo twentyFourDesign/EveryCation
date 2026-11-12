@@ -85,6 +85,13 @@
       "when": 1794444266065,
       "tag": "0011_settings_broadcasts",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1794445179660,
+      "tag": "0012_jobs_social_calendar",
+      "breakpoints": true
     }
   ]
 }

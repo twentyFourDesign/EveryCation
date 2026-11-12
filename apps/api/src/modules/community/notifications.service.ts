@@ -16,5 +16,7 @@ export class NotificationsService {
     const [r] = await this.db.select({ n: sql<number>`count(*)::int` }).from(notifications).where(and(eq(notifications.userId, userId), isNull(notifications.readAt)));
     return { unread: r?.n ?? 0 };
   }
+  /** Tapping a notification counts it as read. */
+  async markRead(userId: string, id: string) { await this.db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.id, id), eq(notifications.userId, userId), isNull(notifications.readAt))); }
   async markAllRead(userId: string) { await this.db.update(notifications).set({ readAt: new Date() }).where(and(eq(notifications.userId, userId), isNull(notifications.readAt))); }
 }

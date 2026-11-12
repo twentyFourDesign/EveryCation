@@ -7,7 +7,9 @@ import { TripsService } from './trips.service.js';
 
 const day = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use the format YYYY-MM-DD').refine((d) => !Number.isNaN(Date.parse(d)), 'That date does not exist');
 const tripBody = z.object({ title: z.string().trim().min(2, 'Give the trip a name').max(80), place: z.string().trim().min(2, 'Add where you are going').max(80), countryCode: z.string().length(2, 'Choose a country'),
-  startDate: day, endDate: day, travellers: z.number().int().min(1).max(50).optional(), imageKey: z.string().max(40).optional() });
+  startDate: day, endDate: day, travellers: z.number().int().min(1).max(50).optional(), imageKey: z.string().max(40).optional(),
+  /** Set when the traveller picked a place from search, so the map pin is exact. */
+  lat: z.number().min(-90).max(90).optional(), lng: z.number().min(-180).max(180).optional() });
 const itemBody = z.object({ day, time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Use a time like 06:30'), title: z.string().trim().min(2, 'Add a title').max(80), note: z.string().trim().max(200).optional(), remind: z.string().max(40).optional() });
 const bucketBody = z.object({ title: z.string().trim().min(3, 'Say what you dream of doing').max(80), source: z.string().max(80).optional(), imageKey: z.string().max(40).optional() });
 const stateBody = z.object({ state: z.enum(['dream', 'done']) });

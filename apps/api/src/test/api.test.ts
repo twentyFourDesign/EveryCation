@@ -12,6 +12,12 @@ import { AdminAuthService, type AdminRole } from '../modules/admin/admin-auth.js
 import { totpCode } from '../modules/admin/totp.js';
 import { WalletService } from '../modules/wallet/wallet.service.js';
 import { signPayload } from '../modules/wallet/webhook.controller.js';
+import { createServer, type Server } from 'node:http';
+import { AppleVerifier, GoogleApi, type CalendarEvent, type GoogleTokens } from '../modules/auth/google.js';
+import { JobsService } from '../modules/jobs/jobs.module.js';
+
+/** Stands in for the map service that place search asks. */
+const geocoder = { features: [] as object[], asked: [] as string[], down: false, server: undefined as Server | undefined };
 
 let app: NestExpressApplication; let db: Database['db']; let wallet: WalletService; let ledger: Ledger;
 let emailSeq = 0;
@@ -48,8 +54,11 @@ async function readyUser(balanceNaira = 0) {
 }
 const balance = async (api: ReturnType<typeof authed>) => (await api.get('/wallet')).body as { available: number; inGoals: number; total: number };
 
-beforeAll(async () => { app = await createApp(); await app.init(); db = app.get(Database).db; wallet = app.get(WalletService); ledger = app.get(Ledger); });
-afterAll(async () => { await app.close(); });
+beforeAll(async () => {
+  geocoder.server = createServer((req, res) => { geocoder.asked.push(decodeURIComponent(req.url ?? '')); res.writeHead(geocoder.down ? 503 : 200, { 'content-type': 'application/json' }); res.end(JSON.stringify({ features: geocoder.features })); }).listen(4599, '127.0.0.1');
+  app = await createApp(); await app.init(); db = app.get(Database).db; wallet = app.get(WalletService); ledger = app.get(Ledger);
+});
+afterAll(async () => { await app.close(); geocoder.server?.close(); });
 
 describe('sign-in', () => {
   it('signs up with an email code and returns the profile', async () => {
@@ -729,5 +738,163 @@ describe('staff: notifications to travellers and platform settings', () => {
     expect(up.kind).toBe('audio');
     const tip = (await u.api.post('/tips', { title: 'Listen before you land in Accra', place: 'Accra, Ghana', countryCode: 'GH', category: 'Getting there', format: 'voice', body: '', mediaId: up.id }, null).expect(201)).body;
     expect(tip).toMatchObject({ format: 'voice', media: { kind: 'audio' } });
+  });
+});
+
+describe('timed jobs', () => {
+  const day = (offset: number) => new Date(Date.now() + 3_600_000 + offset * 86_400_000).toISOString().slice(0, 10); // Lagos calendar day
+  const texts = async (api: ReturnType<typeof authed>) => ((await api.get('/notifications')).body.items as { text: string }[]).map((n) => n.text);
+  it('reminds a traveller a week before a trip, once', async () => {
+    const jobs = app.get(JobsService); const u = await named('Reminder Rita');
+    await u.api.post('/trips', { title: 'Zanzibar week', place: 'Zanzibar', countryCode: 'TZ', startDate: day(7), endDate: day(12) }, null).expect(201);
+    await u.api.post('/trips', { title: 'Far away', place: 'Lima', countryCode: 'PE', startDate: day(40), endDate: day(45) }, null).expect(201);
+    expect((await jobs.run('trip_reminders', true)).did).toBeGreaterThanOrEqual(1);
+    await jobs.run('trip_reminders', true);
+    const got = (await texts(u.api)).filter((t) => t.startsWith('One week to go'));
+    expect(got).toHaveLength(1); expect(got[0]).toContain('Zanzibar week starts on');
+  });
+  it('sends a scheduled notification when its time comes, and lets staff cancel one', async () => {
+    const jobs = app.get(JobsService); const boss = await staff('super_admin'); const u = await named('Scheduled Sam');
+    const soon = new Date(Date.now() + 3_600_000).toISOString();
+    await boss.post('/broadcasts', { title: 'Too soon', message: 'This time has already passed.', audience: 'everyone', sendAt: new Date(Date.now() - 60_000).toISOString() }).expect(400);
+    const later = (await boss.post('/broadcasts', { title: 'Detty December', message: 'Flights fill up fast. Plan your trip now.', audience: 'everyone', sendAt: soon }).expect(201)).body;
+    const dropped = (await boss.post('/broadcasts', { title: 'Never mind', message: 'This one gets cancelled first.', audience: 'everyone', sendAt: soon }).expect(201)).body;
+    expect(later.recipients).toBe(0);
+    await jobs.run('scheduled_notifications', true);
+    expect(await texts(u.api)).not.toContain('Detty December\nFlights fill up fast. Plan your trip now.'); // not yet
+    await boss.post(`/broadcasts/${dropped.id}/cancel`).expect(200);
+    await boss.post(`/broadcasts/${dropped.id}/cancel`).expect(409);
+    await db.execute(sql`UPDATE broadcasts SET send_at = now() - interval '1 minute' WHERE id IN (${later.id}::uuid, ${dropped.id}::uuid)`);
+    expect((await jobs.run('scheduled_notifications', true)).did).toBe(1);
+    const inbox = await texts(u.api);
+    expect(inbox).toContain('Detty December\nFlights fill up fast. Plan your trip now.'); expect(inbox.join()).not.toContain('Never mind');
+    const rows = (await boss.get('/broadcasts')).body.sent as { id: string; status: string; recipients: number }[];
+    expect(rows.find((r) => r.id === later.id)).toMatchObject({ status: 'sent' }); expect(rows.find((r) => r.id === later.id)!.recipients).toBeGreaterThan(0);
+    expect(rows.find((r) => r.id === dropped.id)).toMatchObject({ status: 'cancelled', recipients: 0 });
+  });
+  it('counts a notification as read when the traveller taps it', async () => {
+    const boss = await staff('super_admin'); const u = await named('Tapping Tayo');
+    const sent = (await boss.post('/broadcasts', { title: 'Tap me', message: 'Tapping this counts as read.', audience: 'everyone' }).expect(201)).body;
+    const item = ((await u.api.get('/notifications')).body.items as { id: string; text: string; read: boolean }[]).find((n) => n.text.startsWith('Tap me'))!;
+    expect(item.read).toBe(false);
+    await u.api.post(`/notifications/${item.id}/read`, {}, null).expect(204);
+    expect(((await boss.get('/broadcasts')).body.sent as { id: string; opened: number }[]).find((b) => b.id === sent.id)!.opened).toBe(1);
+  });
+  it('moves the planned amount into a goal, never overdraws, and never does it twice in a day', async () => {
+    const jobs = app.get(JobsService); const rich = await readyUser(20_000); const broke = await readyUser(1_000);
+    const goal = async (u: typeof rich) => { const g = (await u.api.post('/wallet/goals', { name: 'Ghana in March', kind: 'trip', target: N(50_000), autoSaveAmount: N(2_000), autoSaveFrequency: 'daily' }).expect(201)).body;
+      await db.execute(sql`UPDATE savings_goals SET created_at = now() - interval '3 days' WHERE id = ${g.id}::uuid`); return g.id as string; };
+    const a = await goal(rich); await goal(broke);
+    await jobs.run('auto_save', true); await jobs.run('auto_save', true);
+    expect((await balance(rich.api)).available).toBe(N(18_000));
+    expect(((await rich.api.get('/wallet/goals')).body as { id: string; saved: number }[]).find((g) => g.id === a)!.saved).toBe(N(2_000));
+    expect((await texts(rich.api))[0]).toBe('₦2,000 moved into Ghana in March, as you planned.');
+    expect((await balance(broke.api)).available).toBe(N(1_000));
+    expect((await texts(broke.api)).filter((t) => t.includes('wallet balance is too low'))).toHaveLength(1);
+    expect(await ledger.audit()).toEqual({ entriesSum: 0, accountsOutOfStep: 0 });
+  });
+  it('tells a seller when their plan goes on sale, and reports each job to the console', async () => {
+    const jobs = app.get(JobsService); const boss = await staff('super_admin'); const mod = await staff('moderator');
+    const seller = await named('Seller Sade'); await seller.api.post('/wallet/identity', { method: 'BVN', number: '22212345678', dateOfBirth: '1990-01-01' });
+    const trip = (await seller.api.post('/trips', { title: 'Cape Town on a budget', place: 'Cape Town', countryCode: 'ZA', startDate: day(-9), endDate: day(-2) }, null)).body;
+    for (const t of ['08:00', '12:00', '18:00']) await seller.api.post(`/trips/${trip.id}/items`, { day: day(-5), time: t, title: `Stop at ${t}` }, null);
+    await seller.api.put(`/trips/${trip.id}/plan`, { mode: 'sell', price: N(4_500) }).expect(200);
+    await jobs.run('plan_on_sale', true); await jobs.run('plan_on_sale', true);
+    expect((await texts(seller.api)).filter((t) => t.startsWith('Your plan "Cape Town on a budget" is now on sale for ₦4,500'))).toHaveLength(1);
+    await mod.get('/jobs').expect(403);
+    const status = (await boss.get('/jobs').expect(200)).body;
+    expect(status.jobs.map((j: { name: string }) => j.name)).toEqual(['scheduled_notifications', 'plan_on_sale', 'calendar_sync', 'trip_reminders', 'auto_save', 'goal_reminders', 'cleanup']);
+    expect(status.jobs.find((j: { name: string }) => j.name === 'plan_on_sale')).toMatchObject({ problem: null, lastOkAt: expect.any(String) });
+    expect((await boss.post('/jobs/cleanup/run').expect(200)).body.ran).toBe(true);
+    await boss.post('/jobs/nonsense/run').expect(404);
+  });
+});
+
+describe('place search', () => {
+  it('suggests our own places first, then the map, and pins the trip exactly where the traveller chose', async () => {
+    const mod = await staff('moderator'); const u = await named('Searching Seyi');
+    const name = `Lekki${Date.now()}`;
+    await mod.post('/places', { name, kind: 'City', countryCode: 'NG', summary: 'Beaches, art markets and the conservation centre.', lat: 6.4698, lng: 3.5852 }).expect(201);
+    geocoder.features = [{ geometry: { coordinates: [-0.186964, 5.603717] }, properties: { name: 'Accra', country: 'Ghana', countrycode: 'GH', state: 'Greater Accra Region', type: 'city' } },
+      { geometry: { coordinates: [-0.2, 5.6] }, properties: { name: 'Accra Road', country: 'Ghana', countrycode: 'GH', type: 'street' } }];
+    const hits = (await u.api.get(`/geo/search?q=${name.slice(0, 8)}`).expect(200)).body;
+    expect(hits[0]).toMatchObject({ name, label: `${name}, Nigeria`, countryCode: 'NG', lat: 6.4698, source: 'everycation' });
+    expect(hits[1]).toMatchObject({ name: 'Accra', label: 'Accra, Ghana', detail: 'Greater Accra Region, Ghana', countryCode: 'GH', lat: 5.60372, lng: -0.18696, source: 'map' });
+    expect(hits).toHaveLength(2); // the street is left out
+    expect(geocoder.asked.at(-1)).toContain(name.slice(0, 8));
+    const trip = (await u.api.post('/trips', { title: 'Jollof tour', place: 'Accra, Ghana', countryCode: 'GH', startDate: '2027-05-01', endDate: '2027-05-04', lat: 5.60372, lng: -0.18696 }, null).expect(201)).body;
+    expect(trip).toMatchObject({ lat: 5.60372, lng: -0.18696, pinned: true });
+    geocoder.down = true; // the map service failing must not break search
+    expect((await u.api.get(`/geo/search?q=${name.slice(0, 7)}`).expect(200)).body).toHaveLength(1);
+    geocoder.down = false;
+    await http().get('/v1/geo/search?q=accra').expect(401);
+  });
+});
+
+describe('sign in with Google or Apple, and Google Calendar', () => {
+  /** Follows the two browser hops of a Google sign-in and returns where the browser ends up. */
+  async function throughGoogle(startUrl: string, who: Partial<GoogleTokens>) {
+    const google = app.get(GoogleApi);
+    google.exchangeCode = async () => ({ sub: 'g-1', email: null, emailVerified: true, name: null, refreshToken: null, accessToken: 'access', ...who });
+    const state = new URL(startUrl).searchParams.get('state')!;
+    return new URL((await http().get(`/v1/auth/google/callback?code=from-google&state=${encodeURIComponent(state)}`).expect(302)).headers.location!);
+  }
+  it('signs in with Google and keeps the same account as an earlier email sign-in', async () => {
+    expect((await http().get('/v1/auth/providers').expect(200)).body).toEqual({ google: true, apple: true, calendar: true });
+    const before = await signUp(); // the same person signed in with an email code first
+    await http().get('/v1/auth/google/start?returnTo=https://evil.example/catch').expect(400);
+    const start = (await http().get('/v1/auth/google/start?returnTo=everycation://signed-in').expect(302)).headers.location!;
+    expect(start).toContain('https://accounts.google.com/o/oauth2/v2/auth?'); expect(start).toContain('client_id=test-google-client'); expect(start).toContain('scope=openid+email+profile');
+    const back = await throughGoogle(start, { sub: `g-${before.id}`, email: before.email, name: 'Ada Google' });
+    expect(back.protocol).toBe('everycation:'); const code = back.searchParams.get('code')!;
+    const session = (await http().post('/v1/auth/handoff').send({ code }).expect(200)).body;
+    expect((await authed(session.accessToken).get('/auth/me')).body).toMatchObject({ id: before.id, name: 'Ada Google' });
+    await http().post('/v1/auth/handoff').send({ code }).expect(400); // a code works once
+    // someone who says no at Google comes back with an error, not a session
+    const state = new URL(start).searchParams.get('state')!;
+    expect(new URL((await http().get(`/v1/auth/google/callback?error=access_denied&state=${encodeURIComponent(state)}`).expect(302)).headers.location!).searchParams.get('error')).toBe('cancelled');
+    // an unconfirmed Google email must not take over an existing account
+    const other = await signUp();
+    const sneaky = await throughGoogle(start, { sub: `g-sneaky-${other.id}`, email: other.email, emailVerified: false });
+    const s2 = (await http().post('/v1/auth/handoff').send({ code: sneaky.searchParams.get('code') }).expect(200)).body;
+    expect((await authed(s2.accessToken).get('/auth/me')).body.id).not.toBe(other.id);
+  });
+  it('signs in with Apple', async () => {
+    const apple = app.get(AppleVerifier); const sub = `apple-${randomUUID()}`;
+    apple.verify = async (token: string) => { if (token !== 'a-real-identity-token-from-apple') throw Object.assign(new Error('bad'), { status: 400 }); return { sub, email: `${sub}@privaterelay.appleid.com`, emailVerified: true }; };
+    const first = (await http().post('/v1/auth/apple').send({ identityToken: 'a-real-identity-token-from-apple', name: 'Bisi Apple' }).expect(200)).body;
+    expect(first.isNewUser).toBe(false); // Apple gave us the name, so there is nothing more to ask
+    const me = (await authed(first.accessToken).get('/auth/me')).body; expect(me.name).toBe('Bisi Apple');
+    const again = (await http().post('/v1/auth/apple').send({ identityToken: 'a-real-identity-token-from-apple' }).expect(200)).body; // Apple only sends the name the first time
+    expect((await authed(again.accessToken).get('/auth/me')).body.id).toBe(me.id);
+  });
+  it('copies trips into Google Calendar, updates them, and stops when disconnected', async () => {
+    const google = app.get(GoogleApi); const u = await named('Calendar Chidi');
+    const saved: { calendarId: string; eventId: string | null; event: CalendarEvent }[] = []; let revoked = '';
+    google.createCalendar = async () => 'cal-123'; google.accessToken = async (refresh) => `access-for-${refresh}`; google.revoke = async (t) => { revoked = t; };
+    google.saveEvent = async (_a, calendarId, eventId, event) => { saved.push({ calendarId, eventId, event }); return eventId ?? `event-${saved.length}`; };
+    const trip = (await u.api.post('/trips', { title: 'Lagos to Zanzibar', place: 'Zanzibar, Tanzania', countryCode: 'TZ', startDate: '2027-01-10', endDate: '2027-01-15' }, null).expect(201)).body;
+    expect((await u.api.get('/calendar').expect(200)).body).toMatchObject({ available: true, connected: false });
+    const { url } = (await u.api.post('/calendar/google/connect', { returnTo: 'everycation://travels' }, null).expect(200)).body;
+    expect(decodeURIComponent(url)).toContain('https://www.googleapis.com/auth/calendar.app.created'); expect(url).toContain('access_type=offline');
+    const back = await throughGoogle(url, { email: 'chidi@gmail.com', refreshToken: 'refresh-1' });
+    expect(back.searchParams.get('calendar')).toBe('connected');
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toMatchObject({ calendarId: 'cal-123', eventId: null, event: { summary: 'Lagos to Zanzibar', location: 'Zanzibar, Tanzania', startDate: '2027-01-10', endDateExclusive: '2027-01-16' } });
+    expect(JSON.stringify((await db.execute(sql`SELECT refresh_token FROM calendar_links WHERE user_id = ${u.id}::uuid`)).rows)).not.toContain('refresh-1'); // stored encrypted
+    expect((await u.api.get('/calendar')).body).toMatchObject({ connected: true, account: 'chidi@gmail.com', waiting: 0, problem: null });
+    await u.api.post(`/trips/${trip.id}/items`, { day: '2027-01-11', time: '09:30', title: 'Spice farm tour', note: 'Bring cash' }, null).expect(201);
+    await expect.poll(() => saved.length).toBe(2); // the change follows without the traveller waiting for it
+    expect(saved[1]).toMatchObject({ eventId: 'event-1' }); expect(saved[1]!.event.description).toContain('Mon 11 Jan 09:30  Spice farm tour (Bring cash)');
+    // Google being down leaves the trip waiting, and the timed job picks it up later
+    google.saveEvent = async () => { throw Object.assign(new Error('Google is down'), { status: 503 }); };
+    await u.api.patch(`/trips/${trip.id}`, { title: 'Zanzibar with friends' }).expect(200);
+    await expect.poll(async () => (await u.api.get('/calendar')).body.problem).toContain('try again');
+    google.saveEvent = async (_a, calendarId, eventId, event) => { saved.push({ calendarId, eventId, event }); return eventId!; };
+    expect((await app.get(JobsService).run('calendar_sync', true)).did).toBeGreaterThanOrEqual(1);
+    expect(saved.at(-1)!.event.summary).toBe('Zanzibar with friends');
+    expect((await u.api.get('/calendar')).body).toMatchObject({ waiting: 0, problem: null });
+    expect((await http().delete('/v1/calendar/google').set('Authorization', `Bearer ${u.token}`).expect(200)).body.connected).toBe(false);
+    expect(revoked).toBe('refresh-1');
   });
 });

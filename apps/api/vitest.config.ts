@@ -12,6 +12,7 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 60_000,
     fileParallelism: false,
-    env: { NODE_ENV: 'test', DATABASE_URL: TEST_DB, JWT_SECRET: 'test-jwt-secret-test-jwt-secret-test-jwt', OTP_SECRET: 'test-otp-secret-test-otp-secret-test-otp', PARTNER_WEBHOOK_SECRET: 'test-partner-secret', MEDIA_DIR: '/tmp/everycation-test-uploads' },
+    env: { NODE_ENV: 'test', DATABASE_URL: TEST_DB, JWT_SECRET: 'test-jwt-secret-test-jwt-secret-test-jwt', OTP_SECRET: 'test-otp-secret-test-otp-secret-test-otp', PARTNER_WEBHOOK_SECRET: 'test-partner-secret', MEDIA_DIR: '/tmp/everycation-test-uploads',
+      GOOGLE_CLIENT_ID: 'test-google-client', GOOGLE_CLIENT_SECRET: 'test-google-secret', APPLE_AUDIENCES: 'app.everycation.test', GEOCODER_URL: 'http://127.0.0.1:4599' },
   },
 });

@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, Chips, Empty, Loading, Note, Screen, T, colors, cx, go } from '@/ui';
 import { errorMessage } from '@/lib/api';
-import { timeAgo, useInbox, useMarkRead } from '@/lib/community';
+import { timeAgo, useInbox, useMarkOneRead, useMarkRead } from '@/lib/community';
 import { useSession } from '@/lib/session';
 
 const filters = ['All', 'Community', 'Wallet', 'Trips', 'News'] as const;
@@ -14,7 +14,7 @@ export default function Notifications() {
   const signedIn = useSession((s) => s.status === 'signedIn');
   const [filter, setFilter] = useState<(typeof filters)[number]>('All');
   const { data, isLoading, error } = useInbox();
-  const markRead = useMarkRead();
+  const markRead = useMarkRead(); const markOne = useMarkOneRead();
   if (!signedIn) return <Screen title="Notifications"><View className="gap-4 pt-10"><T className="text-center text-ink-muted">Sign in to see replies, wallet updates and review decisions.</T><Button label="SIGN IN" onPress={() => router.push('/sign-up')} /></View></Screen>;
   const list = (data?.items ?? []).filter((n) => filter === 'All' || n.type === filter.toLowerCase());
   return (
@@ -25,7 +25,7 @@ export default function Notifications() {
       {data && list.length === 0 && <Empty>Nothing here yet. Replies, wallet updates and review decisions show up here.</Empty>}
       <View className="gap-1">
         {list.map((n) => { const Icon = icons[n.type] ?? Star; return (
-          <Pressable key={n.id} disabled={!n.href} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.text}`} onPress={() => n.href && go(n.href)} className={cx('flex-row items-center gap-3 rounded-2xl px-2 py-3 active:opacity-70', !n.read && 'bg-tint')}>
+          <Pressable key={n.id} disabled={!n.href && n.read} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.text}`} onPress={() => { if (!n.read) markOne.mutate(n.id); if (n.href) go(n.href); }} className={cx('flex-row items-center gap-3 rounded-2xl px-2 py-3 active:opacity-70', !n.read && 'bg-tint')}>
             <View className="h-10 w-10 items-center justify-center rounded-full bg-gold-soft"><Icon size={20} color={colors.navy} /></View>
             <View className="flex-1">{n.type === 'news' && n.text.includes('\n') ? <><T v="strong" className="text-sm">{n.text.split('\n')[0]}</T><T className="text-sm leading-5">{n.text.split('\n').slice(1).join(' ')}</T></> : <T className="text-sm leading-5">{n.text}</T>}<T v="small" className="text-xs">{timeAgo(n.at)}</T></View>
           </Pressable>); })}

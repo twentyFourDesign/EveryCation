@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar, Badge, Button, Chips, Empty, IconButton, Input, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
 import { MapView, type Pin } from '@/ui/map';
+import { Cancelled, connectGoogleCalendar, disconnectGoogleCalendar, useCalendar } from '@/lib/social';
 import { errorMessage } from '@/lib/api';
 import { countryName, initials } from '@/lib/community';
 import { useSession } from '@/lib/session';
@@ -64,6 +65,37 @@ function BucketList() {
   );
 }
 
+/** Connect, see the state of, or disconnect the copy of your trips in Google Calendar. Hidden until the server has Google set up. */
+function CalendarSync() {
+  const { data, refetch } = useCalendar();
+  const [busy, setBusy] = useState(false); const [error, setError] = useState('');
+  if (!data?.available) return null;
+  async function run(work: () => Promise<unknown>) {
+    setBusy(true); setError('');
+    try { await work(); } catch (e) { if (!(e instanceof Cancelled)) setError(errorMessage(e)); } finally { await refetch(); setBusy(false); }
+  }
+  if (!data.connected) return (
+    <View className="gap-2.5 rounded-card bg-surface-muted p-4">
+      <T v="strong">See your trips in Google Calendar</T>
+      <T v="small">We add a calendar called &ldquo;EveryCation trips&rdquo; and keep it up to date. We cannot see or change anything else in your calendar.</T>
+      <Button variant="outline" disabled={busy} label={busy ? 'Waiting for Google…' : 'Connect Google Calendar'} onPress={() => run(connectGoogleCalendar)} />
+      {!!error && <Note tone="danger">{error}</Note>}
+    </View>
+  );
+  return (
+    <View className="gap-2 rounded-card bg-surface-muted p-4">
+      <T v="strong">Google Calendar is connected</T>
+      <T v="small">{data.account ? `${data.account} · ` : ''}{data.waiting ? `${data.waiting} trip${data.waiting === 1 ? '' : 's'} waiting to sync` : 'All trips are in your “EveryCation trips” calendar'}</T>
+      {!!data.problem && <Note tone="danger">{data.problem}</Note>}
+      {!!error && <Note tone="danger">{error}</Note>}
+      <View className="flex-row gap-5 pt-1">
+        {!!data.problem && <Text accessibilityRole="button" onPress={() => !busy && run(connectGoogleCalendar)} className="font-pop-sb text-[13px] text-heading-blue">Connect again</Text>}
+        <Text accessibilityRole="button" onPress={() => !busy && run(disconnectGoogleCalendar)} className="font-pop-sb text-[13px] text-heading-blue">{busy ? 'Working…' : 'Disconnect'}</Text>
+      </View>
+    </View>
+  );
+}
+
 function Calendar({ trips }: { trips: Trip[] }) {
   const [month, setMonth] = useState(() => { const first = [...trips].reverse().find((t) => t.status !== 'past'); const d = first ? new Date(`${first.startDate}T00:00:00Z`) : new Date(); return { y: d.getUTCFullYear(), m: d.getUTCMonth() }; });
   const [picked, setPicked] = useState<string | null>(null);
@@ -95,7 +127,7 @@ function Calendar({ trips }: { trips: Trip[] }) {
           <View className="flex-1"><T v="strong">{t.title}</T><T v="small">{tripDates(t)} · {t.nights} nights</T></View><ChevronRight size={18} color={colors.inkMuted} />
         </Pressable>
       ))}
-      <T v="small" className="text-center text-xs">Google Calendar sync is not connected yet. Your trips are saved here.</T>
+      <CalendarSync />
     </>
   );
 }

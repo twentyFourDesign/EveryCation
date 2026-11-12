@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
-import { desc, eq, sql, type SQL } from 'drizzle-orm';
+import { and, desc, eq, isNull, lte, sql, type SQL } from 'drizzle-orm';
+import { badRequest, conflict } from '../../common/errors.js';
 import { Database } from '../../db/db.module.js';
 import { admins, broadcasts } from '../../db/schema.js';
 
@@ -29,21 +30,45 @@ export class BroadcastsService {
     return { audiences, targets: Object.entries(TARGETS).map(([href, label]) => ({ href, label })) };
   }
 
-  /** Puts the message in each traveller's in-app notifications, all or nothing. */
-  async send(adminId: string, input: { title: string; message: string; audience: Audience; href?: string }) {
+  /** Sends now, or stores the message to go out at `sendAt` (the timed job delivers it). */
+  async send(adminId: string, input: { title: string; message: string; audience: Audience; href?: string; sendAt?: string }) {
+    const at = input.sendAt ? new Date(input.sendAt) : null;
+    if (at && at.getTime() < Date.now() + 60_000) throw badRequest('too_soon', 'Choose a time at least a minute from now, or send it now.');
+    if (at && at.getTime() > Date.now() + 90 * 86_400_000) throw badRequest('too_far', 'Choose a time within the next 90 days.');
+    const [b] = await this.db.insert(broadcasts).values({ adminId, title: input.title, message: input.message, audience: input.audience, href: input.href || null, sendAt: at }).returning();
+    const recipients = at ? 0 : await this.deliver(b!.id);
+    return { id: b!.id, title: b!.title, audience: AUDIENCES[input.audience].label, recipients, sendAt: at };
+  }
+
+  /** Puts the message in each traveller's in-app notifications, all or nothing. Safe to call twice: only the first call sends. */
+  async deliver(id: string): Promise<number> {
     return this.db.transaction(async (tx) => {
-      const [b] = await tx.insert(broadcasts).values({ adminId, title: input.title, message: input.message, audience: input.audience, href: input.href || null }).returning();
+      const [b] = await tx.update(broadcasts).set({ sentAt: new Date() }).where(and(eq(broadcasts.id, id), isNull(broadcasts.sentAt), isNull(broadcasts.cancelledAt))).returning();
+      if (!b) return 0;
       const sent = await tx.execute(sql`INSERT INTO notifications (user_id, type, text, href, broadcast_id)
-        SELECT u.id, 'news', ${`${input.title}\n${input.message}`}, ${input.href || null}, ${b!.id}::uuid FROM users u WHERE u.status = 'active' AND ${AUDIENCES[input.audience].where}`);
+        SELECT u.id, 'news', ${`${b.title}\n${b.message}`}, ${b.href}, ${b.id}::uuid FROM users u WHERE u.status = 'active' AND ${AUDIENCES[b.audience as Audience]?.where ?? sql`FALSE`}`);
       const recipients = sent.rowCount ?? 0;
-      await tx.update(broadcasts).set({ recipients }).where(eq(broadcasts.id, b!.id));
-      return { id: b!.id, title: b!.title, audience: AUDIENCES[input.audience].label, recipients };
+      await tx.update(broadcasts).set({ recipients }).where(eq(broadcasts.id, b.id));
+      return recipients;
     });
+  }
+
+  /** The timed job: everything whose time has come. Returns how many messages went out. */
+  async deliverDue(): Promise<number> {
+    const due = await this.db.select({ id: broadcasts.id }).from(broadcasts).where(and(isNull(broadcasts.sentAt), isNull(broadcasts.cancelledAt), lte(broadcasts.sendAt, new Date()))).limit(20);
+    for (const b of due) await this.deliver(b.id);
+    return due.length;
+  }
+
+  async cancel(id: string) {
+    const [b] = await this.db.update(broadcasts).set({ cancelledAt: new Date() }).where(and(eq(broadcasts.id, id), isNull(broadcasts.sentAt), isNull(broadcasts.cancelledAt))).returning();
+    if (!b) throw conflict('not_scheduled', 'That notification has already been sent or cancelled.');
+    return { title: b.title };
   }
 
   async list() {
     const rows = await this.db.select({ b: broadcasts, by: admins.name, opened: sql<number>`(SELECT count(*)::int FROM notifications n WHERE n.broadcast_id = ${broadcasts.id} AND n.read_at IS NOT NULL)` })
       .from(broadcasts).innerJoin(admins, eq(admins.id, broadcasts.adminId)).orderBy(desc(broadcasts.createdAt)).limit(100);
-    return rows.map(({ b, by, opened }) => ({ id: b.id, sentAt: b.createdAt, sentBy: by, title: b.title, message: b.message, audience: AUDIENCES[b.audience as Audience]?.label ?? b.audience, opens: TARGETS[(b.href ?? '') as keyof typeof TARGETS] ?? b.href, recipients: b.recipients, opened }));
+    return rows.map(({ b, by, opened }) => ({ id: b.id, status: b.cancelledAt ? 'cancelled' as const : b.sentAt ? 'sent' as const : 'scheduled' as const, sentAt: b.sentAt, sendAt: b.sendAt, sentBy: by, title: b.title, message: b.message, audience: AUDIENCES[b.audience as Audience]?.label ?? b.audience, opens: TARGETS[(b.href ?? '') as keyof typeof TARGETS] ?? b.href, recipients: b.recipients, opened }));
   }
 }

@@ -23,6 +23,7 @@ export class CommunityController {
 
   @ApiBearerAuth() @Get('notifications') inbox(@CurrentUser() u: AuthUser) { return this.notifications.list(u.id); }
   @ApiBearerAuth() @Get('notifications/unread') unread(@CurrentUser() u: AuthUser) { return this.notifications.unread(u.id); }
+  @ApiBearerAuth() @HttpCode(204) @Post('notifications/:id/read') readOne(@CurrentUser() u: AuthUser, @Param('id', ParseUUIDPipe) id: string) { return this.notifications.markRead(u.id, id); }
   @ApiBearerAuth() @HttpCode(204) @Post('notifications/read') read(@CurrentUser() u: AuthUser) { return this.notifications.markAllRead(u.id); }
 
   // Reading is open to guests; a valid token adds "liked by me" and the reader's own unreviewed advice.

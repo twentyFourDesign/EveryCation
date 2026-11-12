@@ -13,6 +13,9 @@ export const users = pgTable('users', {
   id: id(),
   phone: text().unique(),
   email: text().unique(),
+  /** The account's id at Google or Apple, set the first time they sign in that way. */
+  googleSub: text().unique(),
+  appleSub: text().unique(),
   name: text(),
   handle: text().unique(),
   city: text(),
@@ -307,6 +310,10 @@ export const trips = pgTable('trips', {
   /** Where to pin the trip on a map: a known place when the name matches one, otherwise the middle of the country. */
   lat: doublePrecision(),
   lng: doublePrecision(),
+  /** The matching event in the traveller's Google Calendar, once synced. */
+  calendarEventId: text(),
+  /** True when the trip or its itinerary changed since the last calendar sync. */
+  calendarDirty: boolean().notNull().default(true),
   createdAt: createdAt(),
 }, (t) => [index('trips_user_idx').on(t.userId, t.startDate), check('trips_dates_in_order', sql`${t.endDate} >= ${t.startDate}`)]);
 
@@ -476,5 +483,47 @@ export const broadcasts = pgTable('broadcasts', {
   audience: text().notNull(),
   href: text(),
   recipients: integer().notNull().default(0),
+  /** When to send. Null means it was sent straight away. */
+  sendAt: timestamp({ withTimezone: true }),
+  sentAt: timestamp({ withTimezone: true }),
+  cancelledAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
+});
+
+// ───────────── Sign-in with Google or Apple, and calendar sync ─────────────
+
+/** A one-time code that carries a finished Google sign-in from the browser back into the app. Lives for two minutes. */
+export const loginHandoffs = pgTable('login_handoffs', {
+  id: id(),
+  codeHash: text().notNull().unique(),
+  userId: uuid().notNull().references(() => users.id),
+  expiresAt: timestamp({ withTimezone: true }).notNull(),
+  usedAt: timestamp({ withTimezone: true }),
+  createdAt: createdAt(),
+});
+
+/** A traveller's Google Calendar connection. The refresh token is stored encrypted. */
+export const calendarLinks = pgTable('calendar_links', {
+  userId: uuid().primaryKey().references(() => users.id),
+  accountEmail: text(),
+  refreshToken: text().notNull(),
+  calendarId: text().notNull(),
+  lastSyncedAt: timestamp({ withTimezone: true }),
+  lastError: text(),
+  createdAt: createdAt(),
+});
+
+// ───────────── Timed jobs ─────────────
+
+/** One row per reminder already sent, so a job that runs again never sends it twice. Keys look like trip:<id>:7d. */
+export const sentReminders = pgTable('sent_reminders', { key: text().primaryKey(), createdAt: createdAt() });
+
+/** When each timed job last ran and whether it worked, for the console's Settings page. */
+export const jobRuns = pgTable('job_runs', {
+  name: text().primaryKey(),
+  lastRunAt: timestamp({ withTimezone: true }).notNull(),
+  lastOkAt: timestamp({ withTimezone: true }),
+  lastError: text(),
+  lastMs: integer().notNull().default(0),
+  lastDid: integer().notNull().default(0),
 });

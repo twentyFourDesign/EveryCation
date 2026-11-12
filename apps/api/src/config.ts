@@ -14,6 +14,17 @@ const schema = z.object({
   /** Mail server for sign-in codes, like smtps://user:password@smtp.provider.com:465. Without it, emails are written to the log. */
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('EveryCation <no-reply@everycation.app>'),
+  /** Google sign-in and Calendar sync: a "Web application" OAuth client from Google Cloud. Its redirect URI is PUBLIC_URL + /v1/auth/google/callback. */
+  GOOGLE_CLIENT_ID: z.string().optional(),
+  GOOGLE_CLIENT_SECRET: z.string().optional(),
+  /** Sign in with Apple: the app's bundle ID (and a Services ID, if one is added later), comma-separated. Empty turns it off. */
+  APPLE_AUDIENCES: z.string().optional(),
+  /** Where a finished Google sign-in may send people back to, comma-separated prefixes. The app's own scheme is always allowed. */
+  APP_RETURN_URLS: z.string().default(''),
+  /** Place search for trips. A Photon server (OpenStreetMap data); empty searches only the places staff added. */
+  GEOCODER_URL: z.string().default('https://photon.komoot.io'),
+  /** Set to 0 to stop this server running timed jobs, e.g. when a separate worker runs them. */
+  JOBS_ENABLED: z.enum(['0', '1']).optional(),
 });
 
 export type Config = z.infer<typeof schema>;

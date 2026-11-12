@@ -1,12 +1,12 @@
 'use client';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { adminApi, errorMessage } from '@/lib/api';
+import { adminApi, ago, errorMessage } from '@/lib/api';
 import { Badge, Button, Card, Input, LockedMark, Notice, PageHeader, Switch } from '@/components/ui';
 import { accessFor, useSession } from '@/lib/session';
 
 interface Settings { dailyWithdrawalLimitKobo: number; holdNewBank: boolean; reportsToRereview: number; deliveryStandardKobo: number; deliveryExpressKobo: number; minPlanPriceKobo: number }
-interface Data { settings: Settings; locked: { planFeePercent: number; newBankHoldHours: number }; services: { email: boolean; payments: boolean; identity: boolean; cloudStorage: boolean; push: boolean }; changed?: string[] }
+interface Data { settings: Settings; locked: { planFeePercent: number; newBankHoldHours: number }; services: { email: boolean; google: boolean; apple: boolean; placeSearch: boolean; payments: boolean; identity: boolean; cloudStorage: boolean; push: boolean }; changed?: string[] }
 type Money = 'dailyWithdrawalLimitKobo' | 'deliveryStandardKobo' | 'deliveryExpressKobo' | 'minPlanPriceKobo';
 /** What is typed in the form. Money is in naira, as text, until it is saved. */
 type Draft = Record<Money | 'reportsToRereview', string> & { holdNewBank: boolean };
@@ -24,6 +24,28 @@ function Row({ title, hint, error, children }: { title: string; hint?: string; e
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <Card className="flex flex-col gap-1"><h2 className="mb-2 text-base font-semibold">{title}</h2>{children}</Card>;
 const Fixed = ({ children }: { children: ReactNode }) => <><span className="tnum rounded-[10px] bg-surface-muted px-3.5 py-2 text-[15px] font-bold">{children}</span><LockedMark /></>;
 const Service = ({ on, off = 'Not connected' }: { on: boolean; off?: string }) => <Badge tone={on ? 'info' : 'neutral'}>{on ? 'Connected' : off}</Badge>;
+
+interface JobsData { running: boolean; jobs: { name: string; label: string; what: string; everyMinutes: number; lastRunAt: string | null; lastOkAt: string | null; lastDid: number; problem: string | null }[] }
+const every = (m: number) => (m < 60 ? `Every ${m === 1 ? 'minute' : `${m} minutes`}` : `Every ${m === 60 ? 'hour' : `${m / 60} hours`}`);
+
+/** The work the server does on the clock, and whether each job's last run went well. */
+function Jobs({ canEdit }: { canEdit: boolean }) {
+  const qc = useQueryClient();
+  const { data, error } = useQuery({ queryKey: ['jobs'], queryFn: () => adminApi<JobsData>('/jobs'), refetchInterval: 30_000 });
+  const run = useMutation({ mutationFn: (name: string) => adminApi<JobsData>(`/jobs/${name}/run`, { method: 'POST' }), onSuccess: (r) => qc.setQueryData(['jobs'], r) });
+  return (
+    <Card className="flex flex-col gap-1">
+      <div className="mb-2 flex flex-wrap items-baseline justify-between gap-2"><h2 className="text-base font-semibold">Timed jobs</h2><span className="text-xs text-ink-muted">{data ? (data.running ? 'Running on this server' : 'Switched off on this server') : error ? errorMessage(error) : 'Loading…'}</span></div>
+      {data?.jobs.map((j) => (
+        <Row key={j.name} title={j.label} hint={`${j.what}. ${every(j.everyMinutes)}.`} error={j.problem ? `Last run failed: ${j.problem}` : undefined}>
+          <span className="text-right text-xs text-ink-muted">{j.lastRunAt ? <>Ran {ago(j.lastRunAt)} ago{j.lastDid ? <span className="block">did {j.lastDid.toLocaleString()}</span> : null}</> : 'Not run yet'}</span>
+          {!j.problem && j.lastOkAt && <Badge tone="info">OK</Badge>}{j.problem && <Badge tone="danger">Failed</Badge>}
+          {canEdit && <Button size="sm" disabled={run.isPending} onClick={() => run.mutate(j.name)}>Run now</Button>}
+        </Row>
+      ))}
+    </Card>
+  );
+}
 
 function Form({ data, canEdit }: { data: Data; canEdit: boolean }) {
   const qc = useQueryClient();
@@ -72,12 +94,16 @@ function Form({ data, canEdit }: { data: Data; canEdit: boolean }) {
         </Group>
         <Group title="Connected services">
           <Row title="Email for sign-in codes" hint="Until a mail server is set, codes are only shown on the test server"><Service on={data.services.email} off="Not set up" /></Row>
+          <Row title="Google sign-in and Google Calendar sync" hint="Needs a Google Cloud sign-in client"><Service on={data.services.google} off="Not set up" /></Row>
+          <Row title="Sign in with Apple" hint="Needs an Apple developer account"><Service on={data.services.apple} off="Not set up" /></Row>
+          <Row title="Place search for trips" hint="OpenStreetMap, no account needed"><Service on={data.services.placeSearch} off="Off" /></Row>
           <Row title="Payments partner" hint="Bank transfers, cards and payouts"><Service on={data.services.payments} /></Row>
           <Row title="ID checks (BVN and NIN)"><Service on={data.services.identity} /></Row>
           <Row title="Cloud storage for photos, video and voice" hint="Files are kept on the server for now"><Service on={data.services.cloudStorage} /></Row>
           <Row title="Push notifications"><Service on={data.services.push} /></Row>
         </Group>
       </fieldset>
+      <Jobs canEdit={canEdit} />
       {!canEdit && <p className="text-sm text-ink-muted">Your role can view settings but not change them.</p>}
     </>
   );

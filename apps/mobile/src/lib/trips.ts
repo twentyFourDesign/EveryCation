@@ -17,7 +17,7 @@ export const useBucket = () => { const on = useSignedIn(); return useQuery({ que
 
 const refreshTrips = () => queryClient.invalidateQueries({ queryKey: ['trips'] });
 const setBucket = (list: BucketItem[]) => queryClient.setQueryData(['bucket'], list);
-export const useCreateTrip = () => useMutation({ mutationFn: (b: { title: string; place: string; countryCode: string; startDate: string; endDate: string; travellers: number; imageKey?: string }) => api<Trip>('/trips', { method: 'POST', body: b }), onSuccess: refreshTrips });
+export const useCreateTrip = () => useMutation({ mutationFn: (b: { title: string; place: string; countryCode: string; startDate: string; endDate: string; travellers: number; imageKey?: string; lat?: number; lng?: number }) => api<Trip>('/trips', { method: 'POST', body: b }), onSuccess: refreshTrips });
 export const useAddItem = () => useMutation({ mutationFn: ({ tripId, ...b }: { tripId: string; day: string; time: string; title: string; note?: string; remind?: string }) => api<TripDetail>(`/trips/${tripId}/items`, { method: 'POST', body: b }), onSuccess: refreshTrips });
 export const useRemoveItem = () => useMutation({ mutationFn: (v: { tripId: string; itemId: string }) => api<TripDetail>(`/trips/${v.tripId}/items/${v.itemId}`, { method: 'DELETE' }), onSuccess: refreshTrips });
 export const useAddBucket = () => useMutation({ mutationFn: (b: { title: string; source?: string; imageKey?: string }) => api<BucketItem[]>('/bucket-list', { method: 'POST', body: b }), onSuccess: setBucket });
@@ -39,3 +39,7 @@ export function toIso(input: string): string | null {
 }
 const scenic: ImageKey[] = ['alpine-lake', 'lagoon-aerial', 'venice-canal', 'waterfall', 'giza-traveller', 'bali-temple', 'jungle-cove'];
 export const tripImage = (t: { imageKey: string | null; id: string }): ImageKey => (t.imageKey && t.imageKey in photos ? (t.imageKey as ImageKey) : scenic[t.id.charCodeAt(0) % scenic.length]!);
+
+/** A place suggested while the traveller types where they are going. */
+export interface PlaceHit { name: string; detail: string; label: string; countryCode: string; lat: number; lng: number; source: 'everycation' | 'map' }
+export const usePlaceSearch = (term: string) => useQuery({ queryKey: ['place-search', term.toLowerCase()], queryFn: () => api<PlaceHit[]>(`/geo/search?q=${encodeURIComponent(term)}`), enabled: term.length >= 2, staleTime: 600_000, placeholderData: (previous) => previous });

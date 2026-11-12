@@ -12,6 +12,9 @@ import { CommunityModule } from './modules/community/community.module.js';
 import { DiscoverModule } from './modules/discover/discover.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
+import { CalendarModule } from './modules/calendar/calendar.module.js';
+import { GeoModule } from './modules/geo/geo.module.js';
+import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SettingsModule } from './modules/settings/settings.service.js';
 import { ShopModule } from './modules/shop/shop.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
@@ -38,6 +41,9 @@ class ConfigModule {}
     WalletModule,
     CommunityModule,
     AdminModule,
+    GeoModule,
+    CalendarModule,
+    JobsModule,
     TripsModule,
     MediaModule,
     DiscoverModule,

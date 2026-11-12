@@ -43,6 +43,7 @@ export const useTipsBy = (id: string | undefined) => useQuery({ queryKey: ['tips
 export interface Inbox { unread: number; items: { id: string; type: string; text: string; href: string | null; read: boolean; at: string }[] }
 export const useInbox = () => { const signedIn = useSession((s) => s.status === 'signedIn'); return useQuery({ queryKey: ['notifications'], queryFn: () => api<Inbox>('/notifications'), enabled: signedIn }); };
 export const useUnread = () => { const signedIn = useSession((s) => s.status === 'signedIn'); return useQuery({ queryKey: ['notifications', 'unread'], queryFn: () => api<{ unread: number }>('/notifications/unread'), enabled: signedIn, refetchInterval: 60_000 }); };
+export const useMarkOneRead = () => useMutation({ mutationFn: (id: string) => api(`/notifications/${id}/read`, { method: 'POST' }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }) });
 export const useMarkRead = () => useMutation({ mutationFn: () => api('/notifications/read', { method: 'POST' }), onSuccess: () => queryClient.invalidateQueries({ queryKey: ['notifications'] }) });
 
 const refreshTips = () => queryClient.invalidateQueries({ predicate: (q) => q.queryKey[0] === 'tips' || q.queryKey[0] === 'tip' });

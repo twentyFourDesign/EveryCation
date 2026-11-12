@@ -9,5 +9,5 @@ import { AdminController, AdminLoginController } from './admin.controller.js';
 import { AdminUsersService, AdminWalletService } from './admin.service.js';
 import { BroadcastsService } from './broadcasts.service.js';
 
-@Module({ imports: [WalletModule, CommunityModule, PlansModule, ShopModule, DiscoverModule], controllers: [AdminLoginController, AdminController], providers: [AdminAuthService, AdminGuard, AdminWalletService, AdminUsersService, BroadcastsService], exports: [AdminAuthService] })
+@Module({ imports: [WalletModule, CommunityModule, PlansModule, ShopModule, DiscoverModule], controllers: [AdminLoginController, AdminController], providers: [AdminAuthService, AdminGuard, AdminWalletService, AdminUsersService, BroadcastsService], exports: [AdminAuthService, AdminGuard, BroadcastsService] })
 export class AdminModule {}

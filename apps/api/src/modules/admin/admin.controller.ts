@@ -37,7 +37,7 @@ const placeBody = z.object({ name: z.string().trim().min(2, 'Enter the place nam
 const userAction = z.object({ action: z.enum(['suspend', 'reinstate', 'freeze', 'unfreeze', 'reset_kyc', 'reset_pin']) });
 const removePlanBody = z.object({ refund: z.boolean().default(true), ...whyFields }).refine(whyComplete, WHY_MESSAGE);
 const broadcastBody = z.object({ title: z.string().trim().min(3, 'Write a title of at least 3 characters').max(60), message: z.string().trim().min(10, 'Write a message of at least 10 characters').max(140),
-  audience: z.enum(Object.keys(AUDIENCES) as [Audience, ...Audience[]]), href: z.enum(Object.keys(TARGETS) as [keyof typeof TARGETS, ...(keyof typeof TARGETS)[]]).default('') });
+  audience: z.enum(Object.keys(AUDIENCES) as [Audience, ...Audience[]]), href: z.enum(Object.keys(TARGETS) as [keyof typeof TARGETS, ...(keyof typeof TARGETS)[]]).default(''), sendAt: z.iso.datetime({ offset: true }).optional() });
 const queues: Queue[] = ['waiting', 'changes', 'rereview', 'decided'];
 const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString('en-NG')}`;
 const bearer = (req: Request) => (req.headers.authorization ?? '').split(' ')[1] ?? '';
@@ -93,15 +93,21 @@ export class AdminController {
   @Staff('broadcasts', 'edit') @Post('broadcasts')
   async sendBroadcast(@CurrentAdmin() admin: Admin, @Body(new ZodPipe(broadcastBody)) b: z.infer<typeof broadcastBody>, @Req() req: Request) {
     const r = await this.broadcasts.send(admin.id, b);
-    await this.auth.record(admin, 'Sent notification', `${r.title} · ${r.audience} · ${r.recipients} traveller${r.recipients === 1 ? '' : 's'}`, req);
+    await this.auth.record(admin, r.sendAt ? 'Scheduled notification' : 'Sent notification', r.sendAt ? `${r.title} · ${r.audience} · for ${r.sendAt.toISOString()}` : `${r.title} · ${r.audience} · ${r.recipients} traveller${r.recipients === 1 ? '' : 's'}`, req);
     return r;
+  }
+  @Staff('broadcasts', 'edit') @HttpCode(200) @Post('broadcasts/:id/cancel')
+  async cancelBroadcast(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Req() req: Request) {
+    const r = await this.broadcasts.cancel(id);
+    await this.auth.record(admin, 'Cancelled scheduled notification', r.title, req);
+    return { cancelled: true };
   }
 
   // ───────────── Platform settings ─────────────
   /** The rules staff can change, the ones fixed in code, and which outside services are connected. */
   private async settingsView() {
     return { settings: await this.settings.get(), locked: { planFeePercent: RULES.planFeeRate * 100, newBankHoldHours: RULES.newBankHoldHours },
-      services: { email: !!this.config.SMTP_URL, payments: false, identity: false, cloudStorage: false, push: false } };
+      services: { email: !!this.config.SMTP_URL, google: !!this.config.GOOGLE_CLIENT_ID && !!this.config.GOOGLE_CLIENT_SECRET, apple: !!this.config.APPLE_AUDIENCES, placeSearch: !!this.config.GEOCODER_URL, payments: false, identity: false, cloudStorage: false, push: false } };
   }
   @Staff('settings') @Get('settings') getSettings() { return this.settingsView(); }
   @Staff('settings', 'edit') @Patch('settings')

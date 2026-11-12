@@ -60,6 +60,13 @@ export class AuthService {
     return { isNewUser: !user.name, ...(await this.issueTokens(user.id, randomUUID(), device)) };
   }
 
+  /** Starts a session for someone whose identity was confirmed another way (Google or Apple). */
+  async startSession(userId: string, device?: string) {
+    const [user] = await this.db.select({ name: users.name, status: users.status }).from(users).where(eq(users.id, userId));
+    if (!user || user.status !== 'active') throw unauthorized();
+    return { isNewUser: !user.name, ...(await this.issueTokens(userId, randomUUID(), device)) };
+  }
+
   /** Swaps a refresh token for a new pair. Using an old token again means it leaked, so the whole session ends. */
   async refresh(refreshToken: string) {
     const [session] = await this.db.select().from(sessions).where(eq(sessions.tokenHash, sha256(refreshToken)));

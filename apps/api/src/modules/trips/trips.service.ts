@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import { countryCentre } from '../../common/geo.js';
 import { badRequest, notFound } from '../../common/errors.js';
+import { CalendarService } from '../calendar/calendar.module.js';
 import { Database } from '../../db/db.module.js';
 import { bucketItems, itineraryItems, places, trips } from '../../db/schema.js';
 
-export interface TripInput { title: string; place: string; countryCode: string; startDate: string; endDate: string; travellers?: number; imageKey?: string }
+export interface TripInput { title: string; place: string; countryCode: string; startDate: string; endDate: string; travellers?: number; imageKey?: string; lat?: number; lng?: number }
 export interface ItemInput { day: string; time: string; title: string; note?: string; remind?: string }
 /** Today's date in Lagos, as YYYY-MM-DD. Trip dates are calendar days, not instants. */
 export const lagosToday = () => new Date(Date.now() + 3_600_000).toISOString().slice(0, 10);
@@ -13,7 +14,7 @@ const nights = (a: string, b: string) => Math.round((Date.parse(b) - Date.parse(
 
 @Injectable()
 export class TripsService {
-  constructor(private readonly database: Database) {}
+  constructor(private readonly database: Database, private readonly calendar: CalendarService) {}
   private get db() { return this.database.db; }
 
   view(t: typeof trips.$inferSelect) {
@@ -29,6 +30,8 @@ export class TripsService {
       .where(and(eq(places.countryCode, countryCode.toUpperCase()), isNotNull(places.lat), isNotNull(places.lng), sql`${place} ILIKE '%' || ${places.name} || '%'`)).orderBy(sql`length(${places.name}) DESC`).limit(1);
     return { lat: p?.lat ?? null, lng: p?.lng ?? null };
   }
+  /** The itinerary changed: the calendar copy is out of date. */
+  private async touched(userId: string, tripId: string) { await this.db.update(trips).set({ calendarDirty: true }).where(eq(trips.id, tripId)); this.calendar.changed(userId); }
   private async own(userId: string, id: string) {
     const [t] = await this.db.select().from(trips).where(and(eq(trips.id, id), eq(trips.userId, userId)));
     if (!t) throw notFound('Trip');
@@ -43,25 +46,29 @@ export class TripsService {
   }
   async create(userId: string, input: TripInput) {
     if (input.endDate < input.startDate) throw badRequest('dates_out_of_order', 'The trip cannot end before it starts.');
-    const [t] = await this.db.insert(trips).values({ userId, ...input, countryCode: input.countryCode.toUpperCase(), ...(await this.locate(input.place, input.countryCode)) }).returning();
+    const [t] = await this.db.insert(trips).values({ userId, ...input, countryCode: input.countryCode.toUpperCase(), ...(input.lat !== undefined && input.lng !== undefined ? {} : await this.locate(input.place, input.countryCode)) }).returning();
+    this.calendar.changed(userId);
     return this.view(t!);
   }
   async update(userId: string, id: string, patch: Partial<TripInput>) {
     const t = await this.own(userId, id);
     const next = { ...t, ...patch };
     if (next.endDate < next.startDate) throw badRequest('dates_out_of_order', 'The trip cannot end before it starts.');
-    const [u] = await this.db.update(trips).set({ ...patch, countryCode: patch.countryCode?.toUpperCase(), ...(patch.place || patch.countryCode ? await this.locate(next.place, next.countryCode) : {}) }).where(eq(trips.id, id)).returning();
+    const [u] = await this.db.update(trips).set({ ...patch, countryCode: patch.countryCode?.toUpperCase(), calendarDirty: true, ...(patch.lat !== undefined && patch.lng !== undefined ? {} : patch.place || patch.countryCode ? await this.locate(next.place, next.countryCode) : {}) }).where(eq(trips.id, id)).returning();
+    this.calendar.changed(userId);
     return this.view(u!);
   }
   async addItem(userId: string, tripId: string, input: ItemInput) {
     const t = await this.own(userId, tripId);
     if (input.day < t.startDate || input.day > t.endDate) throw badRequest('day_outside_trip', 'Choose a day during the trip.');
     await this.db.insert(itineraryItems).values({ tripId, ...input, note: input.note ?? '' });
+    await this.touched(userId, tripId);
     return this.get(userId, tripId);
   }
   async removeItem(userId: string, tripId: string, itemId: string) {
     await this.own(userId, tripId);
     await this.db.delete(itineraryItems).where(and(eq(itineraryItems.id, itemId), eq(itineraryItems.tripId, tripId)));
+    await this.touched(userId, tripId);
     return this.get(userId, tripId);
   }
 
