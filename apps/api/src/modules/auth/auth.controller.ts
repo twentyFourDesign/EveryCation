@@ -6,8 +6,8 @@ import { CurrentUser, Public, type AuthUser } from '../../common/auth.guard.js';
 import { ZodPipe } from '../../common/zod.pipe.js';
 import { AuthService } from './auth.service.js';
 
-const requestBody = z.object({ phone: z.string().min(7).max(20) });
-const verifyBody = z.object({ phone: z.string().min(7).max(20), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'), device: z.string().max(120).optional() });
+const requestBody = z.object({ email: z.string().min(5).max(254) });
+const verifyBody = z.object({ email: z.string().min(5).max(254), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'), device: z.string().max(120).optional() });
 const profileBody = z.object({ name: z.string().trim().min(2, 'Enter your name').max(60), handle: z.string().trim().regex(/^[a-zA-Z0-9._]{3,24}$/, 'Use 3 to 24 letters, numbers, dots or underscores'), city: z.string().trim().max(60), bio: z.string().trim().max(200) }).partial();
 const refreshBody = z.object({ refreshToken: z.string().min(20) });
 
@@ -18,11 +18,11 @@ export class AuthController {
 
   @Public() @Throttle({ default: { limit: 5, ttl: 60_000 } }) @HttpCode(200)
   @Post('otp/request')
-  request(@Body(new ZodPipe(requestBody)) body: z.infer<typeof requestBody>) { return this.auth.requestCode(body.phone); }
+  request(@Body(new ZodPipe(requestBody)) body: z.infer<typeof requestBody>) { return this.auth.requestCode(body.email); }
 
   @Public() @Throttle({ default: { limit: 10, ttl: 60_000 } }) @HttpCode(200)
   @Post('otp/verify')
-  verify(@Body(new ZodPipe(verifyBody)) body: z.infer<typeof verifyBody>) { return this.auth.verifyCode(body.phone, body.code, body.device); }
+  verify(@Body(new ZodPipe(verifyBody)) body: z.infer<typeof verifyBody>) { return this.auth.verifyCode(body.email, body.code, body.device); }
 
   @Public() @HttpCode(200)
   @Post('refresh')

@@ -2,10 +2,11 @@ import { Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
 import { RULES } from '../../config.js';
 import { Database } from '../../db/db.module.js';
+import { maskEmail } from '../auth/auth.service.js';
 import { notify } from '../../common/notify.js';
 import { advice, bankAccounts, ledgerAccounts, ledgerEntries, ledgerTransactions, sessions, users, withdrawals } from '../../db/schema.js';
 
-const maskPhone = (p: string | null) => p?.replace(/^(\+234\d{3})\d{3}(\d{4})$/, '$1 ••• $2') ?? 'Unknown';
+const contact = (email: string | null, phone?: string | null) => (email ? maskEmail(email) : phone?.replace(/^(\+234\d{3})\d{3}(\d{4})$/, '$1 ••• $2') ?? 'Unknown');
 const REASONS: Record<string, string> = { over_daily_limit: 'Over daily limit', new_bank: 'Bank added in the last 24 hours' };
 
 /** Read-only views of customer money for Finance and Support. Changes go through WalletService and the ledger. */
@@ -22,22 +23,22 @@ export class AdminWalletService {
   }
 
   async withdrawals(status: 'held' | 'processing' | 'all') {
-    const rows = await this.db.select({ w: withdrawals, phone: users.phone, name: users.name, bank: bankAccounts.bankName, account: bankAccounts.accountNumber, bankAdded: bankAccounts.createdAt })
+    const rows = await this.db.select({ w: withdrawals, email: users.email, name: users.name, bank: bankAccounts.bankName, account: bankAccounts.accountNumber, bankAdded: bankAccounts.createdAt })
       .from(withdrawals).innerJoin(users, eq(users.id, withdrawals.userId)).innerJoin(bankAccounts, eq(bankAccounts.id, withdrawals.bankAccountId))
       .where(status === 'all' ? undefined : eq(withdrawals.status, status)).orderBy(withdrawals.createdAt).limit(200);
-    return rows.map((r) => ({ id: r.w.id, reference: r.w.reference, userId: r.w.userId, user: r.name ?? maskPhone(r.phone), amount: r.w.amount, to: `${r.bank} •••• ${r.account.slice(-4)}`,
+    return rows.map((r) => ({ id: r.w.id, reference: r.w.reference, userId: r.w.userId, user: r.name ?? contact(r.email), amount: r.w.amount, to: `${r.bank} •••• ${r.account.slice(-4)}`,
       bankIsNew: r.w.createdAt.getTime() - r.bankAdded.getTime() < RULES.newBankHoldHours * 3_600_000, reason: r.w.holdReason ? (REASONS[r.w.holdReason] ?? r.w.holdReason) : null, status: r.w.status, createdAt: r.w.createdAt }));
   }
   async withdrawal(id: string) { const [w] = await this.db.select().from(withdrawals).where(eq(withdrawals.id, id)); return w; }
 
   /** Newest ledger transactions. `customerChange` is what it did to the customer's own money (zero for bank-side steps). */
   async ledger(limit = 50) {
-    const txns = await this.db.select({ t: ledgerTransactions, phone: users.phone, name: users.name }).from(ledgerTransactions).leftJoin(users, eq(users.id, ledgerTransactions.userId)).orderBy(desc(ledgerTransactions.createdAt)).limit(Math.min(Math.max(limit, 1), 200));
+    const txns = await this.db.select({ t: ledgerTransactions, email: users.email, name: users.name }).from(ledgerTransactions).leftJoin(users, eq(users.id, ledgerTransactions.userId)).orderBy(desc(ledgerTransactions.createdAt)).limit(Math.min(Math.max(limit, 1), 200));
     if (!txns.length) return [];
     const moves = await this.db.select({ txnId: ledgerEntries.transactionId, amount: ledgerEntries.amount, owner: ledgerAccounts.userId }).from(ledgerEntries).innerJoin(ledgerAccounts, eq(ledgerAccounts.id, ledgerEntries.accountId)).where(inArray(ledgerEntries.transactionId, txns.map((x) => x.t.id)));
-    return txns.map(({ t, phone, name }) => {
+    return txns.map(({ t, email, name }) => {
       const mine = moves.filter((m) => m.txnId === t.id);
-      return { reference: t.reference, kind: t.kind, description: t.description, user: t.userId ? (name ?? maskPhone(phone)) : 'Platform', at: t.createdAt,
+      return { reference: t.reference, kind: t.kind, description: t.description, user: t.userId ? (name ?? contact(email)) : 'Platform', at: t.createdAt,
         amount: Math.max(0, ...mine.map((m) => m.amount)), customerChange: mine.filter((m) => m.owner).reduce((n, m) => n + m.amount, 0) };
     });
   }
@@ -62,16 +63,16 @@ export class AdminUsersService {
   async list(q: { search?: string; filter?: string }) {
     const term = q.search?.trim().replace(/[%_]/g, '');
     const where = sql.join([sql`TRUE`,
-      ...(term ? [sql`(u.name ILIKE ${'%' + term + '%'} OR u.phone ILIKE ${'%' + term + '%'} OR u.handle ILIKE ${'%' + term + '%'} OR u.id::text = ${term})`] : []),
+      ...(term ? [sql`(u.name ILIKE ${'%' + term + '%'} OR u.email ILIKE ${'%' + term + '%'} OR u.handle ILIKE ${'%' + term + '%'} OR u.id::text = ${term})`] : []),
       ...(q.filter === 'kyc_failed' ? [sql`u.kyc_status = 'failed'`] : q.filter === 'suspended' ? [sql`u.status = 'suspended'`] : q.filter === 'frozen' ? [sql`u.wallet_frozen`] : q.filter === 'sellers' ? [sql`EXISTS (SELECT 1 FROM plans p WHERE p.user_id = u.id AND p.mode = 'sell' AND p.removed_at IS NULL)`] : []),
     ], sql` AND `);
-    const rows = await this.db.execute(sql`SELECT u.id, u.name, u.phone, u.handle, u.created_at, u.kyc_status, u.kyc_method, u.status, u.wallet_frozen,
+    const rows = await this.db.execute(sql`SELECT u.id, u.name, u.email, u.phone, u.handle, u.created_at, u.kyc_status, u.kyc_method, u.status, u.wallet_frozen,
         (SELECT COALESCE(SUM(a.balance), 0)::float8 FROM ledger_accounts a WHERE a.user_id = u.id) AS wallet,
         (SELECT count(*)::int FROM plan_purchases pp WHERE pp.seller_id = u.id AND pp.price > 0 AND pp.refunded_at IS NULL) AS plans_sold
       FROM users u WHERE ${where} ORDER BY u.created_at DESC LIMIT 200`);
     const counts = await this.db.execute(sql`SELECT count(*)::int AS total, count(*) FILTER (WHERE kyc_status = 'verified')::int AS verified, count(*) FILTER (WHERE kyc_status = 'failed')::int AS kyc_failed, count(*) FILTER (WHERE status = 'suspended')::int AS suspended, count(*) FILTER (WHERE wallet_frozen)::int AS frozen FROM users`);
-    type R = { id: string; name: string | null; phone: string | null; handle: string | null; created_at: Date; kyc_status: string; kyc_method: string | null; status: string; wallet_frozen: boolean; wallet: number; plans_sold: number };
-    return { counts: counts.rows[0], users: (rows.rows as R[]).map((u) => ({ id: u.id, name: u.name ?? 'No name yet', phone: maskPhone(u.phone), handle: u.handle, joined: u.created_at, kyc: u.kyc_status, kycMethod: u.kyc_method, status: u.status, walletFrozen: u.wallet_frozen, wallet: Number(u.wallet), plansSold: u.plans_sold })) };
+    type R = { id: string; name: string | null; email: string | null; phone: string | null; handle: string | null; created_at: Date; kyc_status: string; kyc_method: string | null; status: string; wallet_frozen: boolean; wallet: number; plans_sold: number };
+    return { counts: counts.rows[0], users: (rows.rows as R[]).map((u) => ({ id: u.id, name: u.name ?? 'No name yet', contact: contact(u.email, u.phone), handle: u.handle, joined: u.created_at, kyc: u.kyc_status, kycMethod: u.kyc_method, status: u.status, walletFrozen: u.wallet_frozen, wallet: Number(u.wallet), plansSold: u.plans_sold })) };
   }
 
   async detail(id: string) {
@@ -87,7 +88,7 @@ export class AdminUsersService {
       (SELECT max(created_at) FROM sessions WHERE user_id = ${id}) AS last_seen`);
     const banks = await this.db.select().from(bankAccounts).where(eq(bankAccounts.userId, id));
     const s = stats.rows[0] as { tips: number; advice: number; verified: number; trips: number; available: number; in_goals: number; last_seen: Date | null };
-    return { id: u.id, name: u.name ?? 'No name yet', phone: maskPhone(u.phone), handle: u.handle, city: u.city, joined: u.createdAt, status: u.status, walletFrozen: u.walletFrozen,
+    return { id: u.id, name: u.name ?? 'No name yet', contact: contact(u.email, u.phone), handle: u.handle, city: u.city, joined: u.createdAt, status: u.status, walletFrozen: u.walletFrozen,
       kyc: { status: u.kycStatus, method: u.kycMethod, attempts: u.kycAttempts, legalName: u.legalName }, hasPin: !!u.pinHash, pinLocked: !!u.pinLockedUntil && u.pinLockedUntil > new Date(),
       wallet: { available: Number(s.available), inGoals: Number(s.in_goals) }, tips: s.tips, advice: s.advice, verifiedAdvice: s.verified, trips: s.trips, lastSeen: s.last_seen,
       banks: banks.filter((b) => !b.removedAt).map((b) => ({ bank: b.bankName, account: maskAccount(b.accountNumber), name: b.accountName, isDefault: b.isDefault })) };
@@ -95,9 +96,9 @@ export class AdminUsersService {
 
   /** Support actions. Each returns a short description for the audit log. */
   async act(id: string, action: 'suspend' | 'reinstate' | 'freeze' | 'unfreeze' | 'reset_kyc' | 'reset_pin') {
-    const [u] = await this.db.select({ name: users.name, phone: users.phone }).from(users).where(eq(users.id, id));
+    const [u] = await this.db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, id));
     if (!u) return null;
-    const who = u.name ?? maskPhone(u.phone);
+    const who = u.name ?? contact(u.email);
     if (action === 'suspend') { await this.db.update(users).set({ status: 'suspended', walletFrozen: true }).where(eq(users.id, id)); await this.db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, id), isNull(sessions.revokedAt))); return { who, did: 'Suspended account and froze wallet' }; }
     if (action === 'reinstate') { await this.db.update(users).set({ status: 'active', walletFrozen: false }).where(eq(users.id, id)); return { who, did: 'Reinstated account' }; }
     if (action === 'freeze' || action === 'unfreeze') { await this.db.update(users).set({ walletFrozen: action === 'freeze' }).where(eq(users.id, id)); return { who, did: action === 'freeze' ? 'Froze wallet' : 'Unfroze wallet' }; }

@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Badge, Button, Chips, Empty, IconButton, Loading, Note, Photo, Progress, Screen, T, colors, go } from '@/ui';
+import { MapView } from '@/ui/map';
 import { errorMessage } from '@/lib/api';
 import { dayLabel, daysOf, tripDates, tripImage, useRemoveItem, useTrip } from '@/lib/trips';
 import { useWallet } from '@/lib/wallet';
@@ -39,6 +40,7 @@ export default function TripDetail() {
                 <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${s.title}`} hitSlop={10} onPress={() => remove.mutate({ tripId: t.id, itemId: s.id })}><Trash2 size={18} color={colors.inkMuted} /></Pressable></View>
             </View>
           ))}
+          {t.lat !== null && t.lng !== null && <MapView pins={[{ id: t.id, lat: t.lat, lng: t.lng, label: t.place, tone: t.status === 'upcoming' ? 'planned' : 'visited' }]} height={170} interactive={false} zoom={t.pinned ? 7 : 3.5} />}
           {goal && <Pressable accessibilityRole="button" onPress={() => go(`/wallet/goal/${goal.id}`)} className="gap-2 rounded-card bg-tint p-3.5 active:opacity-80"><T v="small" className="text-xs">Trip savings · {goal.name}</T><T v="strong">{goal.percent}% saved</T><Progress pct={goal.percent} /></Pressable>}
           {t.status === 'past' && <Note>This trip is on your timeline. It backs up the advice you share for {t.place.split(',').pop()?.trim()}, and you can turn it into a plan others follow.</Note>}
         </View>

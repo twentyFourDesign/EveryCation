@@ -8,9 +8,9 @@ import { cn } from '@/lib/cn';
 import { accessFor, useSession } from '@/lib/session';
 
 type Kyc = 'none' | 'pending' | 'verified' | 'failed';
-interface Row { id: string; name: string; phone: string; handle: string | null; joined: string; kyc: Kyc; status: 'active' | 'suspended'; walletFrozen: boolean; wallet: number; plansSold: number }
+interface Row { id: string; name: string; contact: string; handle: string | null; joined: string; kyc: Kyc; status: 'active' | 'suspended'; walletFrozen: boolean; wallet: number; plansSold: number }
 interface List { counts: { total: number; verified: number; kyc_failed: number; suspended: number; frozen: number }; users: Row[] }
-interface Detail { id: string; name: string; phone: string; handle: string | null; city: string | null; joined: string; status: 'active' | 'suspended'; walletFrozen: boolean; kyc: { status: Kyc; method: string | null; attempts: number; legalName: string | null }; hasPin: boolean; pinLocked: boolean; wallet: { available: number; inGoals: number }; tips: number; advice: number; verifiedAdvice: number; trips: number; lastSeen: string | null; banks: { bank: string; account: string; name: string; isDefault: boolean }[] }
+interface Detail { id: string; name: string; contact: string; handle: string | null; city: string | null; joined: string; status: 'active' | 'suspended'; walletFrozen: boolean; kyc: { status: Kyc; method: string | null; attempts: number; legalName: string | null }; hasPin: boolean; pinLocked: boolean; wallet: { available: number; inGoals: number }; tips: number; advice: number; verifiedAdvice: number; trips: number; lastSeen: string | null; banks: { bank: string; account: string; name: string; isDefault: boolean }[] }
 type Action = 'suspend' | 'reinstate' | 'freeze' | 'unfreeze' | 'reset_kyc' | 'reset_pin';
 const filters = [{ value: 'all', label: 'All' }, { value: 'kyc_failed', label: 'ID check failed' }, { value: 'sellers', label: 'Plan sellers' }, { value: 'frozen', label: 'Wallet frozen' }, { value: 'suspended', label: 'Suspended' }] as const;
 const kycLabel: Record<Kyc, string> = { none: 'Not started', pending: 'Checking', verified: 'Verified', failed: 'Failed' };
@@ -39,7 +39,7 @@ export default function Users() {
   return (
     <>
       <PageHeader title="Users & KYC" subtitle={data ? `${data.counts.total.toLocaleString()} accounts · ${data.counts.verified.toLocaleString()} with a verified wallet` : 'Loading…'}>
-        <div className="relative"><Search aria-hidden className="absolute top-3 left-3.5 size-5 text-ink-muted" /><Input aria-label="Search users" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Name, phone or handle" className="w-72 max-w-full pl-11" /></div>
+        <div className="relative"><Search aria-hidden className="absolute top-3 left-3.5 size-5 text-ink-muted" /><Input aria-label="Search users" value={term} onChange={(e) => setTerm(e.target.value)} placeholder="Name, email or handle" className="w-72 max-w-full pl-11" /></div>
       </PageHeader>
       <Chips label="Filter users" value={filter} onChange={setFilter} options={filters} />
       <Notice>{notice || (error ? errorMessage(error) : '')}</Notice>
@@ -50,7 +50,7 @@ export default function Users() {
             <tbody>
               {data?.users.map((u) => (
                 <tr key={u.id} className={cn('cursor-pointer hover:bg-surface-muted', selected === u.id && 'bg-surface-muted')} onClick={() => { setSelected(u.id); setNotice(''); setConfirm(null); }}>
-                  <td className={td}><button className="flex cursor-pointer flex-col text-left" aria-pressed={selected === u.id}><b className="font-semibold">{u.name}</b><span className="text-xs text-ink-muted">{u.phone}{u.handle ? ` · @${u.handle}` : ''}</span></button></td>
+                  <td className={td}><button className="flex cursor-pointer flex-col text-left" aria-pressed={selected === u.id}><b className="font-semibold">{u.name}</b><span className="text-xs text-ink-muted">{u.contact}{u.handle ? ` · @${u.handle}` : ''}</span></button></td>
                   <td className={`${td} whitespace-nowrap`}>{day(u.joined)}</td>
                   <td className={td}><Badge tone={u.kyc === 'failed' ? 'danger' : u.kyc === 'verified' ? 'info' : 'neutral'}>{kycLabel[u.kyc]}</Badge></td>
                   <td className={`${td} tnum whitespace-nowrap`}>{u.kyc === 'verified' || u.wallet ? naira(u.wallet) : '—'}</td>
@@ -64,7 +64,7 @@ export default function Users() {
         </Card>
         {user && (
           <Card className="flex flex-[1_1_320px] flex-col gap-4">
-            <div className="flex items-center gap-3"><Avatar initials={initials(user.name)} className="size-12" /><div className="flex flex-col"><b className="font-semibold">{user.name}</b><span className="text-xs text-ink-muted">{user.phone}{user.city ? ` · ${user.city}` : ''}</span></div></div>
+            <div className="flex items-center gap-3"><Avatar initials={initials(user.name)} className="size-12" /><div className="flex flex-col"><b className="font-semibold">{user.name}</b><span className="text-xs text-ink-muted">{user.contact}{user.city ? ` · ${user.city}` : ''}</span></div></div>
             {(user.status === 'suspended' || user.walletFrozen) && <p className="rounded-2xl bg-danger-soft p-3 text-sm font-semibold text-danger">{user.status === 'suspended' ? 'This account is suspended and cannot sign in.' : 'The wallet is frozen. No money can leave it.'}</p>}
             <dl className="flex flex-col text-sm">{facts.map(([k, v]) => <div key={k} className="flex justify-between gap-3 border-b border-line py-2.5"><dt className="text-ink-muted">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>)}</dl>
             {user.banks.length > 0 && <div className="flex flex-col gap-1 text-sm"><b className="font-semibold">Bank accounts</b>{user.banks.map((b) => <span key={b.account + b.bank} className="text-ink-muted">{b.bank} {b.account} · {b.name}{b.isDefault ? ' · main' : ''}</span>)}</div>}

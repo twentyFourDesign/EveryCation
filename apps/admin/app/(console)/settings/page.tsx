@@ -51,7 +51,7 @@ export default function Settings() {
           <Row title="Shop currency"><span className="text-sm">Naira (₦)</span></Row>
           <Row title={'"Travelling soon" priority'} hint="Ship first if the customer flies within"><Select aria-label="Travelling soon window" className={small} value={s.soonDays} onChange={(e) => set('soonDays', e.target.value)}><option>7 days</option><option>14 days</option></Select></Row>
           <Row title="Google Calendar sync" hint={'One-way, into each user\'s "EveryCation trips" calendar'}><Badge>Connected</Badge></Row>
-          <Row title="SMS codes & push notifications"><Badge>Connected</Badge></Row>
+          <Row title="Email codes & push notifications"><Badge>Connected</Badge></Row>
         </Group>
       </fieldset>
     </>

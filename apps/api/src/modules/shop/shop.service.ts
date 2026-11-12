@@ -99,9 +99,9 @@ export class ShopService {
 
   // ───────────── Shop ops ─────────────
   async allOrders(status?: string) {
-    const rows = await this.db.select({ o: orders, name: users.name, phone: users.phone }).from(orders).innerJoin(users, eq(users.id, orders.userId)).where(status ? eq(orders.status, status as typeof orders.$inferSelect.status) : undefined).orderBy(desc(orders.createdAt)).limit(200);
+    const rows = await this.db.select({ o: orders, name: users.name, email: users.email }).from(orders).innerJoin(users, eq(users.id, orders.userId)).where(status ? eq(orders.status, status as typeof orders.$inferSelect.status) : undefined).orderBy(desc(orders.createdAt)).limit(200);
     const counts = Object.fromEntries((await this.db.select({ s: orders.status, n: sql<number>`count(*)::int` }).from(orders).groupBy(orders.status)).map((r) => [r.s, r.n]));
-    return { counts, orders: await Promise.all(rows.map(async ({ o, name, phone }) => ({ ...(await this.orderView(o)), customer: name ?? phone ?? 'Traveller' }))) };
+    return { counts, orders: await Promise.all(rows.map(async ({ o, name }) => ({ ...(await this.orderView(o)), customer: name ?? 'Traveller' }))) };
   }
   /** Moves an order one step on. A cancelled order is refunded to the available balance and its stock returned. */
   async setStatus(id: string, status: 'packed' | 'shipped' | 'delivered' | 'cancelled') {

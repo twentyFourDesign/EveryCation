@@ -16,7 +16,7 @@ export default function Settings() {
     <Screen title="Settings">
       <Group title="ACCOUNT">
         <ListRow title="Personal details" onPress={() => router.push(status === 'signedIn' ? '/edit-profile' : '/sign-up')} />
-        <ListRow title="Phone and email" onPress={() => {}} />
+        <ListRow title="Email address" onPress={() => {}} />
         <ListRow title="Log in with face or fingerprint" right={<Toggle label="Log in with face or fingerprint" value={bio} onChange={setBio} />} />
       </Group>
       <Group title="WALLET"><ListRow title="Wallet settings" onPress={() => router.push('/wallet/settings')} /></Group>

@@ -57,7 +57,7 @@ export const useReviseAdvice = () => useMutation({ mutationFn: (b: { id: string;
 export const useMarkHelpful = () => useMutation({ mutationFn: (id: string) => api<{ markedHelpful: boolean; helpful: number }>(`/advice/${id}/helpful`, { method: 'POST' }), onSuccess: refreshAdvice });
 
 // ───────────── Places, travellers, search ─────────────
-export interface Place { id: string; name: string; kind: string; countryCode: string; summary: string; bestTime: string | null; currency: string | null; imageKey: string | null; imageUrl: string | null }
+export interface Place { id: string; name: string; kind: string; countryCode: string; summary: string; bestTime: string | null; currency: string | null; imageKey: string | null; imageUrl: string | null; lat: number | null; lng: number | null; pinned: boolean }
 export interface PlaceDetail extends Place { tips: Tip[]; verifiedAdvice: number }
 export interface Traveller extends Profile { followers: number; following: number; followedByMe: boolean; isMe: boolean }
 export interface SearchResults { places: Place[]; tips: Tip[]; travellers: (Author & { tips: number })[]; advice: { countryCode: string; city: string; verified: number }[] }

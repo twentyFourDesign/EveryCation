@@ -3,6 +3,7 @@ import { Check, ChevronLeft, ChevronRight, MapPin, Plane, Plus, Trash2 } from 'l
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar, Badge, Button, Chips, Empty, IconButton, Input, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
+import { MapView, type Pin } from '@/ui/map';
 import { errorMessage } from '@/lib/api';
 import { countryName, initials } from '@/lib/community';
 import { useSession } from '@/lib/session';
@@ -100,18 +101,32 @@ function Calendar({ trips }: { trips: Trip[] }) {
 }
 
 function TravelMap({ trips }: { trips: Trip[] }) {
-  const visited = [...new Set(trips.filter((t) => t.status !== 'upcoming').map((t) => t.countryCode))]; const planned = [...new Set(trips.filter((t) => t.status === 'upcoming').map((t) => t.countryCode))].filter((c) => !visited.includes(c));
+  const [picked, setPicked] = useState<string | null>(null);
+  const visited = [...new Set(trips.filter((t) => t.status !== 'upcoming').map((t) => t.countryCode))];
   const nights = trips.filter((t) => t.status === 'past').reduce((n, t) => n + t.nights, 0);
-  const Row = ({ code, tone }: { code: string; tone: string }) => <View className="flex-row items-center gap-3 border-b border-line py-3"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="strong" className="flex-1">{countryName(code)}</T><MapPin size={16} color={colors.inkMuted} /></View>;
+  // Trips in the same spot share one pin. A spot counts as visited once any trip there has started.
+  const spots = new Map<string, Trip[]>();
+  for (const t of trips) if (t.lat !== null && t.lng !== null) { const k = `${t.lat},${t.lng}`; spots.set(k, [...(spots.get(k) ?? []), t]); }
+  const name = (list: Trip[]) => (list[0]!.pinned ? list[0]!.place : countryName(list[0]!.countryCode));
+  const pins: Pin[] = [...spots].map(([id, list]) => ({ id, lat: list[0]!.lat!, lng: list[0]!.lng!, label: `${name(list)}, ${list.length} trip${list.length === 1 ? '' : 's'}`, tone: list.some((t) => t.status !== 'upcoming') ? 'visited' : 'planned' }));
+  const shown = picked ? spots.get(picked) ?? [] : [];
   return (
     <>
       <T v="title" className="text-lg">Your travel map</T>
       <Stats items={[[visited.length, 'countries'], [nights, 'nights away'], [trips.length, 'trips']]} />
-      {/* The world map itself needs Mapbox tiles (an access token and a development build); the countries come from your trips. */}
-      {visited.length + planned.length === 0 ? <Empty>Add a trip and the countries you have visited show here.</Empty> : (
-        <View>{visited.map((c) => <Row key={c} code={c} tone="bg-navy" />)}{planned.map((c) => <Row key={c} code={c} tone="bg-cyan" />)}</View>
-      )}
+      <MapView pins={pins} height={340} zoom={5} onPin={setPicked} />
       <View className="flex-row gap-4">{([['Visited', 'bg-navy'], ['Planned', 'bg-cyan']] as const).map(([l, tone]) => <View key={l} className="flex-row items-center gap-1.5"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="small">{l}</T></View>)}</View>
+      {trips.length === 0 ? <Empty>Add a trip and it shows on your map.</Empty> : shown.length === 0 ? <T v="small" className="text-center">Tap a pin to see the trips there.</T> : (
+        <>
+          <T v="strong">{name(shown)}</T>
+          {shown.map((t) => (
+            <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/trip/${t.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5 active:opacity-80">
+              <View className={cx('h-10 w-10 items-center justify-center rounded-full', t.status === 'upcoming' ? 'bg-cyan' : 'bg-navy')}><MapPin size={20} color="#fff" /></View>
+              <View className="flex-1"><T v="strong">{t.title}</T><T v="small">{t.place} · {tripDates(t)}</T></View><ChevronRight size={18} color={colors.inkMuted} />
+            </Pressable>
+          ))}
+        </>
+      )}
     </>
   );
 }

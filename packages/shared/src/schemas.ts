@@ -8,7 +8,7 @@ const amount = (min: number, label = 'an amount') =>
 export const phoneSchema = z.object({
   phone: z.string().regex(/^[\d\s]{10,13}$/, 'Enter your phone number, like 803 123 4821'),
 });
-export const emailSchema = z.object({ email: z.email('Enter a valid email address') });
+export const emailSchema = z.object({ email: z.string().trim().pipe(z.email('Enter a valid email address, like ada@example.com')) });
 export const otpSchema = z.object({ code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code') });
 
 export const identitySchema = z.object({

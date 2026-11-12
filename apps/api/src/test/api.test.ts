@@ -14,7 +14,7 @@ import { WalletService } from '../modules/wallet/wallet.service.js';
 import { signPayload } from '../modules/wallet/webhook.controller.js';
 
 let app: NestExpressApplication; let db: Database['db']; let wallet: WalletService; let ledger: Ledger;
-let phoneSeq = 0;
+let emailSeq = 0;
 const N = (naira: number) => naira * 100;
 const http = () => request(app.getHttpServer());
 const authed = (token: string) => ({
@@ -25,11 +25,11 @@ const authed = (token: string) => ({
 });
 
 async function signUp() {
-  const phone = `80${String(30000000 + ++phoneSeq)}`;
-  const asked = await http().post('/v1/auth/otp/request').send({ phone });
-  const res = await http().post('/v1/auth/otp/verify').send({ phone, code: asked.body.devCode });
+  const email = `traveller${++emailSeq}@example.com`;
+  const asked = await http().post('/v1/auth/otp/request').send({ email });
+  const res = await http().post('/v1/auth/otp/verify').send({ email, code: asked.body.devCode });
   const me = await authed(res.body.accessToken).get('/auth/me');
-  return { phone, token: res.body.accessToken as string, refreshToken: res.body.refreshToken as string, id: me.body.id as string };
+  return { email, token: res.body.accessToken as string, refreshToken: res.body.refreshToken as string, id: me.body.id as string };
 }
 function webhook(event: object, secret = 'test-partner-secret') {
   const raw = JSON.stringify(event);
@@ -52,17 +52,17 @@ beforeAll(async () => { app = await createApp(); await app.init(); db = app.get(
 afterAll(async () => { await app.close(); });
 
 describe('sign-in', () => {
-  it('signs up with a phone code and returns the profile', async () => {
+  it('signs up with an email code and returns the profile', async () => {
     const u = await signUp();
     const me = await authed(u.token).get('/auth/me').expect(200);
-    expect(me.body).toMatchObject({ phone: `+234${u.phone}`, kycStatus: 'none', hasPin: false });
+    expect(me.body).toMatchObject({ email: u.email, kycStatus: 'none', hasPin: false });
   });
   it('rejects a wrong code, a second request inside a minute, and missing tokens', async () => {
-    const phone = '8039990001';
-    await http().post('/v1/auth/otp/request').send({ phone }).expect(200);
-    expect((await http().post('/v1/auth/otp/verify').send({ phone, code: '000000' }).expect(400)).body.code).toBe('otp_wrong');
-    expect((await http().post('/v1/auth/otp/request').send({ phone }).expect(429)).body.code).toBe('otp_wait');
-    await http().post('/v1/auth/otp/request').send({ phone: '12345' }).expect(400);
+    const email = ' Ada.Obi@Example.com ';
+    expect((await http().post('/v1/auth/otp/request').send({ email }).expect(200)).body.sentTo).toBe('a•••@example.com');
+    expect((await http().post('/v1/auth/otp/verify').send({ email: 'ada.obi@example.com', code: '000000' }).expect(400)).body.code).toBe('otp_wrong');
+    expect((await http().post('/v1/auth/otp/request').send({ email }).expect(429)).body.code).toBe('otp_wait');
+    await http().post('/v1/auth/otp/request').send({ email: 'not-an-email' }).expect(400);
     await http().get('/v1/wallet').expect(401);
     await http().get('/v1/health').expect(200);
   });
@@ -626,7 +626,7 @@ describe('staff: users, plans and the overview', () => {
     const u = await readyUser(40_000); await u.api.patch('/auth/me', { name: 'Kemi Bello' }); const support = await staff('support'); const mod = await staff('moderator');
     const found = (await support.get('/users?q=kemi%20bel').expect(200)).body;
     expect(found.users.find((x: { id: string }) => x.id === u.id)).toMatchObject({ name: 'Kemi Bello', kyc: 'verified', wallet: N(40_000), status: 'active' });
-    expect(JSON.stringify(found)).not.toContain(u.phone); // phone numbers are masked
+    expect(JSON.stringify(found)).not.toContain(u.email); // email addresses are masked
     const detail = (await support.get(`/users/${u.id}`).expect(200)).body;
     expect(detail).toMatchObject({ hasPin: true, wallet: { available: N(40_000), inGoals: 0 }, banks: [{ bank: 'GTBank', account: '•••• 4821' }] });
     await mod.post(`/users/${u.id}/action`, { action: 'freeze' }).expect(403); // moderators can look but not act
@@ -667,5 +667,18 @@ describe('staff: users, plans and the overview', () => {
     expect(o.money.heldForCustomers).toBeGreaterThan(0); expect(o.money.planFees).toBeGreaterThan(0);
     expect(o.attention).toMatchObject({ openReports: expect.any(Number), ordersToPack: expect.any(Number) });
     expect(o.activity[0]).toMatchObject({ action: expect.any(String) });
+  });
+});
+
+describe('maps', () => {
+  it('pins a place where staff put it and a trip on the matching place, or the middle of the country', async () => {
+    const mod = await staff('moderator'); const u = await named('Map Maker');
+    const name = `Zanzibar ${Date.now()}`;
+    const made = (await mod.post('/places', { name, kind: 'Island', countryCode: 'TZ', summary: 'Spice farms, white sand and Stone Town alleys.', lat: -6.1659, lng: 39.2026 }).expect(201)).body;
+    expect((await http().get(`/v1/places/${made.id}`).expect(200)).body).toMatchObject({ lat: -6.1659, lng: 39.2026, pinned: true });
+    await mod.post('/places', { name: `${name} 2`, kind: 'Island', countryCode: 'TZ', summary: 'Spice farms, white sand and Stone Town alleys.', lat: 120, lng: 0 }).expect(400);
+    const trip = (base: object) => u.api.post('/trips', { startDate: '2027-03-01', endDate: '2027-03-06', ...base }, null);
+    expect((await trip({ title: 'Island week', place: `${name}, Tanzania`, countryCode: 'TZ' }).expect(201)).body).toMatchObject({ lat: -6.1659, lng: 39.2026 });
+    expect((await trip({ title: 'Safari', place: 'Serengeti', countryCode: 'TZ' }).expect(201)).body).toMatchObject({ lat: -6, lng: 35 }); // no known place: centre of Tanzania
   });
 });

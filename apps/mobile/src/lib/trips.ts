@@ -5,7 +5,7 @@ import { api } from './api';
 import { queryClient } from './query';
 import { useSession } from './session';
 
-export interface Trip { id: string; title: string; place: string; countryCode: string; startDate: string; endDate: string; nights: number; travellers: number; imageKey: string | null; status: 'upcoming' | 'now' | 'past'; daysAway: number | null }
+export interface Trip { id: string; title: string; place: string; countryCode: string; lat: number | null; lng: number | null; pinned: boolean; startDate: string; endDate: string; nights: number; travellers: number; imageKey: string | null; status: 'upcoming' | 'now' | 'past'; daysAway: number | null }
 export interface ItineraryItem { id: string; day: string; time: string; title: string; note: string; remind: string | null }
 export interface TripDetail extends Trip { itinerary: ItineraryItem[] }
 export interface BucketItem { id: string; title: string; state: 'dream' | 'done'; source: string | null; imageKey: string | null }

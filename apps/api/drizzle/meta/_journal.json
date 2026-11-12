@@ -71,6 +71,13 @@
       "when": 1794427229690,
       "tag": "0009_admin_content",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1794443577146,
+      "tag": "0010_map_pins",
+      "breakpoints": true
     }
   ]
 }

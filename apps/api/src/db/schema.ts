@@ -1,5 +1,5 @@
 import { sql } from 'drizzle-orm';
-import { bigint, boolean, check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { bigint, boolean, check, date, index, integer, jsonb, pgEnum, pgTable, text, timestamp, uniqueIndex, uuid, doublePrecision } from 'drizzle-orm/pg-core';
 
 const id = () => uuid().primaryKey().defaultRandom();
 const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow();
@@ -302,6 +302,9 @@ export const trips = pgTable('trips', {
   endDate: date().notNull(),
   travellers: integer().notNull().default(1),
   imageKey: text(),
+  /** Where to pin the trip on a map: a known place when the name matches one, otherwise the middle of the country. */
+  lat: doublePrecision(),
+  lng: doublePrecision(),
   createdAt: createdAt(),
 }, (t) => [index('trips_user_idx').on(t.userId, t.startDate), check('trips_dates_in_order', sql`${t.endDate} >= ${t.startDate}`)]);
 
@@ -355,6 +358,8 @@ export const places = pgTable('places', {
   currency: text(),
   imageKey: text(),
   imageUrl: text(),
+  lat: doublePrecision(),
+  lng: doublePrecision(),
   published: boolean().notNull().default(true),
   createdAt: createdAt(),
 });

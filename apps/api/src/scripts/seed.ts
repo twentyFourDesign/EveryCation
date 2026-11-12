@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
-import { eq } from 'drizzle-orm';
+import { and, eq, isNull } from 'drizzle-orm';
 import { AppModule } from '../app.module.js';
 import { CONFIG, type Config } from '../config.js';
 import { Database } from '../db/db.module.js';
@@ -17,11 +17,11 @@ if (app.get<Config>(CONFIG).NODE_ENV === 'production') { console.error('Seeding 
 const db = app.get(Database).db;
 
 const people = [
-  { phone: '+2348090000034', name: 'Amaka O.', handle: 'amaka.travels', city: 'Abuja', bio: 'Temple mornings, street food nights. I post the tips I wish someone had told me.' },
-  { phone: '+2348020007713', name: 'Tunde A.', handle: 'tunde.a', city: 'Lagos', bio: 'Slow travel, fast trains.' },
-  { phone: '+2348050001190', name: 'Kemi B.', handle: 'kemib', city: 'Lagos', bio: 'City breaks and visa paperwork, simplified.' },
+  { email: 'amaka@example.com', name: 'Amaka O.', handle: 'amaka.travels', city: 'Abuja', bio: 'Temple mornings, street food nights. I post the tips I wish someone had told me.' },
+  { email: 'tunde@example.com', name: 'Tunde A.', handle: 'tunde.a', city: 'Lagos', bio: 'Slow travel, fast trains.' },
+  { email: 'kemi@example.com', name: 'Kemi B.', handle: 'kemib', city: 'Lagos', bio: 'City breaks and visa paperwork, simplified.' },
 ];
-const [existing] = await db.select().from(users).where(eq(users.phone, people[0]!.phone));
+const [existing] = await db.select().from(users).where(eq(users.handle, people[0]!.handle));
 if (!existing) {
   const [amaka, tunde, kemi] = await db.insert(users).values(people).returning({ id: users.id });
   const t = await db.insert(tips).values([
@@ -62,6 +62,7 @@ await db.insert(places).values([
   { slug: 'accra', name: 'Accra', kind: 'City', countryCode: 'GH', imageKey: 'lagoon-aerial', bestTime: 'Nov – Mar', currency: 'Cedi (GHS)', summary: 'Beach bars, markets, live music and a short flight from Lagos.' },
   { slug: 'iceland', name: 'Iceland', kind: 'Country', countryCode: 'IS', imageKey: 'waterfall', bestTime: 'Jun – Aug', currency: 'Króna (ISK)', summary: 'Waterfalls, glaciers and a ring road that links them all.' },
 ]).onConflictDoNothing();
+for (const [slug, lat, lng] of [['bali', -8.4095, 115.1889], ['dolomites', 46.4102, 11.844], ['venice', 45.4408, 12.3155], ['accra', 5.6037, -0.187], ['iceland', 64.9631, -19.0208]] as const) await db.update(places).set({ lat, lng }).where(and(eq(places.slug, slug), isNull(places.lat)));
 console.log('Places are in place.');
 
 const [anyProduct] = await db.select({ id: products.id }).from(products).limit(1);

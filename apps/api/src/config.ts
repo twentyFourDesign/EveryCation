@@ -11,6 +11,9 @@ const schema = z.object({
   MEDIA_DIR: z.string().default('./uploads'),
   /** The address clients reach this API on, used to build media links. */
   PUBLIC_URL: z.string().optional(),
+  /** Mail server for sign-in codes, like smtps://user:password@smtp.provider.com:465. Without it, emails are written to the log. */
+  SMTP_URL: z.string().optional(),
+  MAIL_FROM: z.string().default('EveryCation <no-reply@everycation.app>'),
 });
 
 export type Config = z.infer<typeof schema>;

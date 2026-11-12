@@ -6,55 +6,56 @@ import { CONFIG, RULES, type Config } from '../../config.js';
 import { badRequest, tooMany, unauthorized } from '../../common/errors.js';
 import { Database } from '../../db/db.module.js';
 import { otpCodes, sessions, users } from '../../db/schema.js';
-import { SmsSender } from './sms.js';
+import { codeEmail, EmailSender } from './email.js';
 
 const minutes = (n: number) => new Date(Date.now() + n * 60_000);
 const sha256 = (s: string) => createHash('sha256').update(s).digest('hex');
 
-/** "0803 123 4821", "803 123 4821" or "+234 803…" → "+2348031234821". */
-export function normalisePhone(input: string): string {
-  const digits = input.replace(/[^\d+]/g, '');
-  const local = digits.startsWith('+234') ? digits.slice(4) : digits.startsWith('234') ? digits.slice(3) : digits.replace(/^0/, '');
-  if (!/^[789]\d{9}$/.test(local)) throw badRequest('invalid_phone', 'Enter a valid Nigerian mobile number, like 803 123 4821.');
-  return `+234${local}`;
+/** Trims and lower-cases an email address, and refuses anything that is not one. */
+export function normaliseEmail(input: string): string {
+  const email = input.trim().toLowerCase();
+  if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email)) throw badRequest('invalid_email', 'Enter a valid email address, like ada@example.com.');
+  return email;
 }
+/** "wole@24group.com.ng" → "w•••@24group.com.ng", for showing where a code went and for staff screens. */
+export const maskEmail = (email: string) => email.replace(/^(.)[^@]*(@.*)$/, '$1•••$2');
 
 @Injectable()
 export class AuthService {
-  constructor(private readonly database: Database, private readonly jwt: JwtService, private readonly sms: SmsSender, @Inject(CONFIG) private readonly config: Config) {}
+  constructor(private readonly database: Database, private readonly jwt: JwtService, private readonly mail: EmailSender, @Inject(CONFIG) private readonly config: Config) {}
   private get db() { return this.database.db; }
   private hashCode(destination: string, code: string) { return createHmac('sha256', this.config.OTP_SECRET).update(`${destination}:${code}`).digest('hex'); }
 
-  /** Step 1: send a 6-digit code. Outside production the code is also returned so the apps can be tested without SMS. */
-  async requestCode(phoneInput: string) {
-    const phone = normalisePhone(phoneInput);
-    const [last] = await this.db.select().from(otpCodes).where(eq(otpCodes.destination, phone)).orderBy(desc(otpCodes.createdAt)).limit(1);
+  /** Step 1: send a 6-digit code. Outside production the code is also returned so the apps can be tested without a mail server. */
+  async requestCode(emailInput: string) {
+    const email = normaliseEmail(emailInput);
+    const [last] = await this.db.select().from(otpCodes).where(eq(otpCodes.destination, email)).orderBy(desc(otpCodes.createdAt)).limit(1);
     const wait = last ? RULES.otpResendSeconds - Math.floor((Date.now() - last.createdAt.getTime()) / 1000) : 0;
     if (wait > 0) throw tooMany('otp_wait', `You can ask for a new code in ${wait} seconds.`, { retryAfterSeconds: wait });
 
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
-    await this.db.insert(otpCodes).values({ destination: phone, codeHash: this.hashCode(phone, code), expiresAt: minutes(RULES.otpTtlMinutes) });
-    await this.sms.send(phone, `${code} is your EveryCation code. It expires in ${RULES.otpTtlMinutes} minutes. Never share it.`);
-    return { sentTo: phone.replace(/^(\+234\d{3})\d{3}(\d{4})$/, '$1 ••• $2'), resendInSeconds: RULES.otpResendSeconds, ...(this.config.NODE_ENV !== 'production' ? { devCode: code } : {}) };
+    await this.db.insert(otpCodes).values({ destination: email, codeHash: this.hashCode(email, code), expiresAt: minutes(RULES.otpTtlMinutes) });
+    await this.mail.send(codeEmail(email, code, RULES.otpTtlMinutes));
+    return { sentTo: maskEmail(email), resendInSeconds: RULES.otpResendSeconds, ...(this.config.NODE_ENV !== 'production' ? { devCode: code } : {}) };
   }
 
   /** Step 2: check the code, create the account on first use, and start a session. */
-  async verifyCode(phoneInput: string, code: string, device?: string) {
-    const phone = normalisePhone(phoneInput);
+  async verifyCode(emailInput: string, code: string, device?: string) {
+    const email = normaliseEmail(emailInput);
     const [otp] = await this.db.select().from(otpCodes)
-      .where(and(eq(otpCodes.destination, phone), isNull(otpCodes.usedAt), gt(otpCodes.expiresAt, new Date()))).orderBy(desc(otpCodes.createdAt)).limit(1);
+      .where(and(eq(otpCodes.destination, email), isNull(otpCodes.usedAt), gt(otpCodes.expiresAt, new Date()))).orderBy(desc(otpCodes.createdAt)).limit(1);
     if (!otp) throw badRequest('otp_expired', 'That code has expired. Ask for a new one.');
     if (otp.attempts >= RULES.otpMaxAttempts) throw tooMany('otp_locked', 'Too many wrong tries. Ask for a new code.');
 
-    const given = Buffer.from(this.hashCode(phone, code)); const stored = Buffer.from(otp.codeHash);
+    const given = Buffer.from(this.hashCode(email, code)); const stored = Buffer.from(otp.codeHash);
     if (given.length !== stored.length || !timingSafeEqual(given, stored)) {
       await this.db.update(otpCodes).set({ attempts: sql`${otpCodes.attempts} + 1` }).where(eq(otpCodes.id, otp.id));
       throw badRequest('otp_wrong', 'That code is not right. Check it and try again.');
     }
     await this.db.update(otpCodes).set({ usedAt: new Date() }).where(eq(otpCodes.id, otp.id));
 
-    await this.db.insert(users).values({ phone }).onConflictDoNothing({ target: users.phone });
-    const [user] = await this.db.select().from(users).where(eq(users.phone, phone));
+    await this.db.insert(users).values({ email }).onConflictDoNothing({ target: users.email });
+    const [user] = await this.db.select().from(users).where(eq(users.email, email));
     if (!user) throw unauthorized();
     return { isNewUser: !user.name, ...(await this.issueTokens(user.id, randomUUID(), device)) };
   }

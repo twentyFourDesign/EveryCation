@@ -32,7 +32,7 @@ pnpm --filter @everycation/api test       # needs the test database running
 
 Built so far:
 
-- **Sign-in**: phone code by SMS, 15-minute access tokens, rotating refresh tokens (reusing an old one ends the session).
+- **Sign-in**: 6-digit code by email (set `SMTP_URL` to send through any mail provider), 15-minute access tokens, rotating refresh tokens (reusing an old one ends the session).
 - **Wallet setup**: BVN/NIN check, 4-digit PIN (Argon2id, locks after 3 wrong tries), bank account in the customer's own name.
 - **Wallet**: balances, savings goals (lock, move in and out), history, freeze.
 - **Money in**: signed partner webhook, credited once however often it is delivered.
@@ -52,9 +52,9 @@ pnpm --filter @everycation/api admin:code admin@everycation.app          # the c
 
 The seed prints the development staff sign-in. For the console, set `NEXT_PUBLIC_API_URL` (default `http://localhost:4000/v1`).
 
-Money endpoints require an `Idempotency-Key` header. Outside production the code request returns `devCode`, and SMS is written to the log.
+Money endpoints require an `Idempotency-Key` header. Outside production the code request returns `devCode`, and without `SMTP_URL` the email is written to the log.
 
-Stand-ins to replace when partners are chosen: `modules/auth/sms.ts` (SMS), `modules/wallet/partners.ts` (identity and bank lookup), `modules/wallet/webhook.controller.ts` (event format). Follow-up work is written to the `outbox` table; the worker that sends it (BullMQ) is not built yet.
+Stand-ins to replace when partners are chosen: `modules/wallet/partners.ts` (identity and bank lookup), `modules/wallet/webhook.controller.ts` (event format). Follow-up work is written to the `outbox` table; the worker that sends it (BullMQ) is not built yet.
 
 To change the schema: edit `src/db/schema.ts`, run `pnpm --filter @everycation/api db:generate`, review the SQL in `apps/api/drizzle`, then `db:migrate`.
 
@@ -87,7 +87,7 @@ Admins & audit log, Settings. The sidebar and every page respect the role table 
 | Shop | categories, product, basket, checkout, order tracking |
 
 **Sign-in and the wallet are live against `apps/api`.** Start the API first, copy `apps/mobile/.env.example` to `.env`, then run the app.
-Outside production the server shows the SMS code on the verify screen, and Add money has a "test money" button that stands in for the bank.
+Outside production the server shows the email code on the verify screen, and Add money has a "test money" button that stands in for the bank.
 In the sandbox identity check any 11-digit number passes unless it starts with 000; a bank account starting 111 is "in another name" and 999 "does not exist".
 
 Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countries, country page, share) are live too. Search, places, traveller profiles, plans, trips and the shop still run on sample data. Buying a plan and placing a shop order charge nothing yet.
@@ -100,11 +100,12 @@ Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countr
 
 ## Not wired yet
 
-- **Partners:** SMS, BVN/NIN, bank transfers, cards and delivery are stand-ins (`modules/auth/sms.ts`, `modules/wallet/partners.ts`, the webhook format). Delivery prices in `config.ts` are placeholders.
+- **Partners:** BVN/NIN, bank transfers, cards and delivery are stand-ins (`modules/wallet/partners.ts`, the webhook format). Delivery prices in `config.ts` are placeholders.
 - **Media storage:** uploads are saved to disk (`MEDIA_DIR`). Swap `DiskStorage` for S3 and a CDN in production. Videos are stored as uploaded; there is no transcoding. Voice tips are not built.
 - **Push and email:** notifications are in-app only. The `outbox` worker (BullMQ) is not built, so nothing is sent outside the app.
 - **Scheduled work:** auto-saves and a Friday payout timer do not run by themselves. Finance approves payouts from the console.
-- **Map tiles** (My travels → Map lists countries from your trips), **Google sign-in and Calendar sync**, **phone reminders**.
+- **Maps** are live (My travels → Map, trip pages, place pages) on free OpenStreetMap tiles from OpenFreeMap, drawn by MapLibre in `apps/mobile/src/ui/map-canvas.tsx`. No key is needed; set `EXPO_PUBLIC_MAP_STYLE_URL` to switch provider. Trips pin to a known place when the name matches, otherwise to the middle of the country; there is no address search yet.
+- **Google sign-in and Calendar sync**, **phone reminders**.
 - **Console pages still on sample data:** Notifications (broadcasts) and Settings. Every other console page reads and writes the API: Overview totals, Users & KYC (freeze wallet, reset PIN, retry ID check, suspend), Trip plans (remove, with refunds for sales not yet paid out), Places, Shop products and orders.
 - **Plans:** no ratings or reviews, and no refund flow when a plan is removed.
 - **Offline cache, i18n, Sentry, PostHog, saved Maestro/Playwright suites.**

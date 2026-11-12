@@ -156,9 +156,9 @@ export class PlansService {
 
   /** What each seller is owed from sales not yet paid out. Sellers without a verified ID, or suspended, are held. */
   async payoutBatch() {
-    const rows = await this.db.select({ sellerId: planPurchases.sellerId, name: users.name, phone: users.phone, kyc: users.kycStatus, status: users.status, sales: sql<number>`count(*)::int`, gross: sql<number>`SUM(${planPurchases.price})::float8`, fee: sql<number>`SUM(${planPurchases.fee})::float8`, owed: sql<number>`SUM(${planPurchases.sellerAmount})::float8` })
-      .from(planPurchases).innerJoin(users, eq(users.id, planPurchases.sellerId)).where(and(isNull(planPurchases.refundedAt), isNull(planPurchases.paidOutAt), sql`${planPurchases.price} > 0`)).groupBy(planPurchases.sellerId, users.name, users.phone, users.kycStatus, users.status).orderBy(sql`SUM(${planPurchases.sellerAmount}) DESC`);
-    const sellers = rows.map((r) => ({ sellerId: r.sellerId, seller: r.name ?? r.phone ?? 'Traveller', sales: r.sales, gross: Number(r.gross), fee: Number(r.fee), owed: Number(r.owed), held: r.status !== 'active' ? 'Account suspended' : r.kyc !== 'verified' ? 'ID not verified' : null }));
+    const rows = await this.db.select({ sellerId: planPurchases.sellerId, name: users.name, email: users.email, kyc: users.kycStatus, status: users.status, sales: sql<number>`count(*)::int`, gross: sql<number>`SUM(${planPurchases.price})::float8`, fee: sql<number>`SUM(${planPurchases.fee})::float8`, owed: sql<number>`SUM(${planPurchases.sellerAmount})::float8` })
+      .from(planPurchases).innerJoin(users, eq(users.id, planPurchases.sellerId)).where(and(isNull(planPurchases.refundedAt), isNull(planPurchases.paidOutAt), sql`${planPurchases.price} > 0`)).groupBy(planPurchases.sellerId, users.name, users.email, users.kycStatus, users.status).orderBy(sql`SUM(${planPurchases.sellerAmount}) DESC`);
+    const sellers = rows.map((r) => ({ sellerId: r.sellerId, seller: r.name ?? 'Traveller', sales: r.sales, gross: Number(r.gross), fee: Number(r.fee), owed: Number(r.owed), held: r.status !== 'active' ? 'Account suspended' : r.kyc !== 'verified' ? 'ID not verified' : null }));
     const sum = (f: (s: (typeof sellers)[number]) => number) => sellers.reduce((n, s) => n + f(s), 0);
     return { sellers, totals: { gross: sum((s) => s.gross), fee: sum((s) => s.fee), paying: sum((s) => (s.held ? 0 : s.owed)), held: sum((s) => (s.held ? s.owed : 0)) } };
   }

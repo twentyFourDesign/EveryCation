@@ -1,3 +1,4 @@
+import { countryCentre } from '../../common/geo.js';
 import { Injectable } from '@nestjs/common';
 import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { badRequest, notFound } from '../../common/errors.js';
@@ -6,7 +7,7 @@ import { Database } from '../../db/db.module.js';
 import { advice, follows, places, tips, users } from '../../db/schema.js';
 import { TipsService, author } from '../community/tips.service.js';
 
-const placeView = (p: typeof places.$inferSelect) => ({ id: p.slug, name: p.name, kind: p.kind, countryCode: p.countryCode, summary: p.summary, bestTime: p.bestTime, currency: p.currency, imageKey: p.imageKey, imageUrl: p.imageUrl });
+const placeView = (p: typeof places.$inferSelect) => ({ id: p.slug, name: p.name, kind: p.kind, countryCode: p.countryCode, summary: p.summary, bestTime: p.bestTime, currency: p.currency, imageKey: p.imageKey, imageUrl: p.imageUrl, lat: p.lat ?? countryCentre(p.countryCode)?.[0] ?? null, lng: p.lng ?? countryCentre(p.countryCode)?.[1] ?? null, pinned: p.lat !== null && p.lng !== null });
 
 /** Places, traveller profiles, following and search. */
 @Injectable()
@@ -31,7 +32,7 @@ export class DiscoverService {
     const by = new Map((tipCounts.rows as { id: string; tips: number; verified: number }[]).map((r) => [r.id, r]));
     return rows.map((p) => ({ ...placeView(p), uuid: p.id, published: p.published, tips: by.get(p.id)?.tips ?? 0, verifiedAdvice: by.get(p.id)?.verified ?? 0 }));
   }
-  async savePlace(id: string | null, input: { name?: string; kind?: string; countryCode?: string; summary?: string; bestTime?: string | null; currency?: string | null; imageUrl?: string | null; published?: boolean }) {
+  async savePlace(id: string | null, input: { name?: string; kind?: string; countryCode?: string; summary?: string; bestTime?: string | null; currency?: string | null; imageUrl?: string | null; lat?: number | null; lng?: number | null; published?: boolean }) {
     const values = { ...input, countryCode: input.countryCode?.toUpperCase() };
     if (id) { const [p] = await this.db.update(places).set(values).where(eq(places.id, id)).returning(); if (!p) throw notFound('Place'); return placeView(p); }
     const slug = input.name!.toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');

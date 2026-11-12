@@ -3,6 +3,7 @@ import { ChevronLeft } from 'lucide-react-native';
 import { Pressable, ScrollView, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Button, Empty, IconButton, Loading, Note, Photo, Screen, SectionTitle, T, go } from '@/ui';
+import { MapView } from '@/ui/map';
 import { errorMessage } from '@/lib/api';
 import { countryName, placeImage, tipImage, tipPhoto, usePlace } from '@/lib/community';
 import { useSession } from '@/lib/session';
@@ -29,6 +30,7 @@ export default function PlaceDetail() {
               {!!p.currency && <View className="flex-1 rounded-2xl bg-surface-muted p-3"><T v="small" className="text-xs">Currency</T><T v="label">{p.currency}</T></View>}
               <Pressable accessibilityRole="button" accessibilityLabel={`Travel advice for ${country}`} onPress={() => go(`/advice/${p.countryCode}`)} className="flex-1 rounded-2xl bg-tint p-3 active:opacity-70"><T v="small" className="text-xs">{p.verifiedAdvice} verified</T><T v="label" className="text-heading-blue">See advice →</T></Pressable>
             </View>
+            {p.lat !== null && p.lng !== null && <View className="gap-2"><SectionTitle>On the map</SectionTitle><MapView pins={[{ id: p.id, lat: p.lat, lng: p.lng, label: p.name, tone: 'place' }]} height={190} interactive={false} zoom={p.pinned ? (p.kind === 'Country' ? 4 : 8) : 3.5} /></View>}
             <SectionTitle>Tips from travellers</SectionTitle>
             {p.tips.length === 0 ? <Empty>No tips here yet. Been there? Share one with the + button.</Empty> : (
               <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">
