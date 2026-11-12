@@ -106,7 +106,8 @@ Tips (Explore, Community, tip, comments, Record a tip) and travel advice (countr
 - **Scheduled work:** auto-saves and a Friday payout timer do not run by themselves. Finance approves payouts from the console.
 - **Maps** are live (My travels → Map, trip pages, place pages) on free OpenStreetMap tiles from OpenFreeMap, drawn by MapLibre in `apps/mobile/src/ui/map-canvas.tsx`. No key is needed; set `EXPO_PUBLIC_MAP_STYLE_URL` to switch provider. Trips pin to a known place when the name matches, otherwise to the middle of the country; there is no address search yet.
 - **Google sign-in and Calendar sync**, **phone reminders**.
-- **Console pages still on sample data:** Notifications (broadcasts) and Settings. Every other console page reads and writes the API: Overview totals, Users & KYC (freeze wallet, reset PIN, retry ID check, suspend), Trip plans (remove, with refunds for sales not yet paid out), Places, Shop products and orders.
+- **Console:** every page reads and writes the API. Notifications sends an in-app message to an audience (everyone, verified wallets, travelling soon, plan sellers, shop customers) and counts who read it. Settings changes the delivery fees, daily withdrawal limit, new-bank hold, lowest plan price and reports-before-re-review (`modules/settings`); the 25% fee and the other locked rules stay in `config.ts`. Removing a plan or a reported post needs a reason, which the author is told.
+- **Voice tips:** recorded in the app with `expo-audio` (up to two minutes), uploaded like photos and video, and played on the tip page (`apps/mobile/src/ui/voice.tsx`).
 - **Plans:** no ratings or reviews, and no refund flow when a plan is removed.
 - **Offline cache, i18n, Sentry, PostHog, saved Maestro/Playwright suites.**
 - **Travel packages and bookings:** left out on purpose; they are a later release.

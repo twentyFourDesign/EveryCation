@@ -6,6 +6,7 @@ import { badRequest, conflict, forbidden, notFound, tooMany } from '../../common
 import { notify } from '../../common/notify.js';
 import { Database, type Tx } from '../../db/db.module.js';
 import { bankAccounts, ledgerAccounts, ledgerEntries, ledgerTransactions, outbox, savingsGoals, users, withdrawals } from '../../db/schema.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { Ledger, newReference } from './ledger.service.js';
 import { BankDirectory, IdentityVerifier, namesMatch } from './partners.js';
 
@@ -18,7 +19,7 @@ export interface GoalInput { name: string; kind: 'trip' | 'shopping' | 'package'
 
 @Injectable()
 export class WalletService {
-  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly identity: IdentityVerifier, private readonly banks: BankDirectory) {}
+  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly identity: IdentityVerifier, private readonly banks: BankDirectory, private readonly settings: SettingsService) {}
   private get db() { return this.database.db; }
 
   private async user(userId: string, tx: Tx | Database['db'] = this.db) {
@@ -93,7 +94,7 @@ export class WalletService {
     return {
       available: available?.balance ?? 0, inGoals, total: (available?.balance ?? 0) + inGoals, goals, banks: banks.map((b) => this.bankView(b)),
       setup: { identity: u.kycStatus, hasPin: !!u.pinHash, hasBank: banks.length > 0, ready: u.kycStatus === 'verified' && !!u.pinHash && banks.length > 0 },
-      frozen: u.walletFrozen, dailyWithdrawalLimit: RULES.dailyWithdrawalLimitKobo,
+      frozen: u.walletFrozen, dailyWithdrawalLimit: (await this.settings.get()).dailyWithdrawalLimitKobo,
     };
   }
 
@@ -212,8 +213,9 @@ export class WalletService {
 
       const [{ today } = { today: 0 }] = await tx.select({ today: sql<number>`COALESCE(SUM(${withdrawals.amount}), 0)::float8` }).from(withdrawals)
         .where(and(eq(withdrawals.userId, userId), gte(withdrawals.createdAt, startOfLagosDay()), inArray(withdrawals.status, ['processing', 'held', 'paid'])));
-      const holdReason = Number(today) + input.amount > RULES.dailyWithdrawalLimitKobo ? 'over_daily_limit'
-        : Date.now() - bank.createdAt.getTime() < RULES.newBankHoldHours * 3_600_000 ? 'new_bank' : null;
+      const rules = await this.settings.get();
+      const holdReason = Number(today) + input.amount > rules.dailyWithdrawalLimitKobo ? 'over_daily_limit'
+        : rules.holdNewBank && Date.now() - bank.createdAt.getTime() < RULES.newBankHoldHours * 3_600_000 ? 'new_bank' : null;
 
       const reference = newReference('WD');
       const clearing = await this.ledger.systemAccount(tx, 'payout_clearing');

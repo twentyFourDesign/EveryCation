@@ -1,4 +1,5 @@
-import { Body, Controller, Get, HttpCode, Param, ParseUUIDPipe, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Inject, Param, ParseUUIDPipe, Patch, Post, Query, Req, UploadedFile, UseGuards, UseInterceptors } from '@nestjs/common';
+import { CONFIG, RULES, type Config } from '../../config.js';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -19,19 +20,24 @@ import { Ledger } from '../wallet/ledger.service.js';
 import { WalletService } from '../wallet/wallet.service.js';
 import { AdminAuthService, AdminGuard, can, CurrentAdmin, PERMISSIONS, Staff, type Admin } from './admin-auth.js';
 import { AdminUsersService, AdminWalletService } from './admin.service.js';
+import { AUDIENCES, BroadcastsService, TARGETS, type Audience } from './broadcasts.service.js';
+import { WHY_MESSAGE, whyComplete, whyFields } from '../../common/reasons.js';
+import { SettingsService, settingsShape, type Settings } from '../settings/settings.service.js';
 
 const loginBody = z.object({ email: z.email('Enter your work email'), password: z.string().min(1).max(200), code: z.string().regex(/^\d{3}\s?\d{3}$/, 'Enter the 6-digit code') });
 const decisionBody = z.object({ decision: z.enum(['approve', 'changes', 'reject']), note: z.string().trim().max(500).optional() });
 const inviteBody = z.object({ email: z.email('Enter a work email'), name: z.string().trim().min(2, 'Enter their name').max(60), role: z.enum(['super_admin', 'moderator', 'finance', 'shop_ops', 'support']) });
 const activeBody = z.object({ active: z.boolean() });
-const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false) });
+const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false), ...whyFields }).refine((b) => b.decision === 'keep' || whyComplete(b), WHY_MESSAGE);
 const orderStatusBody = z.object({ status: z.enum(['packed', 'shipped', 'delivered', 'cancelled']) });
 const productBody = z.object({ name: z.string().trim().min(2, 'Enter the product name').max(120), brand: z.string().trim().max(60).nullish(), category: z.string().trim().min(2, 'Choose a category').max(60), price: z.number().int().min(100, 'Enter a price'),
   stock: z.number().int().min(0).nullable(), variant: z.string().trim().max(60).nullish(), description: z.string().trim().max(600).default(''), pickedNote: z.string().trim().max(200).nullish(), imageUrl: z.url().nullish(), active: z.boolean().default(true) });
 const placeBody = z.object({ name: z.string().trim().min(2, 'Enter the place name').max(60), kind: z.string().trim().min(2, 'Say what kind of place it is').max(30), countryCode: z.string().length(2, 'Choose a country'), lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(), summary: z.string().trim().min(20, 'Write a summary of at least 20 characters').max(300),
   bestTime: z.string().trim().max(40).nullish(), currency: z.string().trim().max(40).nullish(), imageUrl: z.url().nullish(), published: z.boolean().default(true) });
 const userAction = z.object({ action: z.enum(['suspend', 'reinstate', 'freeze', 'unfreeze', 'reset_kyc', 'reset_pin']) });
-const removePlanBody = z.object({ refund: z.boolean().default(true) });
+const removePlanBody = z.object({ refund: z.boolean().default(true), ...whyFields }).refine(whyComplete, WHY_MESSAGE);
+const broadcastBody = z.object({ title: z.string().trim().min(3, 'Write a title of at least 3 characters').max(60), message: z.string().trim().min(10, 'Write a message of at least 10 characters').max(140),
+  audience: z.enum(Object.keys(AUDIENCES) as [Audience, ...Audience[]]), href: z.enum(Object.keys(TARGETS) as [keyof typeof TARGETS, ...(keyof typeof TARGETS)[]]).default('') });
 const queues: Queue[] = ['waiting', 'changes', 'rereview', 'decided'];
 const naira = (kobo: number) => `₦${(kobo / 100).toLocaleString('en-NG')}`;
 const bearer = (req: Request) => (req.headers.authorization ?? '').split(' ')[1] ?? '';
@@ -51,7 +57,7 @@ export class AdminLoginController {
 @UseGuards(AdminGuard)
 @Controller('admin')
 export class AdminController {
-  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService, private readonly shop: ShopService, private readonly discover: DiscoverService, private readonly media: MediaService, private readonly people: AdminUsersService) {}
+  constructor(private readonly auth: AdminAuthService, private readonly money: AdminWalletService, private readonly wallet: WalletService, private readonly ledger: Ledger, private readonly advice: AdviceService, private readonly moderation: ModerationService, private readonly plans: PlansService, private readonly shop: ShopService, private readonly discover: DiscoverService, private readonly media: MediaService, private readonly people: AdminUsersService, private readonly broadcasts: BroadcastsService, private readonly settings: SettingsService, @Inject(CONFIG) private readonly config: Config) {}
 
   @Get('me')
   async me(@CurrentAdmin() admin: Admin) {
@@ -77,9 +83,32 @@ export class AdminController {
   @Staff('plans') @Get('plans') allPlans() { return this.plans.adminList(); }
   @Staff('plans', 'edit') @HttpCode(200) @Post('plans/:id/remove')
   async removePlan(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(removePlanBody)) b: z.infer<typeof removePlanBody>, @Req() req: Request) {
-    const r = await this.plans.remove(id, b.refund);
-    await this.auth.record(admin, r.refunded ? `Removed plan, refunded ${r.refunded} buyer${r.refunded === 1 ? '' : 's'}` : 'Removed plan', `${r.title}${r.total ? ` · ${naira(r.total)}` : ''}`, req);
+    const r = await this.plans.remove(id, b.refund, { reason: b.reason!, note: b.note });
+    await this.auth.record(admin, r.refunded ? `Removed plan, refunded ${r.refunded} buyer${r.refunded === 1 ? '' : 's'}` : 'Removed plan', `${r.title}${r.total ? ` · ${naira(r.total)}` : ''} · ${r.reason}`, req);
     return r;
+  }
+
+  // ───────────── Notifications to travellers ─────────────
+  @Staff('broadcasts') @Get('broadcasts') async broadcastList() { return { ...(await this.broadcasts.options()), sent: await this.broadcasts.list() }; }
+  @Staff('broadcasts', 'edit') @Post('broadcasts')
+  async sendBroadcast(@CurrentAdmin() admin: Admin, @Body(new ZodPipe(broadcastBody)) b: z.infer<typeof broadcastBody>, @Req() req: Request) {
+    const r = await this.broadcasts.send(admin.id, b);
+    await this.auth.record(admin, 'Sent notification', `${r.title} · ${r.audience} · ${r.recipients} traveller${r.recipients === 1 ? '' : 's'}`, req);
+    return r;
+  }
+
+  // ───────────── Platform settings ─────────────
+  /** The rules staff can change, the ones fixed in code, and which outside services are connected. */
+  private async settingsView() {
+    return { settings: await this.settings.get(), locked: { planFeePercent: RULES.planFeeRate * 100, newBankHoldHours: RULES.newBankHoldHours },
+      services: { email: !!this.config.SMTP_URL, payments: false, identity: false, cloudStorage: false, push: false } };
+  }
+  @Staff('settings') @Get('settings') getSettings() { return this.settingsView(); }
+  @Staff('settings', 'edit') @Patch('settings')
+  async saveSettings(@CurrentAdmin() admin: Admin, @Body(new ZodPipe(settingsShape.partial())) b: Partial<Settings>, @Req() req: Request) {
+    const r = await this.settings.save(admin.id, b);
+    if (r.changed.length) await this.auth.record(admin, 'Changed platform settings', r.changed.join(', '), req);
+    return { ...(await this.settingsView()), changed: r.changed };
   }
 
   // ───────────── Wallet & withdrawals ─────────────
@@ -166,8 +195,8 @@ export class AdminController {
 
   @Staff('moderation', 'edit') @HttpCode(200) @Post('reports/decision')
   async decideReport(@CurrentAdmin() admin: Admin, @Body(new ZodPipe(reportDecision)) b: z.infer<typeof reportDecision>, @Req() req: Request) {
-    const r = await this.moderation.decide(b.targetType, b.targetId, b.decision, b.suspendAuthor);
-    await this.auth.record(admin, `${b.decision === 'remove' ? 'Removed reported' : 'Kept reported'} ${b.targetType}${r.suspended ? ', suspended author' : ''}`, `${r.item} · ${r.reportsClosed} report${r.reportsClosed === 1 ? '' : 's'}`, req);
+    const r = await this.moderation.decide(b.targetType, b.targetId, b.decision, b.suspendAuthor, b.decision === 'remove' ? { reason: b.reason!, note: b.note } : undefined);
+    await this.auth.record(admin, `${b.decision === 'remove' ? 'Removed reported' : 'Kept reported'} ${b.targetType}${r.suspended ? ', suspended author' : ''}`, `${r.item} · ${r.reportsClosed} report${r.reportsClosed === 1 ? '' : 's'}${r.reason ? ` · ${r.reason}` : ''}`, req);
     return r;
   }
 

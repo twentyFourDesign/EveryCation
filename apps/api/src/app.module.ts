@@ -12,6 +12,7 @@ import { CommunityModule } from './modules/community/community.module.js';
 import { DiscoverModule } from './modules/discover/discover.module.js';
 import { MediaModule } from './modules/media/media.module.js';
 import { PlansModule } from './modules/plans/plans.module.js';
+import { SettingsModule } from './modules/settings/settings.service.js';
 import { ShopModule } from './modules/shop/shop.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
@@ -32,6 +33,7 @@ class ConfigModule {}
     DbModule,
     JwtModule.registerAsync({ global: true, inject: [CONFIG], useFactory: (c: Config) => ({ secret: c.JWT_SECRET, signOptions: { expiresIn: `${RULES.accessTokenMinutes}m`, issuer: 'everycation' }, verifyOptions: { issuer: 'everycation' } }) }),
     ThrottlerModule.forRootAsync({ inject: [CONFIG], useFactory: (c: Config) => ({ throttlers: [{ ttl: 60_000, limit: 120 }], skipIf: () => c.NODE_ENV === 'test' }) }),
+    SettingsModule,
     AuthModule,
     WalletModule,
     CommunityModule,

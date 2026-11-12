@@ -387,10 +387,12 @@ describe('notifications, reports and staff invites', () => {
     const open = (await mod.get('/reports').expect(200)).body as { targetId: string; reports: number; item: string; author: { name: string } }[];
     expect(open.find((x) => x.targetId === tip.id)).toMatchObject({ reports: 2, item: 'Tip · "Guaranteed visa in two days"', author: { name: 'Cheap Visas' } });
     expect((await mod.get('/me')).body.counts.openReports).toBeGreaterThanOrEqual(2);
-    await mod.post('/reports/decision', { targetType: 'comment', targetId: comment.id, decision: 'remove' }).expect(200);
+    await mod.post('/reports/decision', { targetType: 'comment', targetId: comment.id, decision: 'remove' }).expect(400); // a removal needs a reason
+    await mod.post('/reports/decision', { targetType: 'comment', targetId: comment.id, decision: 'remove', reason: 'other' }).expect(400); // and "other" needs a note
+    await mod.post('/reports/decision', { targetType: 'comment', targetId: comment.id, decision: 'remove', reason: 'offensive' }).expect(200);
     expect((await http().get(`/v1/tips/${other.id}`)).body.comments).toBe(0);
-    expect((await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove', suspendAuthor: true }).expect(200)).body).toMatchObject({ reportsClosed: 2, suspended: true });
-    await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove' }).expect(409);
+    expect((await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove', reason: 'spam', note: 'It only advertises a visa agent.', suspendAuthor: true }).expect(200)).body).toMatchObject({ reportsClosed: 2, suspended: true });
+    await mod.post('/reports/decision', { targetType: 'tip', targetId: tip.id, decision: 'remove', reason: 'spam' }).expect(409);
     await http().get(`/v1/tips/${tip.id}`).expect(404);
     expect((await spammer.api.get('/auth/me').expect(403)).body.code).toBe('account_suspended');
     await http().post('/v1/auth/refresh').send({ refreshToken: spammer.refreshToken }).expect(401);
@@ -651,9 +653,12 @@ describe('staff: users, plans and the overview', () => {
     await buyer.api.post(`/plans/${plan.id}/buy`, { pin: '2580' }).expect(200);
     expect((await balance(buyer.api)).available).toBe(N(5_000));
     expect(((await mod.get('/plans').expect(200)).body as { id: string; used: number }[]).find((p) => p.id === plan.id)).toMatchObject({ used: 1, status: 'on_sale' });
-    await finance.post(`/plans/${plan.id}/remove`, { refund: true }).expect(403);
-    expect((await mod.post(`/plans/${plan.id}/remove`, { refund: true }).expect(200)).body).toMatchObject({ refunded: 1, total: N(15_000), alreadyPaidOut: 0 });
-    await mod.post(`/plans/${plan.id}/remove`, { refund: true }).expect(409);
+    await finance.post(`/plans/${plan.id}/remove`, { refund: true, reason: 'misleading' }).expect(403);
+    await mod.post(`/plans/${plan.id}/remove`, { refund: true }).expect(400); // a removal needs a reason
+    expect((await mod.post(`/plans/${plan.id}/remove`, { refund: true, reason: 'misleading', note: 'Nigerians need a visa for Dubai.' }).expect(200)).body).toMatchObject({ reason: 'Misleading: Nigerians need a visa for Dubai.', refunded: 1, total: N(15_000), alreadyPaidOut: 0 });
+    await mod.post(`/plans/${plan.id}/remove`, { refund: true, reason: 'misleading' }).expect(409);
+    expect((await seller.api.get('/notifications')).body.items[0].text).toContain('because it was misleading or inaccurate. Nigerians need a visa for Dubai.');
+    expect(((await mod.get('/plans')).body as { id: string; removedReason: string }[]).find((p) => p.id === plan.id)!.removedReason).toBe('Misleading: Nigerians need a visa for Dubai.');
     expect((await balance(buyer.api)).available).toBe(N(20_000));
     await http().get(`/v1/plans/${plan.id}`).expect(404);
     expect(((await finance.get('/payouts')).body.sellers as { sellerId: string }[]).some((x) => x.sellerId === seller.id)).toBe(false); // nothing left to pay the seller
@@ -680,5 +685,49 @@ describe('maps', () => {
     const trip = (base: object) => u.api.post('/trips', { startDate: '2027-03-01', endDate: '2027-03-06', ...base }, null);
     expect((await trip({ title: 'Island week', place: `${name}, Tanzania`, countryCode: 'TZ' }).expect(201)).body).toMatchObject({ lat: -6.1659, lng: 39.2026 });
     expect((await trip({ title: 'Safari', place: 'Serengeti', countryCode: 'TZ' }).expect(201)).body).toMatchObject({ lat: -6, lng: 35 }); // no known place: centre of Tanzania
+  });
+});
+
+describe('staff: notifications to travellers and platform settings', () => {
+  it('sends a notification to an audience and counts who opened it', async () => {
+    const boss = await staff('super_admin'); const finance = await staff('finance');
+    const verified = await readyUser(1_000); const plain = await named('Plain Traveller');
+    const before = (await boss.get('/broadcasts').expect(200)).body;
+    expect(before.audiences.map((a: { id: string }) => a.id)).toEqual(['everyone', 'verified', 'travelling_soon', 'sellers', 'shoppers']);
+    await finance.post('/broadcasts', { title: 'Hello', message: 'Finance cannot send these.', audience: 'everyone' }).expect(403);
+    await boss.post('/broadcasts', { title: 'Hi', message: 'short', audience: 'everyone' }).expect(400);
+    const sent = (await boss.post('/broadcasts', { title: 'Travelling in December?', message: 'Order your travel essentials by 4 December.', audience: 'verified', href: '/shop' }).expect(201)).body;
+    expect(sent.recipients).toBe(before.audiences.find((a: { id: string }) => a.id === 'verified').people);
+    const inbox = (await verified.api.get('/notifications')).body.items[0];
+    expect(inbox).toMatchObject({ type: 'news', text: 'Travelling in December?\nOrder your travel essentials by 4 December.', href: '/shop' });
+    expect(JSON.stringify((await plain.api.get('/notifications')).body)).not.toContain('Travelling in December?'); // not in the audience
+    await verified.api.post('/notifications/read', {}, null);
+    const row = ((await boss.get('/broadcasts')).body.sent as { id: string; opened: number; recipients: number; opens: string }[]).find((b) => b.id === sent.id)!;
+    expect(row).toMatchObject({ recipients: sent.recipients, opened: 1, opens: 'Shop' });
+  });
+  it('applies settings staff change: delivery fees, the daily limit and the new-bank hold', async () => {
+    const boss = await staff('super_admin'); const finance = await staff('finance'); const u = await readyUser(50_000);
+    const start = (await finance.get('/settings').expect(200)).body; // Finance can look
+    expect(start.locked.planFeePercent).toBe(25);
+    await finance.patch('/settings', { holdNewBank: false }).expect(403); // but not change
+    await boss.patch('/settings', { reportsToRereview: 0 }).expect(400);
+    try {
+      const saved = (await boss.patch('/settings', { deliveryStandardKobo: N(1_800), holdNewBank: false, dailyWithdrawalLimitKobo: N(4_000) }).expect(200)).body;
+      expect(saved.settings).toMatchObject({ deliveryStandardKobo: N(1_800), holdNewBank: false, dailyWithdrawalLimitKobo: N(4_000) });
+      expect(((await http().get('/v1/shop/delivery')).body as { id: string; fee: number }[]).find((d) => d.id === 'standard')!.fee).toBe(N(1_800));
+      // the bank was added moments ago: with the hold off, a small withdrawal goes straight through
+      expect((await u.api.post('/wallet/withdrawals', { amount: N(2_000), source: 'available', pin: '2580' }).expect(201)).body.status).toBe('processing');
+      // and the lower daily limit now holds the next one
+      expect((await u.api.post('/wallet/withdrawals', { amount: N(3_000), source: 'available', pin: '2580' }).expect(201)).body).toMatchObject({ status: 'held' });
+    } finally { await boss.patch('/settings', start.settings).expect(200); }
+    expect(((await http().get('/v1/shop/delivery')).body as { id: string; fee: number }[]).find((d) => d.id === 'standard')!.fee).toBe(start.settings.deliveryStandardKobo);
+  });
+  it('accepts a voice note recorded on a phone as sound, not video', async () => {
+    const u = await named('Voice Tipper');
+    const m4a = Buffer.concat([Buffer.from([0, 0, 0, 0x18]), Buffer.from('ftypmp42'), Buffer.alloc(200)]); // Android records voice as plain MP4
+    const up = (await http().post('/v1/media').set('Authorization', `Bearer ${u.token}`).attach('file', m4a, { filename: 'voice.m4a', contentType: 'audio/mp4' }).expect(201)).body;
+    expect(up.kind).toBe('audio');
+    const tip = (await u.api.post('/tips', { title: 'Listen before you land in Accra', place: 'Accra, Ghana', countryCode: 'GH', category: 'Getting there', format: 'voice', body: '', mediaId: up.id }, null).expect(201)).body;
+    expect(tip).toMatchObject({ format: 'voice', media: { kind: 'audio' } });
   });
 });

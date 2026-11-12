@@ -9,6 +9,7 @@ import { Avatar, Badge, Button, IconButton, Loading, Note, Photo, Screen, T, go 
 import { errorMessage } from '@/lib/api';
 import { initials, isUuid, tipImage, tipPhoto, useLikeTip, useTip } from '@/lib/community';
 import { person } from '@/lib/people';
+import { VoicePlayer } from '@/ui/voice';
 import { useSession } from '@/lib/session';
 import { useApp } from '@/lib/store';
 import { useAddBucket, useBucket } from '@/lib/trips';
@@ -24,10 +25,10 @@ function useTipView(id: string) {
   const bundled = useQuery({ queryKey: ['sample-tip', id], queryFn: () => sampleApi.tip(id), enabled: !isUuid(id) });
   if (isUuid(id)) {
     const t = live.data;
-    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), photo: tipPhoto(t), video: t.media?.kind === 'video' ? t.media.url : null, body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: `/traveller/${t.author.id}` as string | null } };
+    return { isLoading: live.isLoading, error: live.error, live: true, tip: t && { id: t.id, title: t.title, place: t.place, category: t.category, image: tipImage(t), photo: tipPhoto(t), video: t.media?.kind === 'video' ? t.media.url : null, audio: t.media?.kind === 'audio' ? t.media.url : null, body: t.body, goodToKnow: t.goodToKnow, visited: t.visited ? `Visited ${t.visited}` : '', likes: t.likes, liked: t.liked, comments: t.comments, authorName: t.author.name, authorInitials: initials(t.author.name), authorLink: `/traveller/${t.author.id}` as string | null } };
   }
   const s = bundled.data; const a = s && person(s.authorId);
-  return { isLoading: bundled.isLoading, error: bundled.error, live: false, tip: s && a && { id: s.id, title: s.title, place: s.place, category: s.category, image: s.image, photo: null as string | null, video: null as string | null, body: s.body, goodToKnow: s.goodToKnow, visited: s.visited, likes: s.likes, liked: false, comments: s.comments, authorName: a.name, authorInitials: a.initials, authorLink: `/traveller/${a.id}` as string | null } };
+  return { isLoading: bundled.isLoading, error: bundled.error, live: false, tip: s && a && { id: s.id, title: s.title, place: s.place, category: s.category, image: s.image, photo: null as string | null, video: null as string | null, audio: null as string | null, body: s.body, goodToKnow: s.goodToKnow, visited: s.visited, likes: s.likes, liked: false, comments: s.comments, authorName: a.name, authorInitials: a.initials, authorLink: `/traveller/${a.id}` as string | null } };
 }
 
 export default function TipDetail() {
@@ -62,6 +63,7 @@ export default function TipDetail() {
               <View className="flex-1"><T v="strong">{tip.authorName}</T>{!!tip.visited && <T v="small">{tip.visited}</T>}</View>
               {live && <Button small variant={tip.liked ? 'navy' : 'outline'} icon={Heart} label={`${tip.likes}`} onPress={() => (signedIn ? like.mutate(tip.id) : router.push('/sign-up'))} />}
             </View>
+            {!!tip.audio && <VoicePlayer url={tip.audio} />}
             {!!tip.body && <T className="text-base leading-[26px]">{tip.body}</T>}
             {tip.goodToKnow.length > 0 && (
               <View className="gap-2 rounded-card bg-gold-soft p-4"><T v="eyebrow" className="text-ink">GOOD TO KNOW</T>{tip.goodToKnow.map((g) => <T key={g}>• {g}</T>)}</View>

@@ -52,7 +52,14 @@
           "microphonePermission": "Record sound with the videos for your travel tips."
         }
       ],
-      "expo-video"
+      "expo-video",
+      [
+        "expo-audio",
+        {
+          "microphonePermission": "Record voice tips to share with other travellers.",
+          "enableBackgroundPlayback": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

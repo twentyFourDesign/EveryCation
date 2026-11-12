@@ -24,7 +24,7 @@ export class DiskStorage extends MediaStorage {
 type Kind = 'image' | 'video' | 'audio';
 const MB = 1024 * 1024;
 const LIMITS: Record<Kind, number> = { image: 8 * MB, video: 60 * MB, audio: 15 * MB };
-const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/webm': 'webm', 'audio/x-m4a': 'm4a' };
+const EXT: Record<string, string> = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp', 'video/mp4': 'mp4', 'video/quicktime': 'mov', 'video/webm': 'webm', 'audio/mp4': 'm4a', 'audio/mpeg': 'mp3', 'audio/webm': 'webm', 'audio/x-m4a': 'm4a', 'audio/ogg': 'ogg' };
 
 /** The file's real type from its first bytes. The type a client claims is not trusted. */
 function sniff(b: Buffer): string | null {
@@ -34,6 +34,7 @@ function sniff(b: Buffer): string | null {
   if (ascii.startsWith('RIFF') && ascii.slice(8, 12) === 'WEBP') return 'image/webp';
   if (ascii.slice(4, 8) === 'ftyp') { const brand = ascii.slice(8, 12); return brand.startsWith('qt') ? 'video/quicktime' : brand.startsWith('M4A') ? 'audio/mp4' : 'video/mp4'; }
   if (hex.startsWith('1a45dfa3')) return 'video/webm';
+  if (ascii.startsWith('OggS')) return 'audio/ogg';
   if (hex.startsWith('494433') || hex.startsWith('fffb') || hex.startsWith('fff3')) return 'audio/mpeg';
   return null;
 }
@@ -43,13 +44,14 @@ export class MediaService {
   constructor(private readonly database: Database, private readonly storage: MediaStorage) {}
 
   async upload(userId: string, file: { buffer: Buffer; mimetype: string; size: number } | undefined) {
-    if (!file?.buffer?.length) throw badRequest('file_required', 'Choose a photo or video to upload.');
+    if (!file?.buffer?.length) throw badRequest('file_required', 'Choose a photo, video or voice note to upload.');
     const real = sniff(file.buffer);
-    // A WebM file can hold video or sound; trust the claimed family only to tell those two apart.
-    const contentType = real === 'video/webm' && file.mimetype.startsWith('audio/') ? 'audio/webm' : real;
-    if (!contentType || !EXT[contentType]) throw badRequest('file_type', 'Use a JPEG, PNG or WebP photo, or an MP4 or MOV video.');
+    // A WebM or MP4 file can hold video or sound (phones record voice notes as MP4); trust the claimed family only to tell those two apart.
+    const sound = file.mimetype.startsWith('audio/');
+    const contentType = sound && real === 'video/webm' ? 'audio/webm' : sound && real === 'video/mp4' ? 'audio/mp4' : real;
+    if (!contentType || !EXT[contentType]) throw badRequest('file_type', 'Use a JPEG, PNG or WebP photo, an MP4 or MOV video, or a voice recording.');
     const kind = contentType.split('/')[0] as Kind;
-    if (file.size > LIMITS[kind]) throw badRequest('file_too_large', `That ${kind === 'image' ? 'photo' : kind} is too large. The limit is ${LIMITS[kind] / MB} MB.`);
+    if (file.size > LIMITS[kind]) throw badRequest('file_too_large', `That ${kind === 'image' ? 'photo' : kind === 'audio' ? 'voice note' : kind} is too large. The limit is ${LIMITS[kind] / MB} MB.`);
     const now = new Date(); const id = randomUUID();
     const key = `tips/${now.getUTCFullYear()}/${String(now.getUTCMonth() + 1).padStart(2, '0')}/${id}.${EXT[contentType]}`;
     await this.storage.put(key, file.buffer, contentType);

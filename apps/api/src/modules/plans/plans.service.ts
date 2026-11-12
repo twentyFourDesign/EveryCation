@@ -3,6 +3,8 @@ import { and, desc, eq, ilike, inArray, isNull, sql } from 'drizzle-orm';
 import { RULES } from '../../config.js';
 import { badRequest, conflict, forbidden, notFound } from '../../common/errors.js';
 import { notify } from '../../common/notify.js';
+import { SettingsService } from '../settings/settings.service.js';
+import { because, reasonLabel, type Why } from '../../common/reasons.js';
 import { Database } from '../../db/db.module.js';
 import { itineraryItems, planPurchases, plans, trips, users } from '../../db/schema.js';
 import { author } from '../community/tips.service.js';
@@ -17,7 +19,7 @@ type Row = { p: typeof plans.$inferSelect; t: typeof trips.$inferSelect; u: type
 
 @Injectable()
 export class PlansService {
-  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly wallet: WalletService) {}
+  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly wallet: WalletService, private readonly settings: SettingsService) {}
   private get db() { return this.database.db; }
   private base() { return this.db.select({ p: plans, t: trips, u: users }).from(plans).innerJoin(trips, eq(trips.id, plans.tripId)).innerJoin(users, eq(users.id, plans.userId)); }
 
@@ -67,7 +69,8 @@ export class PlansService {
     const [t] = await this.db.select().from(trips).where(and(eq(trips.id, tripId), eq(trips.userId, userId)));
     if (!t) throw notFound('Trip');
     const price = input.mode === 'sell' ? (input.price ?? 0) : 0;
-    if (input.mode === 'sell' && price < RULES.minPlanPriceKobo) throw badRequest('price_too_low', `Set a price of at least ${naira(RULES.minPlanPriceKobo)}.`);
+    const lowest = (await this.settings.get()).minPlanPriceKobo;
+    if (input.mode === 'sell' && price < lowest) throw badRequest('price_too_low', `Set a price of at least ${naira(lowest)}.`);
     const [{ n } = { n: 0 }] = await this.db.select({ n: sql<number>`count(*)::int` }).from(itineraryItems).where(eq(itineraryItems.tripId, tripId));
     if (input.mode !== 'private' && n < 3) throw badRequest('plan_too_thin', 'Add at least 3 stops to the itinerary before you share this plan.');
     await this.db.insert(plans).values({ userId, tripId, mode: input.mode, price, summary: input.summary ?? '' })
@@ -122,19 +125,19 @@ export class PlansService {
 
   async adminList() {
     const rows = await this.base().where(sql`${plans.mode} IN ('free', 'sell') OR ${plans.removedAt} IS NOT NULL`).orderBy(desc(plans.createdAt)).limit(300);
-    return this.view(rows);
+    return (await this.view(rows)).map((v, i) => ({ ...v, removedReason: rows[i]!.p.removedReason }));
   }
 
   /**
    * Takes a plan off the marketplace. With `refund`, every buyer whose money has not yet been paid
    * out to the seller gets it back in full; sales already paid out are left as they are.
    */
-  async remove(planId: string, refund: boolean) {
+  async remove(planId: string, refund: boolean, why: Why) {
     const [row] = await this.base().where(eq(plans.id, planId));
     if (!row) throw notFound('Trip plan');
     if (row.p.removedAt) throw conflict('already_removed', 'This plan has already been removed.');
     return this.ledger.run(async (tx) => {
-      await tx.update(plans).set({ removedAt: new Date(), mode: 'private' }).where(eq(plans.id, planId));
+      await tx.update(plans).set({ removedAt: new Date(), mode: 'private', removedReason: reasonLabel(why) }).where(eq(plans.id, planId));
       let refunded = 0; let total = 0; let alreadyPaidOut = 0;
       if (refund) {
         const sales = await tx.select().from(planPurchases).where(and(eq(planPurchases.planId, planId), isNull(planPurchases.refundedAt), sql`${planPurchases.price} > 0`));
@@ -147,8 +150,8 @@ export class PlansService {
           refunded++; total += s.price;
         }
       }
-      await notify(tx, row.p.userId, 'community', `We removed your plan "${row.t.title}" from the marketplace because it broke the guidelines.`);
-      return { title: row.t.title, refunded, total, alreadyPaidOut };
+      await notify(tx, row.p.userId, 'community', `We removed your plan "${row.t.title}" from the marketplace ${because(why)}`);
+      return { title: row.t.title, refunded, total, alreadyPaidOut, reason: reasonLabel(why) };
     });
   }
 

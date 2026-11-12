@@ -3,6 +3,7 @@ import { and, desc, eq, ilike, inArray, or, sql } from 'drizzle-orm';
 import { conflict, notFound } from '../../common/errors.js';
 import { RULES } from '../../config.js';
 import { notify } from '../../common/notify.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { MediaService } from '../media/media.service.js';
 import { Database } from '../../db/db.module.js';
 import { advice, comments, reports, tipLikes, tips, users } from '../../db/schema.js';
@@ -12,7 +13,7 @@ export const author = (u: { id: string; name: string | null; handle: string | nu
 
 @Injectable()
 export class TipsService {
-  constructor(private readonly database: Database, private readonly media: MediaService) {}
+  constructor(private readonly database: Database, private readonly media: MediaService, private readonly settings: SettingsService) {}
   private get db() { return this.database.db; }
 
   private async view(rows: { t: typeof tips.$inferSelect; u: typeof users.$inferSelect }[], viewerId?: string) {
@@ -80,7 +81,7 @@ export class TipsService {
     const added = await this.db.insert(reports).values({ targetType, targetId, reporterId: userId, reason }).onConflictDoNothing().returning({ id: reports.id });
     if (targetType === 'advice' && added.length) {
       const [{ n } = { n: 0 }] = await this.db.select({ n: sql<number>`count(*)::int` }).from(reports).where(and(eq(reports.targetType, 'advice'), eq(reports.targetId, targetId), sql`${reports.resolvedAt} IS NULL`));
-      if (n >= RULES.reportsToRereview) await this.db.update(advice).set({ status: 'rereview' }).where(and(eq(advice.id, targetId), eq(advice.status, 'verified')));
+      if (n >= (await this.settings.get()).reportsToRereview) await this.db.update(advice).set({ status: 'rereview' }).where(and(eq(advice.id, targetId), eq(advice.status, 'verified')));
     }
     return { reported: true, alreadyReported: !added.length };
   }

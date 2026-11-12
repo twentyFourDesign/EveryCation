@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { adminApi, ago, errorMessage } from '@/lib/api';
 import { Badge, Button, Card, Chips, Notice, PageHeader } from '@/components/ui';
 import { cn } from '@/lib/cn';
+import { noWhy, ReasonPicker, whyBody, whyReady, type Why } from '@/components/reason-picker';
 import { accessFor, useSession } from '@/lib/session';
 
 type Target = 'tip' | 'comment' | 'advice';
@@ -21,14 +22,14 @@ export default function Reports() {
   const [type, setType] = useState<(typeof types)[number]>('All types');
   const [selected, setSelected] = useState<string | null>(null);
   const [decision, setDecision] = useState<'remove' | 'keep'>('remove');
-  const [suspend, setSuspend] = useState(false);
+  const [suspend, setSuspend] = useState(false); const [why, setWhy] = useState<Why>(noWhy);
   const [notice, setNotice] = useState('');
   const { data = [], isLoading, error } = useQuery({ queryKey: ['reports', status], queryFn: () => adminApi<Report[]>(`/reports?status=${status}`) });
   const rows = data.filter((r) => !typeOf[type] || r.targetType === typeOf[type]);
   const current = rows.find((r) => r.targetId === selected) ?? rows[0];
   const apply = useMutation({
-    mutationFn: (r: Report) => adminApi<{ reportsClosed: number; suspended: boolean }>('/reports/decision', { method: 'POST', body: { targetType: r.targetType, targetId: r.targetId, decision, suspendAuthor: suspend } }),
-    onSuccess: (res, r) => { setNotice(`${decision === 'remove' ? 'Removed' : 'Kept'}: ${r.item}. ${res.reportsClosed} report${res.reportsClosed === 1 ? '' : 's'} closed${res.suspended ? ', and the author is suspended' : ''}.${decision === 'remove' ? ' The author has been told.' : ''}`); setSelected(null); setSuspend(false); qc.invalidateQueries({ queryKey: ['reports'] }); refreshSession().catch(() => {}); },
+    mutationFn: (r: Report) => adminApi<{ reportsClosed: number; suspended: boolean }>('/reports/decision', { method: 'POST', body: { targetType: r.targetType, targetId: r.targetId, decision, suspendAuthor: suspend, ...(decision === 'remove' ? whyBody(why) : {}) } }),
+    onSuccess: (res, r) => { setNotice(`${decision === 'remove' ? 'Removed' : 'Kept'}: ${r.item}. ${res.reportsClosed} report${res.reportsClosed === 1 ? '' : 's'} closed${res.suspended ? ', and the author is suspended' : ''}.${decision === 'remove' ? ' The author has been told.' : ''}`); setSelected(null); setSuspend(false); setWhy(noWhy); qc.invalidateQueries({ queryKey: ['reports'] }); refreshSession().catch(() => {}); },
     onError: (e) => setNotice(errorMessage(e)),
   });
   return (
@@ -66,8 +67,9 @@ export default function Reports() {
                   <label className="flex items-center gap-2.5"><input type="radio" name="decision" checked={decision === 'remove'} onChange={() => setDecision('remove')} className="size-4 accent-navy" />Remove it and tell the author</label>
                   <label className="flex items-center gap-2.5"><input type="radio" name="decision" checked={decision === 'keep'} onChange={() => setDecision('keep')} className="size-4 accent-navy" />Keep it{current.targetType === 'advice' && ' (verified advice stays verified)'}</label>
                 </fieldset>
+                {decision === 'remove' && <ReasonPicker value={why} onChange={setWhy} />}
                 <label className="flex items-center gap-2.5 text-sm"><input type="checkbox" checked={suspend} onChange={(e) => setSuspend(e.target.checked)} className="size-4 accent-navy" />Suspend the author and freeze their wallet</label>
-                <div><Button variant="primary" disabled={apply.isPending} onClick={() => apply.mutate(current)}>{apply.isPending ? 'Applying…' : 'Apply decision'}</Button></div>
+                <div><Button variant="primary" disabled={apply.isPending || (decision === 'remove' && !whyReady(why))} onClick={() => apply.mutate(current)}>{apply.isPending ? 'Applying…' : 'Apply decision'}</Button></div>
               </>
             )}
           </Card>

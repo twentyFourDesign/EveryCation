@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { PiggyBank, Plane, ShoppingBag, Star } from 'lucide-react-native';
+import { Megaphone, PiggyBank, Plane, ShoppingBag, Star } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, Chips, Empty, Loading, Note, Screen, T, colors, cx, go } from '@/ui';
@@ -7,8 +7,8 @@ import { errorMessage } from '@/lib/api';
 import { timeAgo, useInbox, useMarkRead } from '@/lib/community';
 import { useSession } from '@/lib/session';
 
-const filters = ['All', 'Community', 'Wallet', 'Trips'] as const;
-const icons: Record<string, typeof Star> = { community: Star, wallet: PiggyBank, trips: Plane, shop: ShoppingBag };
+const filters = ['All', 'Community', 'Wallet', 'Trips', 'News'] as const;
+const icons: Record<string, typeof Star> = { community: Star, wallet: PiggyBank, trips: Plane, shop: ShoppingBag, news: Megaphone };
 
 export default function Notifications() {
   const signedIn = useSession((s) => s.status === 'signedIn');
@@ -27,7 +27,7 @@ export default function Notifications() {
         {list.map((n) => { const Icon = icons[n.type] ?? Star; return (
           <Pressable key={n.id} disabled={!n.href} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.text}`} onPress={() => n.href && go(n.href)} className={cx('flex-row items-center gap-3 rounded-2xl px-2 py-3 active:opacity-70', !n.read && 'bg-tint')}>
             <View className="h-10 w-10 items-center justify-center rounded-full bg-gold-soft"><Icon size={20} color={colors.navy} /></View>
-            <View className="flex-1"><T className="text-sm leading-5">{n.text}</T><T v="small" className="text-xs">{timeAgo(n.at)}</T></View>
+            <View className="flex-1">{n.type === 'news' && n.text.includes('\n') ? <><T v="strong" className="text-sm">{n.text.split('\n')[0]}</T><T className="text-sm leading-5">{n.text.split('\n').slice(1).join(' ')}</T></> : <T className="text-sm leading-5">{n.text}</T>}<T v="small" className="text-xs">{timeAgo(n.at)}</T></View>
           </Pressable>); })}
       </View>
     </Screen>

@@ -1,59 +1,91 @@
 'use client';
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState, type ReactNode } from 'react';
-import { adminSample } from '@/lib/data';
-import { Badge, Button, Card, Input, LockedMark, Notice, PageHeader, Select, Switch } from '@/components/ui';
+import { adminApi, errorMessage } from '@/lib/api';
+import { Badge, Button, Card, Input, LockedMark, Notice, PageHeader, Switch } from '@/components/ui';
 import { accessFor, useSession } from '@/lib/session';
 
-function Row({ title, hint, children }: { title: string; hint?: string; children: ReactNode }) {
+interface Settings { dailyWithdrawalLimitKobo: number; holdNewBank: boolean; reportsToRereview: number; deliveryStandardKobo: number; deliveryExpressKobo: number; minPlanPriceKobo: number }
+interface Data { settings: Settings; locked: { planFeePercent: number; newBankHoldHours: number }; services: { email: boolean; payments: boolean; identity: boolean; cloudStorage: boolean; push: boolean }; changed?: string[] }
+type Money = 'dailyWithdrawalLimitKobo' | 'deliveryStandardKobo' | 'deliveryExpressKobo' | 'minPlanPriceKobo';
+/** What is typed in the form. Money is in naira, as text, until it is saved. */
+type Draft = Record<Money | 'reportsToRereview', string> & { holdNewBank: boolean };
+const toDraft = (s: Settings): Draft => ({ dailyWithdrawalLimitKobo: String(s.dailyWithdrawalLimitKobo / 100), deliveryStandardKobo: String(s.deliveryStandardKobo / 100), deliveryExpressKobo: String(s.deliveryExpressKobo / 100), minPlanPriceKobo: String(s.minPlanPriceKobo / 100), reportsToRereview: String(s.reportsToRereview), holdNewBank: s.holdNewBank });
+const naira = (text: string) => { const n = Number(text.replace(/[₦,\s]/g, '')); return text.trim() !== '' && Number.isFinite(n) && n >= 0 ? Math.round(n * 100) : null; };
+
+function Row({ title, hint, error, children }: { title: string; hint?: string; error?: string; children: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-3 border-b border-line py-2.5 last:border-b-0">
-      <span className="flex flex-col"><span className="text-sm font-semibold">{title}</span>{hint && <span className="text-xs text-ink-muted">{hint}</span>}</span>
+      <span className="flex flex-col"><span className="text-sm font-semibold">{title}</span>{hint && <span className="text-xs text-ink-muted">{hint}</span>}{error && <span role="alert" className="text-xs font-medium text-danger">{error}</span>}</span>
       <span className="flex flex-none items-center gap-2">{children}</span>
     </div>
   );
 }
 const Group = ({ title, children }: { title: string; children: ReactNode }) => <Card className="flex flex-col gap-1"><h2 className="mb-2 text-base font-semibold">{title}</h2>{children}</Card>;
+const Fixed = ({ children }: { children: ReactNode }) => <><span className="tnum rounded-[10px] bg-surface-muted px-3.5 py-2 text-[15px] font-bold">{children}</span><LockedMark /></>;
+const Service = ({ on, off = 'Not connected' }: { on: boolean; off?: string }) => <Badge tone={on ? 'info' : 'neutral'}>{on ? 'Connected' : off}</Badge>;
 
-export default function Settings() {
-  const canEdit = accessFor(useSession((s) => s.admin)!.role, 'settings') === 'Edit';
-  const [s, setS] = useState(adminSample.platformSettings);
-  const [saved, setSaved] = useState(adminSample.platformSettings);
-  const [notice, setNotice] = useState('');
-  const set = <K extends keyof typeof s>(k: K, v: (typeof s)[K]) => setS((p) => ({ ...p, [k]: v }));
-  const dirty = JSON.stringify(s) !== JSON.stringify(saved);
-  const lockedChanged = s.salesAfterTripEnds !== saved.salesAfterTripEnds;
-  const small = 'h-10 w-auto rounded-[10px] text-sm';
+function Form({ data, canEdit }: { data: Data; canEdit: boolean }) {
+  const qc = useQueryClient();
+  const [d, setD] = useState<Draft>(() => toDraft(data.settings)); const [notice, setNotice] = useState('');
+  const set = <K extends keyof Draft>(k: K, v: Draft[K]) => { setD((p) => ({ ...p, [k]: v })); setNotice(''); };
+  const reports = Number(d.reportsToRereview);
+  const next = { dailyWithdrawalLimitKobo: naira(d.dailyWithdrawalLimitKobo), deliveryStandardKobo: naira(d.deliveryStandardKobo), deliveryExpressKobo: naira(d.deliveryExpressKobo), minPlanPriceKobo: naira(d.minPlanPriceKobo), reportsToRereview: Number.isInteger(reports) ? reports : null, holdNewBank: d.holdNewBank };
+  const errors = {
+    dailyWithdrawalLimitKobo: next.dailyWithdrawalLimitKobo === null || next.dailyWithdrawalLimitKobo < 1_000_00 ? 'Enter at least ₦1,000' : undefined,
+    deliveryStandardKobo: next.deliveryStandardKobo === null ? 'Enter an amount, or 0 for free delivery' : undefined, deliveryExpressKobo: next.deliveryExpressKobo === null ? 'Enter an amount, or 0 for free delivery' : undefined,
+    minPlanPriceKobo: next.minPlanPriceKobo === null || next.minPlanPriceKobo < 100_00 ? 'Enter at least ₦100' : undefined,
+    reportsToRereview: next.reportsToRereview === null || next.reportsToRereview < 1 || next.reportsToRereview > 20 ? 'Use a number from 1 to 20' : undefined,
+  };
+  const dirty = JSON.stringify(next) !== JSON.stringify(data.settings); const invalid = Object.values(errors).some(Boolean);
+  const save = useMutation({
+    mutationFn: () => adminApi<Data>('/settings', { method: 'PATCH', body: next }),
+    onSuccess: (r) => { qc.setQueryData(['settings'], r); setD(toDraft(r.settings)); setNotice(r.changed?.length ? `Saved: ${r.changed.join(', ')}. The change is live now and recorded in the audit log.` : 'Nothing changed.'); },
+    onError: (e) => setNotice(errorMessage(e)),
+  });
+  const money = (k: Money, label: string) => <Input aria-label={label} inputMode="decimal" className="h-10 w-32 rounded-[10px] px-2.5 text-right font-semibold" value={d[k]} onChange={(e) => set(k, e.target.value)} />;
   return (
     <>
-      <PageHeader title="Platform settings" subtitle="Changes to locked rules need a second Super admin to approve">
-        <Button variant="primary" disabled={!dirty || !canEdit} onClick={() => { setSaved(lockedChanged ? { ...s, salesAfterTripEnds: saved.salesAfterTripEnds } : s); if (lockedChanged) set('salesAfterTripEnds', saved.salesAfterTripEnds); setNotice(lockedChanged ? 'Saved. The change to a locked rule was sent to a second Super admin and is not live yet.' : 'Settings saved. Recorded in the audit log.'); }}>Save changes</Button>
+      <PageHeader title="Platform settings" subtitle="Changes apply straight away. Rules with a padlock are fixed and need a developer to change.">
+        <Button variant="primary" disabled={!dirty || invalid || !canEdit || save.isPending} onClick={() => save.mutate()}>{save.isPending ? 'Saving…' : 'Save changes'}</Button>
       </PageHeader>
       <Notice>{notice}</Notice>
       <fieldset disabled={!canEdit} className="grid grid-cols-[repeat(auto-fit,minmax(min(420px,100%),1fr))] items-start gap-4">
         <legend className="sr-only">Platform settings</legend>
         <Group title="Trip plan sales">
-          <Row title="Platform fee" hint="Taken from every sale. Seller keeps the rest."><span className="tnum rounded-[10px] bg-surface-muted px-3.5 py-2 text-[15px] font-bold">{s.feePercent}%</span><LockedMark /></Row>
-          <Row title="Open sales only after the seller's trip ends" hint="Free sharing is always allowed"><Switch label="Open sales only after trip ends" checked={s.salesAfterTripEnds} onCheckedChange={(v) => set('salesAfterTripEnds', v)} /><LockedMark /></Row>
-          <Row title="Sellers need a verified ID to be paid" hint="Anyone can list a plan"><Switch label="Verified ID needed for payouts" checked={s.sellersNeedId} onCheckedChange={(v) => set('sellersNeedId', v)} /></Row>
-          <Row title="Payout day"><Select aria-label="Payout day" className={small} value={s.payoutDay} onChange={(e) => set('payoutDay', e.target.value)}><option>Every Friday</option><option>Every Monday</option></Select></Row>
+          <Row title="Platform fee" hint="Taken from every sale. The seller keeps the rest."><Fixed>{data.locked.planFeePercent}%</Fixed></Row>
+          <Row title="Sales open after the seller's trip ends" hint="At 6:00 am the next day. Free sharing is always allowed."><Fixed>On</Fixed></Row>
+          <Row title="Sellers need a verified ID to be paid" hint="Anyone can list a plan"><Fixed>On</Fixed></Row>
+          <Row title="Lowest price for a paid plan (₦)" error={errors.minPlanPriceKobo}>{money('minPlanPriceKobo', 'Lowest plan price in naira')}</Row>
         </Group>
         <Group title="Travel advice">
-          <Row title="Verified only after admin approval" hint="Every new piece of advice goes to the review queue"><LockedMark /></Row>
-          <Row title="Hide unreviewed advice from the default view" hint={'Travellers can still switch "Verified only" off'}><Switch label="Hide unreviewed advice" checked={s.hideUnreviewed} onCheckedChange={(v) => set('hideUnreviewed', v)} /></Row>
-          <Row title="Send verified advice back to review after" hint="reports from different users"><Input aria-label="Number of reports" type="number" min={1} max={20} className="h-10 w-16 rounded-[10px] px-0 text-center text-[15px] font-semibold" value={s.reportsToRereview} onChange={(e) => set('reportsToRereview', Number(e.target.value))} /></Row>
+          <Row title="Verified only after staff approval" hint="Every new piece of advice goes to the review queue"><Fixed>On</Fixed></Row>
+          <Row title="Send verified advice back to review after" hint="reports from different travellers" error={errors.reportsToRereview}><Input aria-label="Number of reports" type="number" min={1} max={20} className="h-10 w-16 rounded-[10px] px-0 text-center text-[15px] font-semibold" value={d.reportsToRereview} onChange={(e) => set('reportsToRereview', e.target.value)} /></Row>
         </Group>
         <Group title="Wallet">
-          <Row title="Daily withdrawal limit per user"><Input aria-label="Daily withdrawal limit" className="h-10 w-32 rounded-[10px] px-2.5 font-semibold" value={s.dailyLimit} onChange={(e) => set('dailyLimit', e.target.value)} /></Row>
-          <Row title="Hold withdrawals to a newly added bank" hint="For the first 24 hours"><Switch label="Hold withdrawals to new banks" checked={s.holdNewBank} onCheckedChange={(v) => set('holdNewBank', v)} /></Row>
-          <Row title="Payments partner" hint="Holds customer money, runs transfers and BVN/NIN checks"><span className="text-[13px] font-semibold">[partner name]</span></Row>
+          <Row title="Daily withdrawal limit per traveller (₦)" hint="Anything over this waits for Finance" error={errors.dailyWithdrawalLimitKobo}>{money('dailyWithdrawalLimitKobo', 'Daily withdrawal limit in naira')}</Row>
+          <Row title="Hold withdrawals to a newly added bank" hint={`For the first ${data.locked.newBankHoldHours} hours, until Finance releases them`}><Switch label="Hold withdrawals to new banks" checked={d.holdNewBank} onCheckedChange={(v) => set('holdNewBank', v)} /></Row>
         </Group>
-        <Group title="Shop & integrations">
-          <Row title="Shop currency"><span className="text-sm">Naira (₦)</span></Row>
-          <Row title={'"Travelling soon" priority'} hint="Ship first if the customer flies within"><Select aria-label="Travelling soon window" className={small} value={s.soonDays} onChange={(e) => set('soonDays', e.target.value)}><option>7 days</option><option>14 days</option></Select></Row>
-          <Row title="Google Calendar sync" hint={'One-way, into each user\'s "EveryCation trips" calendar'}><Badge>Connected</Badge></Row>
-          <Row title="Email codes & push notifications"><Badge>Connected</Badge></Row>
+        <Group title="Shop delivery">
+          <Row title="Standard delivery fee (₦)" hint="Enter 0 for free delivery" error={errors.deliveryStandardKobo}>{money('deliveryStandardKobo', 'Standard delivery fee in naira')}</Row>
+          <Row title="Express delivery fee (₦)" error={errors.deliveryExpressKobo}>{money('deliveryExpressKobo', 'Express delivery fee in naira')}</Row>
+        </Group>
+        <Group title="Connected services">
+          <Row title="Email for sign-in codes" hint="Until a mail server is set, codes are only shown on the test server"><Service on={data.services.email} off="Not set up" /></Row>
+          <Row title="Payments partner" hint="Bank transfers, cards and payouts"><Service on={data.services.payments} /></Row>
+          <Row title="ID checks (BVN and NIN)"><Service on={data.services.identity} /></Row>
+          <Row title="Cloud storage for photos, video and voice" hint="Files are kept on the server for now"><Service on={data.services.cloudStorage} /></Row>
+          <Row title="Push notifications"><Service on={data.services.push} /></Row>
         </Group>
       </fieldset>
+      {!canEdit && <p className="text-sm text-ink-muted">Your role can view settings but not change them.</p>}
     </>
   );
+}
+
+export default function Settings() {
+  const canEdit = accessFor(useSession((s) => s.admin)?.role, 'settings') === 'Edit';
+  const { data, error } = useQuery({ queryKey: ['settings'], queryFn: () => adminApi<Data>('/settings') });
+  if (!data) return <p className="text-sm text-ink-muted">{error ? errorMessage(error) : 'Loading settings…'}</p>;
+  return <Form data={data} canEdit={canEdit} />;
 }

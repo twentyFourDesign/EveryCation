@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { and, eq, inArray, isNotNull, isNull, sql } from 'drizzle-orm';
-import { conflict, notFound } from '../../common/errors.js';
+import { badRequest, conflict, notFound } from '../../common/errors.js';
 import { notify } from '../../common/notify.js';
+import { because, reasonLabel, WHY_MESSAGE, type Why } from '../../common/reasons.js';
 import { Database } from '../../db/db.module.js';
 import { advice, comments, reports, sessions, tips, users } from '../../db/schema.js';
 
@@ -36,7 +37,8 @@ export class ModerationService {
   }
 
   /** Remove the item or keep it. Either way the open reports are closed; a removal tells the author. */
-  async decide(type: Target, id: string, decision: 'remove' | 'keep', suspendAuthor: boolean) {
+  async decide(type: Target, id: string, decision: 'remove' | 'keep', suspendAuthor: boolean, why?: Why) {
+    if (decision === 'remove' && !why) throw badRequest('reason_required', WHY_MESSAGE);
     const c = (await this.content(type, [id])).get(id);
     if (!c) throw notFound('That item');
     return this.db.transaction(async (tx) => {
@@ -45,8 +47,8 @@ export class ModerationService {
       if (decision === 'remove' && !c.removed) {
         if (type === 'tip') await tx.update(tips).set({ status: 'removed' }).where(eq(tips.id, id));
         if (type === 'comment') { const [row] = await tx.update(comments).set({ status: 'removed' }).where(eq(comments.id, id)).returning({ tipId: comments.tipId }); await tx.update(tips).set({ commentCount: sql`GREATEST(${tips.commentCount} - 1, 0)` }).where(eq(tips.id, row!.tipId)); }
-        if (type === 'advice') await tx.update(advice).set({ status: 'rejected', reviewNote: 'Removed after reports from travellers.', reviewedAt: new Date() }).where(eq(advice.id, id));
-        await notify(tx, c.authorId, 'community', `We removed your ${type === 'tip' ? 'tip' : type} after reports from travellers: ${excerpt(c.title, 60)}. It broke the community guidelines.`);
+        if (type === 'advice') await tx.update(advice).set({ status: 'rejected', reviewNote: `Removed after reports from travellers. ${reasonLabel(why!)}`, reviewedAt: new Date() }).where(eq(advice.id, id));
+        await notify(tx, c.authorId, 'community', `We removed your ${type === 'tip' ? 'tip' : type} after reports from travellers ${because(why!)} It was: ${excerpt(c.title, 60)}`);
       } else if (type === 'advice' && decision === 'keep') {
         await tx.update(advice).set({ status: 'verified' }).where(and(eq(advice.id, id), eq(advice.status, 'rereview')));
       }
@@ -54,7 +56,7 @@ export class ModerationService {
         await tx.update(users).set({ status: 'suspended', walletFrozen: true }).where(eq(users.id, c.authorId));
         await tx.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, c.authorId), isNull(sessions.revokedAt)));
       }
-      return { decision, reportsClosed: closed.length, item: excerpt(c.title, 70), suspended: suspendAuthor };
+      return { decision, reason: decision === 'remove' && why ? reasonLabel(why) : null, reportsClosed: closed.length, item: excerpt(c.title, 70), suspended: suspendAuthor };
     });
   }
 }

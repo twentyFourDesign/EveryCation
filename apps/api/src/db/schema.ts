@@ -286,6 +286,8 @@ export const notifications = pgTable('notifications', {
   text: text().notNull(),
   /** App route to open, e.g. /advice/GH. */
   href: text(),
+  /** Set when the notification came from a staff broadcast, so opens can be counted. */
+  broadcastId: uuid().references(() => broadcasts.id),
   readAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [index('notifications_user_idx').on(t.userId, t.createdAt)]);
@@ -383,6 +385,8 @@ export const plans = pgTable('plans', {
   price: kobo().notNull().default(0),
   summary: text().notNull().default(''),
   removedAt: timestamp({ withTimezone: true }),
+  /** Why staff removed it, e.g. "Spam: sells a visa service". */
+  removedReason: text(),
   createdAt: createdAt(),
 }, (t) => [index('plans_user_idx').on(t.userId), check('plans_price_not_negative', sql`${t.price} >= 0`)]);
 
@@ -452,3 +456,25 @@ export const orderItems = pgTable('order_items', {
   price: kobo().notNull(),
   qty: integer().notNull(),
 }, (t) => [index('order_items_order_idx').on(t.orderId), check('order_items_qty_positive', sql`${t.qty} > 0`)]);
+
+// ───────────── Staff: settings and broadcasts ─────────────
+
+/** Rules staff changed from the console. A missing key means the built-in default applies. */
+export const settings = pgTable('settings', {
+  key: text().primaryKey(),
+  value: jsonb().notNull(),
+  updatedBy: uuid().references(() => admins.id),
+  updatedAt: timestamp({ withTimezone: true }).notNull().defaultNow(),
+});
+
+/** A message staff sent to a group of travellers. Each traveller gets a row in notifications that points back here. */
+export const broadcasts = pgTable('broadcasts', {
+  id: id(),
+  adminId: uuid().notNull().references(() => admins.id),
+  title: text().notNull(),
+  message: text().notNull(),
+  audience: text().notNull(),
+  href: text(),
+  recipients: integer().notNull().default(0),
+  createdAt: createdAt(),
+});

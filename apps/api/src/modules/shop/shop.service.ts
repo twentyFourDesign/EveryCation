@@ -3,6 +3,7 @@ import { and, desc, eq, gte, ilike, inArray, isNull, or, sql } from 'drizzle-orm
 import { RULES } from '../../config.js';
 import { badRequest, conflict, forbidden, notFound } from '../../common/errors.js';
 import { notify } from '../../common/notify.js';
+import { SettingsService } from '../settings/settings.service.js';
 import { Database } from '../../db/db.module.js';
 import { orderItems, orders, products, savingsGoals, users } from '../../db/schema.js';
 import { Ledger, newReference } from '../wallet/ledger.service.js';
@@ -16,7 +17,7 @@ const NEXT: Record<string, string[]> = { placed: ['packed', 'cancelled'], packed
 
 @Injectable()
 export class ShopService {
-  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly wallet: WalletService) {}
+  constructor(private readonly database: Database, private readonly ledger: Ledger, private readonly wallet: WalletService, private readonly settings: SettingsService) {}
   private get db() { return this.database.db; }
 
   async products(q: { category?: string; search?: string }) {
@@ -26,7 +27,11 @@ export class ShopService {
   }
   async product(id: string) { const [p] = await this.db.select().from(products).where(and(eq(products.id, id), eq(products.active, true))); if (!p) throw notFound('Product'); return productView(p); }
   async categories() { return this.db.select({ category: products.category, count: sql<number>`count(*)::int` }).from(products).where(eq(products.active, true)).groupBy(products.category).orderBy(products.category); }
-  deliveryOptions() { return Object.entries(RULES.delivery).map(([id, d]) => ({ id, ...d })); }
+  /** Delivery choices with the fees staff set in the console. */
+  async deliveryOptions() {
+    const rules = await this.settings.get(); const fees = { standard: rules.deliveryStandardKobo, express: rules.deliveryExpressKobo };
+    return (Object.keys(RULES.delivery) as Delivery[]).map((id) => ({ id, ...RULES.delivery[id], fee: fees[id] }));
+  }
 
   /**
    * Places an order and pays for it from the wallet in one step: the chosen savings goal first,
@@ -37,7 +42,7 @@ export class ShopService {
     const [done] = await this.db.select().from(orders).innerJoin(users, eq(users.id, orders.userId)).where(and(eq(orders.userId, userId), sql`${orders.transactionId} IN (SELECT id FROM ledger_transactions WHERE idempotency_key = ${idempotencyKey})`));
     if (done) return { ...(await this.order(userId, done.orders.id)), repeated: true };
     await this.wallet.checkPin(userId, input.pin);
-    const delivery = RULES.delivery[input.delivery];
+    const delivery = (await this.deliveryOptions()).find((d) => d.id === input.delivery)!;
 
     const orderId = await this.ledger.run(async (tx) => {
       const repeat = await this.ledger.findByKey(tx, userId, idempotencyKey);

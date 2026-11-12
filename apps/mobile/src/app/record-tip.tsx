@@ -9,6 +9,7 @@ import type { z } from 'zod';
 import { tipSchema } from '@everycation/shared';
 import { Button, Chips, FormInput, Note, Photo, Screen, T, colors, go } from '@/ui';
 import { NameGate } from '@/ui/name-gate';
+import { VoicePlayer, VoiceRecorder, voiceUpload, type VoiceNote } from '@/ui/voice';
 import { errorMessage, uploadMedia } from '@/lib/api';
 import { findCountry, useCreateTip } from '@/lib/community';
 
@@ -19,7 +20,7 @@ const options: ImagePicker.ImagePickerOptions = { mediaTypes: ['images', 'videos
 function RecordTipForm() {
   const create = useCreateTip();
   const { control, handleSubmit } = useForm<Form>({ resolver: zodResolver(tipSchema), defaultValues: { format: 'write', place: '', headline: '', category: 'Packing', body: '' } });
-  const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null); const [voice, setVoice] = useState<VoiceNote | null>(null);
   const [postedId, setPostedId] = useState<string | null>(null); const [error, setError] = useState(''); const [step, setStep] = useState<'idle' | 'uploading' | 'posting'>('idle');
   const isVideo = asset?.type === 'video';
 
@@ -33,12 +34,13 @@ function RecordTipForm() {
   }
   const post = handleSubmit(async (v) => {
     setError('');
-    if (!asset && (v.body ?? '').trim().length < 20) return setError('Add a photo or video, or write at least 20 characters.');
+    if (!asset && !voice && (v.body ?? '').trim().length < 20) return setError('Add a photo, a video or a voice note, or write at least 20 characters.');
     try {
       let mediaId: string | undefined;
       if (asset) { setStep('uploading'); mediaId = (await uploadMedia(asset)).id; }
+      else if (voice) { setStep('uploading'); mediaId = (await uploadMedia(await voiceUpload(voice))).id; }
       setStep('posting');
-      const tip = await create.mutateAsync({ title: v.headline, place: v.place, category: v.category, format: isVideo ? 'video' : 'write', body: v.body ?? '', countryCode: findCountry(v.place)?.code, mediaId });
+      const tip = await create.mutateAsync({ title: v.headline, place: v.place, category: v.category, format: voice && !asset ? 'voice' : isVideo ? 'video' : 'write', body: v.body ?? '', countryCode: findCountry(v.place)?.code, mediaId });
       setPostedId(tip.id);
     } catch (e) { setError(errorMessage(e)); } finally { setStep('idle'); }
   });
@@ -48,7 +50,7 @@ function RecordTipForm() {
     </Screen>);
   const busy = step !== 'idle';
   return (
-    <Screen title="Share a tip" footer={<Button label={step === 'uploading' ? `UPLOADING ${isVideo ? 'VIDEO' : 'PHOTO'}…` : step === 'posting' ? 'POSTING…' : 'POST TIP'} disabled={busy} onPress={() => post()} />}>
+    <Screen title="Share a tip" footer={<Button label={step === 'uploading' ? `UPLOADING ${voice && !asset ? 'VOICE NOTE' : isVideo ? 'VIDEO' : 'PHOTO'}…` : step === 'posting' ? 'POSTING…' : 'POST TIP'} disabled={busy} onPress={() => post()} />}>
       {asset ? (
         <View>
           {isVideo
@@ -56,15 +58,21 @@ function RecordTipForm() {
             : <Photo k="lagoon-aerial" uri={asset.uri} className="h-[220px] rounded-card" alt="Your photo" />}
           <Pressable accessibilityRole="button" accessibilityLabel="Remove this photo or video" onPress={() => setAsset(null)} className="absolute right-3 top-3 h-9 w-9 items-center justify-center rounded-full bg-white"><X size={18} color={colors.ink} /></Pressable>
         </View>
+      ) : voice ? (
+        <View className="gap-2">
+          <VoicePlayer url={voice.uri} seconds={voice.seconds} label="Your voice tip" />
+          <Text accessibilityRole="button" onPress={() => setVoice(null)} className="self-start font-pop-sb text-[13px] text-heading-blue">Delete and record again</Text>
+        </View>
       ) : (
         <View className="gap-2.5 rounded-card border-[1.5px] border-dashed border-control-border p-4">
-          <T v="strong">Add a photo or a short video</T><T v="small">Optional. Photos up to 8 MB, videos up to one minute.</T>
+          <T v="strong">Add a photo, a short video or a voice note</T><T v="small">Optional. Photos up to 8 MB, videos up to one minute, voice up to two minutes.</T>
           <View className="flex-row gap-2.5"><Button className="flex-1" small variant="navy" icon={ImagePlus} label="Choose" onPress={() => pick('library')} /><Button className="flex-1" small variant="outline" icon={Camera} label="Camera" onPress={() => pick('camera')} /></View>
+          <VoiceRecorder onDone={(note) => { setError(''); setVoice(note); }} onError={setError} />
         </View>
       )}
       <View><FormInput control={control} name="place" label="Place *" placeholder="South Iceland" hint="Add the country so travellers can find it, like Vík, Iceland." /><View className="absolute right-4 top-[41px]"><MapPin size={20} color={colors.inkMuted} /></View></View>
       <FormInput control={control} name="headline" label="Tip headline *" placeholder="Pack a rain shell, even in July" maxLength={80} />
-      <FormInput control={control} name="body" label={asset ? 'Notes (optional)' : 'Your tip *'} multiline maxLength={1200} placeholder="What do you wish someone had told you?" />
+      <FormInput control={control} name="body" label={asset || voice ? 'Notes (optional)' : 'Your tip *'} multiline maxLength={1200} placeholder="What do you wish someone had told you?" />
       <Controller control={control} name="category" render={({ field }) => <Chips options={categories} value={field.value} onChange={field.onChange} />} />
       {!!error && <Note tone="danger">{error}</Note>}
     </Screen>
