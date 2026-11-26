@@ -14,7 +14,7 @@ It updates the system, adds swap, installs Docker, allows only SSH, HTTP and HTT
 
 Until a domain is set, the addresses are made from the server's IP with sslip.io, e.g. `https://api.165-22-127-35.sslip.io/v1` and `https://admin.165-22-127-35.sslip.io`.
 
-Then create the first staff account:
+Then create the first staff account (if sign-in details are ever lost or exposed, `dist/scripts/reset-admin.js you@example.com` issues new ones):
 
 ```sh
 cd /opt/everycation/deploy && docker compose exec api node dist/scripts/create-admin.js you@example.com "Your Name" super_admin

@@ -47,6 +47,16 @@ export class AdminAuthService {
     return { id: a!.id, totpSecret };
   }
 
+  /** Gives a staff account a new password and authenticator secret, and signs it out everywhere. For lost or exposed sign-in details. */
+  async resetAdmin(email: string, password: string) {
+    if (password.length < 12) throw new Error('Staff passwords need at least 12 characters.');
+    const totpSecret = newTotpSecret();
+    const [a] = await this.db.update(admins).set({ passwordHash: await argon2.hash(password, { type: argon2.argon2id }), totpSecret }).where(eq(admins.email, email.toLowerCase())).returning({ id: admins.id });
+    if (!a) return null;
+    await this.db.update(adminSessions).set({ revokedAt: new Date() }).where(and(eq(adminSessions.adminId, a.id), isNull(adminSessions.revokedAt)));
+    return { totpSecret };
+  }
+
   /** Email, password and authenticator code together. The error never says which one was wrong. */
   async login(email: string, password: string, code: string) {
     const [a] = await this.db.select().from(admins).where(eq(admins.email, email.toLowerCase()));

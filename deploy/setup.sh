@@ -96,7 +96,7 @@ say "Daily database backups at 02:30, kept for 14 days in /var/backups/everycati
 chmod +x "$DIR/deploy/backup.sh" "$DIR/deploy/update.sh"
 echo "30 2 * * * root $DIR/deploy/backup.sh >> /var/log/everycation-backup.log 2>&1" > /etc/cron.d/everycation-backup
 
-set -a; . ./.env; set +a
+API_HOST=$(grep '^API_HOST=' .env | cut -d= -f2-); ADMIN_HOST=$(grep '^ADMIN_HOST=' .env | cut -d= -f2-)
 say "Waiting for the API"
 for i in $(seq 1 60); do
   if docker compose exec -T api node -e "fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then break; fi
