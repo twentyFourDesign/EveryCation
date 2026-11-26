@@ -862,9 +862,26 @@ describe('entry requirements and checklists', () => {
     const zw = (await http().get('/v1/travel/requirements?from=ZW&to=ZA').expect(200)).body;
     expect(zw).toMatchObject({ notes: [], updated: '2026-02-17' });
   });
+  it('groups every destination for any passport, with newer rules applied', async () => {
+    const ng = (await http().get('/v1/travel/passport?from=ng').expect(200)).body as { fromName: string; updated: string; groups: { title: string; countries: { code: string; days: number | null; title: string }[] }[] };
+    expect(ng.fromName).toBe('Nigeria');
+    const find = (code: string) => ng.groups.find((g) => g.countries.some((c) => c.code === code))!;
+    expect(find('GH').title).toBe('No visa needed'); expect(find('ZA').title).toBe('Apply online (e-visa or ETA)');
+    expect(find('US').title).toBe('Entry not allowed or suspended'); expect(find('SC').title).toBe('Entry not allowed or suspended');
+    expect(ng.groups.flatMap((g) => g.countries).some((c) => c.code === 'NG')).toBe(false);
+    expect(ng.groups.reduce((n, g) => n + g.countries.length, 0)).toBe(198);
+    const gb = (await http().get('/v1/travel/passport?from=GB').expect(200)).body as typeof ng;
+    expect(gb.groups[0]!.countries.length).toBeGreaterThan(100);
+    expect(gb.groups.flatMap((g) => g.countries).find((c) => c.code === 'US')?.title).toBe('Travel authorisation (ETA)');
+    const sn = (await http().get('/v1/travel/requirements?from=SN&to=US').expect(200)).body;
+    expect(sn.title).toBe('Visitor visas suspended');
+    expect((await http().get('/v1/travel/requirements?from=SY&to=US').expect(200)).body.title).toBe('US entry suspended');
+    expect((await http().get('/v1/travel/requirements?from=TM&to=US').expect(200)).body).toMatchObject({ entry: 'visa_required' });
+    await http().get('/v1/travel/passport?from=XX').expect(400);
+  });
   it('makes one checklist per destination, private to its owner, and remembers the passport', async () => {
     const u = await named('Packing Pelumi'); const other = await named('Nosy Neighbour');
-    expect((await u.api.get('/auth/me').expect(200)).body.passportCountry).toBe('NG');
+    expect((await u.api.get('/auth/me').expect(200)).body.passportCountry).toBeNull();
     expect((await u.api.patch('/auth/me', { passportCountry: 'gh' }).expect(200)).body.passportCountry).toBe('GH');
     const trip = (await u.api.post('/trips', { title: 'London calling', place: 'London, United Kingdom', countryCode: 'GB', startDate: '2099-06-01', endDate: '2099-06-08' }, null).expect(201)).body;
     const list = (await u.api.post('/travel/checklists', { from: 'GH', to: 'GB', tripId: trip.id }, null).expect(200)).body;

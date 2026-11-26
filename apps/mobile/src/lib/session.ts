@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api, clearTokens, refreshSession, saveTokens, setSignedOutHandler } from './api';
 import { queryClient } from './query';
 
-export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean; passportCountry: string }
+export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean; passportCountry: string | null }
 interface Session {
   status: 'loading' | 'guest' | 'signedIn';
   me: Me | null;

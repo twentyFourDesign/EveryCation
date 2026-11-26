@@ -106,35 +106,6 @@
       ]
     },
     {
-      "to": "US",
-      "from": [
-        "NG"
-      ],
-      "entry": "no_admission",
-      "title": "Visitor visas suspended",
-      "since": "2026-01-01",
-      "summary": "Since 1 January 2026 the US is not issuing visitor (B-1/B-2), student (F, M) or exchange (J) visas to Nigerian passport holders. If you already hold a valid US visa issued before then, you can still travel on it.",
-      "notes": [
-        "Visas issued before 1 January 2026 stay valid until they expire.",
-        "Some groups are exempt, such as green card holders, diplomats and athletes for major events.",
-        "Other visa types may be issued with shorter validity. Check the US Embassy in Nigeria for the latest position."
-      ],
-      "apply": {
-        "label": "US Embassy & Consulates in Nigeria",
-        "url": "https://ng.usembassy.gov/visas/"
-      },
-      "checklist": [
-        "Check your US visa was issued before 1 January 2026 and is valid for your whole trip",
-        "Check the US Embassy in Nigeria's latest guidance before you book",
-        "Carry proof of why you are visiting and your return ticket"
-      ],
-      "sources": [
-        "https://www.premiumtimesng.com/foreign/world-foreign/843621-updated-us-imposes-partial-travel-ban-on-nigerians-suspends-entry-for-several-visa-categories-2.html",
-        "https://www.legit.ng/nigeria/1689398-visas-issued-january-1-2026-remain-valid-assures-nigerians-travel-restrictions",
-        "https://www.legit.ng/world/1736175-4-countries-restricted-suspended-visas-nigerian-passport-holders/"
-      ]
-    },
-    {
       "to": "SC",
       "from": [
         "NG"
@@ -216,6 +187,128 @@
       ],
       "sources": [
         "https://www.legit.ng/nigeria/1724660-two-countries-grant-visa-free-entry-nigerians/"
+      ]
+    },
+    {
+      "to": "US",
+      "from": [
+        "AF",
+        "BF",
+        "MM",
+        "TD",
+        "GQ",
+        "ER",
+        "HT",
+        "IR",
+        "LA",
+        "LY",
+        "ML",
+        "NE",
+        "CG",
+        "SL",
+        "SO",
+        "SS",
+        "SD",
+        "SY",
+        "YE",
+        "PS"
+      ],
+      "entry": "no_admission",
+      "title": "US entry suspended",
+      "since": "2026-01-01",
+      "summary": "Since 1 January 2026 the US has suspended entry for visitors and immigrants with this passport, under Presidential Proclamation 10998. If you already hold a valid US visa issued before then, you may still travel on it.",
+      "notes": [
+        "Visas issued before 1 January 2026 stay valid until they expire.",
+        "Exempt: green card holders, dual nationals travelling on another country's passport, diplomats and athletes for major events.",
+        "The US reviews the list every 180 days; the next review is due around 11 December 2026."
+      ],
+      "apply": {
+        "label": "US visas: travel.state.gov",
+        "url": "https://travel.state.gov/content/travel/en/us-visas.html"
+      },
+      "checklist": [
+        "Check your US visa was issued before 1 January 2026 and is valid for your whole trip",
+        "Check the latest US State Department guidance before you book"
+      ],
+      "sources": [
+        "https://www.nafsa.org/regulatory-information/proclamation-december-16-2025-travel-ban-effective-january-1-2026",
+        "https://www.diplomacyandlaw.com/post/us-travel-ban-2026",
+        "https://www.premiumtimesng.com/foreign/world-foreign/843621-updated-us-imposes-partial-travel-ban-on-nigerians-suspends-entry-for-several-visa-categories-2.html"
+      ]
+    },
+    {
+      "to": "US",
+      "from": [
+        "AO",
+        "AG",
+        "BJ",
+        "BI",
+        "CI",
+        "CU",
+        "DM",
+        "GA",
+        "GM",
+        "MW",
+        "MR",
+        "NG",
+        "SN",
+        "TZ",
+        "TG",
+        "TO",
+        "VE",
+        "ZM",
+        "ZW"
+      ],
+      "entry": "no_admission",
+      "title": "Visitor visas suspended",
+      "since": "2026-01-01",
+      "summary": "Since 1 January 2026 the US is not issuing visitor (B-1/B-2), student (F, M) or exchange (J) visas to holders of this passport, under Presidential Proclamation 10998. If you already hold a valid US visa issued before then, you can still travel on it. Other visa types may be issued with shorter validity.",
+      "notes": [
+        "Visas issued before 1 January 2026 stay valid until they expire.",
+        "Exempt: green card holders, dual nationals travelling on another country's passport, diplomats and athletes for major events.",
+        "The US reviews the list every 180 days; the next review is due around 11 December 2026."
+      ],
+      "apply": {
+        "label": "US visas: travel.state.gov",
+        "url": "https://travel.state.gov/content/travel/en/us-visas.html"
+      },
+      "checklist": [
+        "Check your US visa was issued before 1 January 2026 and is valid for your whole trip",
+        "Check the latest US State Department guidance before you book",
+        "Carry proof of why you are visiting and your return ticket"
+      ],
+      "sources": [
+        "https://www.nafsa.org/regulatory-information/proclamation-december-16-2025-travel-ban-effective-january-1-2026",
+        "https://www.diplomacyandlaw.com/post/us-travel-ban-2026",
+        "https://www.premiumtimesng.com/foreign/world-foreign/843621-updated-us-imposes-partial-travel-ban-on-nigerians-suspends-entry-for-several-visa-categories-2.html"
+      ]
+    },
+    {
+      "to": "US",
+      "from": [
+        "TM"
+      ],
+      "since": "2026-01-01",
+      "notes": [
+        "US immigrant visas are suspended for this passport under Presidential Proclamation 10998. Visitor and student visas are not affected."
+      ],
+      "sources": [
+        "https://www.nafsa.org/regulatory-information/proclamation-december-16-2025-travel-ban-effective-january-1-2026",
+        "https://www.diplomacyandlaw.com/post/us-travel-ban-2026",
+        "https://www.premiumtimesng.com/foreign/world-foreign/843621-updated-us-imposes-partial-travel-ban-on-nigerians-suspends-entry-for-several-visa-categories-2.html"
+      ]
+    },
+    {
+      "to": "MY",
+      "from": [
+        "IN"
+      ],
+      "since": "2026-11-20",
+      "notes": [
+        "Malaysia's visa-free entry for Indian citizens ends on 31 December 2026. From 1 January 2027 you will need a visa; online applications open on 1 December 2026."
+      ],
+      "sources": [
+        "https://visasnews.com/en/china-mongolia-south-korea-visa-exemptions-set-to-expire-at-the-end-of-2026/"
       ]
     }
   ]

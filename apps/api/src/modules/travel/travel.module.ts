@@ -32,10 +32,30 @@ function lookup(from: string, to: string): { entry: Entry; days: number | null }
   return /^\d+$/.test(cell) ? { entry: 'visa_free', days: Number(cell) } : { entry: CODES[cell] ?? 'unknown', days: null };
 }
 
+/** The entry rule for one passport and destination, with newer changes applied. */
+function entryFor(from: string, to: string) {
+  const rule = ruleFor(from, to); const base = lookup(from, to);
+  const entry = (rule?.entry as Entry | undefined) ?? base.entry;
+  return { rule, entry, days: rule?.entry ? rule.days ?? null : base.days, title: rule?.title ?? TITLES[entry] };
+}
+
+const GROUPS: { entry: Entry[]; title: string; tone: 'good' | 'warn' | 'bad' }[] = [
+  { entry: ['visa_free'], title: 'No visa needed', tone: 'good' },
+  { entry: ['visa_on_arrival'], title: 'Visa on arrival', tone: 'good' },
+  { entry: ['eta', 'e_visa'], title: 'Apply online (e-visa or ETA)', tone: 'warn' },
+  { entry: ['visa_required'], title: 'Visa required', tone: 'bad' },
+  { entry: ['no_admission'], title: 'Entry not allowed or suspended', tone: 'bad' },
+];
+/** Every destination for one passport, grouped by what is needed: "Where can I go?". */
+export function passportOverview(from: string) {
+  const all = COUNTRIES.filter((c) => c.code !== from).map((c) => { const e = entryFor(from, c.code); return { ...c, entry: e.entry, days: e.days, title: e.title }; });
+  return { from, fromName: countryName(from), updated: overrides.filter((r) => r.from.includes(from)).reduce((d, r) => (r.since > d ? r.since : d), data.updated),
+    groups: GROUPS.map((g) => ({ title: g.title, tone: g.tone, countries: all.filter((c) => g.entry.includes(c.entry)) })).filter((g) => g.countries.length) };
+}
+
 /** What a traveller with this passport needs to enter that country. */
 export function requirements(from: string, to: string) {
-  const rule = ruleFor(from, to); const base = lookup(from, to);
-  const entry = (rule?.entry as Entry | undefined) ?? base.entry; const days = rule?.entry ? rule.days ?? null : base.days; const country = countryName(to);
+  const { rule, entry, days } = entryFor(from, to); const country = countryName(to);
   const summary = {
     visa_free: days ? `No visa needed for stays of up to ${days} days.` : 'No visa needed.',
     visa_on_arrival: 'You get your visa when you land. Have the fee ready, often in cash.',
@@ -150,6 +170,12 @@ export class TravelService {
 class TravelController {
   constructor(private readonly travel: TravelService) {}
   @Public() @Get('countries') countries() { return COUNTRIES; }
+  /** Every destination for a passport, grouped by what is needed, e.g. ?from=GH. */
+  @Public() @Get('passport') passport(@Query('from') from = '') {
+    const f = from.toUpperCase();
+    if (!index.has(f)) throw badRequest('unknown_country', 'Choose your passport from the list.');
+    return passportOverview(f);
+  }
   /** Entry requirements for a passport going to a destination, e.g. ?from=NG&to=GB. */
   @Public() @Get('requirements') requirements(@Query('from') from = '', @Query('to') to = '') {
     const f = from.toUpperCase(); const t = to.toUpperCase();

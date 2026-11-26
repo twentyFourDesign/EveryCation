@@ -20,7 +20,8 @@ export const users = pgTable('users', {
   handle: text().unique(),
   city: text(),
   bio: text(),
-  passportCountry: text().notNull().default('NG'),
+  /** The passport they travel on, as a two-letter code. Empty until they choose it. */
+  passportCountry: text(),
   status: userStatus().notNull().default('active'),
   kycStatus: kycStatus().notNull().default('none'),
   kycMethod: text(),

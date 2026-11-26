@@ -1,4 +1,5 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
+import { create } from 'zustand';
 import { api } from './api';
 import { queryClient } from './query';
 import { useSession } from './session';
@@ -15,6 +16,27 @@ export interface Checklist { id: string; passport: string; passportName: string;
 export const SECTIONS: Record<Section, { title: string; emoji: string }> = {
   documents: { title: 'Documents', emoji: '🛂' }, health: { title: 'Health', emoji: '💉' }, money: { title: 'Money', emoji: '💳' }, before: { title: 'Before you go', emoji: '🧳' },
 };
+
+export interface PassportOverview { from: string; fromName: string; updated: string; groups: { title: string; tone: Tone; countries: { code: string; name: string; entry: Entry; days: number | null; title: string }[] }[] }
+export const usePassportOverview = (from?: string) => useQuery({ queryKey: ['passport', from], queryFn: () => api<PassportOverview>(`/travel/passport?from=${from}`), enabled: !!from, staleTime: 3_600_000 });
+
+/** The phone's region, like "GH" from "en-GH". Only a first guess at the traveller's passport. */
+function deviceRegion(): string | null {
+  try { const m = /[-_]([A-Z]{2})(?:[-_]|$)/.exec(Intl.DateTimeFormat().resolvedOptions().locale); return m?.[1] ?? null; } catch { return null; }
+}
+/** A passport chosen before signing in, kept for this visit. */
+const useGuestPassport = create<{ code: string | null; set: (c: string) => void }>((set) => ({ code: null, set: (code) => set({ code }) }));
+/**
+ * The passport to show entry rules for: the one the traveller chose, otherwise a guess from the phone's region
+ * (falling back to Nigeria, where most of our travellers are). `chosen` is false while it is only a guess.
+ */
+export function usePassport() {
+  const saved = useSession((s) => s.me?.passportCountry); const signedIn = useSession((s) => s.status === 'signedIn'); const updateProfile = useSession((s) => s.updateProfile);
+  const guest = useGuestPassport();
+  const code = saved ?? guest.code ?? deviceRegion() ?? 'NG';
+  const choose = (c: string) => { guest.set(c); if (signedIn && c !== saved) void updateProfile({ passportCountry: c }).catch(() => {}); };
+  return { code, chosen: !!(saved ?? guest.code), choose };
+}
 
 export const useCountries = () => useQuery({ queryKey: ['countries'], queryFn: () => api<Country[]>('/travel/countries'), staleTime: Infinity });
 export const useRequirement = (from?: string, to?: string) => useQuery({ queryKey: ['requirement', from, to], queryFn: () => api<Requirement>(`/travel/requirements?from=${from}&to=${to}`), enabled: !!from && !!to, staleTime: 3_600_000 });

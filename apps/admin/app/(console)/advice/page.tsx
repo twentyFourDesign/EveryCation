@@ -11,7 +11,7 @@ import { accessFor, useSession } from '@/lib/session';
 type Queue = 'waiting' | 'changes' | 'rereview' | 'decided';
 interface Item {
   id: string; countryCode: string; city: string; topic: string; body: string; visited: string | null; status: string; submittedAt: string; reviewNote: string | null; reviewedBy: string | null;
-  reports: number; reportReasons: string[]; evidence: string[]; author: { name: string; since: string; passportCountry: string; tips: number; approved: number; rejected: number };
+  reports: number; reportReasons: string[]; evidence: string[]; author: { name: string; since: string; passportCountry: string | null; tips: number; approved: number; rejected: number };
 }
 interface Data { counts: Record<Queue, number>; items: Item[] }
 const countryName = (code: string) => { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code; } catch { return code; } };
@@ -77,7 +77,7 @@ export default function AdviceReview() {
             <div className="flex flex-wrap items-center gap-3">
               <Avatar initials={initials(item.author.name)} />
               <div className="flex flex-1 flex-col"><b className="text-sm font-semibold">{item.author.name} · member since {new Date(item.author.since).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' })}</b>
-                <span className="text-xs text-ink-muted">{item.author.tips} tips · {item.author.approved} approved advice · {item.author.rejected} rejected · passport: {countryName(item.author.passportCountry)}</span></div>
+                <span className="text-xs text-ink-muted">{item.author.tips} tips · {item.author.approved} approved advice · {item.author.rejected} rejected · passport: {item.author.passportCountry ? countryName(item.author.passportCountry) : 'not set'}</span></div>
               {STATUS[item.status] ? <Badge tone={STATUS[item.status]!.tone}>{STATUS[item.status]!.label}</Badge> : <Badge tone="warn">Waiting · {ago(item.submittedAt)}</Badge>}
             </div>
             <div className="flex flex-wrap gap-2"><Badge tone="neutral">{item.city}, {countryName(item.countryCode)}</Badge><Badge tone="neutral">{item.topic}</Badge><Badge tone="neutral">Visited: {item.visited ?? 'not stated'}</Badge></div>

@@ -8,8 +8,7 @@ import { MapView } from '@/ui/map';
 import { errorMessage } from '@/lib/api';
 import { dayLabel, daysOf, tripDates, tripImage, useRemoveItem, useTrip } from '@/lib/trips';
 import { useWallet } from '@/lib/wallet';
-import { useSession } from '@/lib/session';
-import { TONE_STYLE, flag, useChecklists, useRequirement } from '@/lib/travel';
+import { TONE_STYLE, flag, useChecklists, usePassport, useRequirement } from '@/lib/travel';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -17,7 +16,7 @@ export default function TripDetail() {
   const remove = useRemoveItem();
   const { data: wallet } = useWallet();
   const [picked, setPicked] = useState<string | null>(null);
-  const passport = useSession((s) => s.me?.passportCountry ?? 'NG');
+  const passport = usePassport().code;
   const entry = useRequirement(passport, t?.countryCode); const checklist = useChecklists().data?.find((c) => c.destination === t?.countryCode);
   if (isLoading) return <Screen title=""><Loading what="your trip" /></Screen>;
   if (!t) return <Screen title="Trip"><Note tone="danger">{error ? errorMessage(error) : 'This trip could not be found.'}</Note></Screen>;
@@ -48,7 +47,7 @@ export default function TripDetail() {
           {entry.data && t.status !== 'past' && entry.data.entry !== 'own_country' && (
             <Pressable accessibilityRole="button" accessibilityLabel={`Visa and entry for ${entry.data.toName}: ${entry.data.title}`} onPress={() => (checklist ? go(`/checklist/${checklist.id}`) : router.push({ pathname: '/requirements', params: { to: t.countryCode, tripId: t.id } }))}
               style={{ backgroundColor: TONE_STYLE[entry.data.tone].bg }} className="gap-1 rounded-card p-3.5 active:opacity-80">
-              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-md text-xs">{flag(t.countryCode)} Visa & entry for {entry.data.toName}</Text>
+              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-md text-xs">{flag(t.countryCode)} Visa & entry for {entry.data.toName} · {entry.data.fromName} passport</Text>
               <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-base">{TONE_STYLE[entry.data.tone].emoji} {entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text>
               <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-[13px]">{checklist ? `Checklist: ${checklist.done} of ${checklist.total} done →` : 'See what you need and make a checklist →'}</Text>
             </Pressable>
