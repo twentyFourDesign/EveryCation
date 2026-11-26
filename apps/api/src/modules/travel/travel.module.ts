@@ -13,7 +13,7 @@ import { checklistItems, travelChecklists, trips } from '../../db/schema.js';
 const data = JSON.parse(readFileSync(new URL('../../../data/visa.json', import.meta.url), 'utf8')) as { updated: string; source: string; codes: string[]; rows: Record<string, string> };
 const index = new Map(data.codes.map((c, i) => [c, i]));
 /** Changes announced after visa.json was published, applied on top of it. See data/visa-overrides.json. */
-interface Rule { to: string; from: string[]; entry?: string; days?: number; since: string; summary?: string; apply?: { label: string; url: string }; notes?: string[]; checklist?: string[]; sources?: string[] }
+interface Rule { to: string; from: string[]; entry?: string; title?: string; days?: number; since: string; summary?: string; apply?: { label: string; url: string }; notes?: string[]; checklist?: string[]; sources?: string[] }
 const overrides = (JSON.parse(readFileSync(new URL('../../../data/visa-overrides.json', import.meta.url), 'utf8')) as { rules: Rule[] }).rules;
 const ruleFor = (from: string, to: string) => overrides.find((r) => r.to === to && r.from.includes(from));
 const names = new Intl.DisplayNames(['en'], { type: 'region' });
@@ -46,26 +46,27 @@ export function requirements(from: string, to: string) {
     own_country: `${country} is your passport's country, so you do not need a visa.`,
     unknown: 'We do not have this combination yet. Check with the embassy before you travel.',
   }[entry];
-  return { from, to, fromName: countryName(from), toName: country, entry, days, title: TITLES[entry], tone: TONES[entry], summary: rule?.summary ?? summary,
-    notes: rule?.notes ?? [], apply: rule?.apply ?? null, checklist: template(entry, days, country, rule?.checklist),
+  return { from, to, fromName: countryName(from), toName: country, entry, days, title: rule?.title ?? TITLES[entry], tone: TONES[entry], summary: rule?.summary ?? summary,
+    notes: rule?.notes ?? [], apply: rule?.apply ?? null, checklist: template(entry, days, country, rule?.checklist, !!rule?.entry),
     updated: rule && rule.since > data.updated ? rule.since : data.updated, source: rule?.sources?.length ? `${data.source}, with updates from official announcements and news reports` : data.source };
 }
 
 type Section = 'documents' | 'health' | 'money' | 'before';
 /** The checklist a traveller starts with, written for their entry requirement. */
-function template(entry: Entry, days: number | null, country: string, specific?: string[]): { section: Section; text: string }[] {
+function template(entry: Entry, days: number | null, country: string, specific?: string[], replaces = true): { section: Section; text: string }[] {
   const docs: string[] = [];
-  if (entry === 'no_admission') return [{ section: 'documents', text: `Check the latest official advice on entering ${country} before you book` }];
+  if (entry === 'no_admission') return (specific?.length ? specific : [`Check the latest official advice on entering ${country} before you book`]).map((text) => ({ section: 'documents' as const, text }));
   if (entry !== 'own_country') docs.push('Passport valid for at least 6 months after you return, with 2 blank pages');
   if (entry === 'visa_required') docs.push(`Apply for a ${country} visa at least 6 to 8 weeks before you fly`, 'Gather visa documents: bank statements, a letter from your employer or school, flight and hotel bookings, passport photos', 'Book and attend your visa appointment');
   if (entry === 'e_visa') docs.push(`Apply for the ${country} e-visa on the official government website (avoid agents who charge extra)`, 'Print your approved e-visa and keep a copy on your phone');
   // Destination-specific steps replace the general ones for the same visa type.
-  if (specific?.length) docs.push(...specific);
+  if (specific?.length && replaces) docs.push(...specific);
   else {
     if (entry === 'eta') docs.push(`Get your ${country} electronic travel authorisation (ETA) before you fly`, 'Keep your ETA approval on your phone');
     if (days) docs.push(`Plan to stay no more than ${days} days`);
   }
   if (entry === 'visa_on_arrival') docs.push('Have the visa-on-arrival fee ready, often in cash (US dollars)');
+  if (specific?.length && !replaces) docs.push(...specific);
   if (entry !== 'own_country') docs.push('Return or onward ticket', 'Proof of where you will stay: a hotel booking or an invitation letter', 'A recent bank statement showing you can pay for your stay');
   return [
     ...docs.map((text) => ({ section: 'documents' as const, text })),

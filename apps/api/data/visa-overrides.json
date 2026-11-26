@@ -104,6 +104,119 @@
       "notes": [
         "South Africa's e-visa closes on 1 December 2026. Check with the South African embassy whether you can apply through the new ETA or need a visa from the embassy."
       ]
+    },
+    {
+      "to": "US",
+      "from": [
+        "NG"
+      ],
+      "entry": "no_admission",
+      "title": "Visitor visas suspended",
+      "since": "2026-01-01",
+      "summary": "Since 1 January 2026 the US is not issuing visitor (B-1/B-2), student (F, M) or exchange (J) visas to Nigerian passport holders. If you already hold a valid US visa issued before then, you can still travel on it.",
+      "notes": [
+        "Visas issued before 1 January 2026 stay valid until they expire.",
+        "Some groups are exempt, such as green card holders, diplomats and athletes for major events.",
+        "Other visa types may be issued with shorter validity. Check the US Embassy in Nigeria for the latest position."
+      ],
+      "apply": {
+        "label": "US Embassy & Consulates in Nigeria",
+        "url": "https://ng.usembassy.gov/visas/"
+      },
+      "checklist": [
+        "Check your US visa was issued before 1 January 2026 and is valid for your whole trip",
+        "Check the US Embassy in Nigeria's latest guidance before you book",
+        "Carry proof of why you are visiting and your return ticket"
+      ],
+      "sources": [
+        "https://www.premiumtimesng.com/foreign/world-foreign/843621-updated-us-imposes-partial-travel-ban-on-nigerians-suspends-entry-for-several-visa-categories-2.html",
+        "https://www.legit.ng/nigeria/1689398-visas-issued-january-1-2026-remain-valid-assures-nigerians-travel-restrictions",
+        "https://www.legit.ng/world/1736175-4-countries-restricted-suspended-visas-nigerian-passport-holders/"
+      ]
+    },
+    {
+      "to": "SC",
+      "from": [
+        "NG"
+      ],
+      "entry": "no_admission",
+      "title": "Holiday visits not allowed",
+      "since": "2023-07-07",
+      "summary": "Seychelles does not admit Nigerian passport holders travelling for a holiday. Only holders of diplomatic passports or Seychelles work or residence permits are exempt.",
+      "notes": [
+        "Other visits are judged case by case through the Seychelles Electronic Border System, and many are refused."
+      ],
+      "checklist": [
+        "Check with Seychelles immigration before you book anything"
+      ],
+      "sources": [
+        "https://www.thecable.ng/seychelles-bans-nigerian-passport-holders-from-holiday-visits",
+        "https://www.legit.ng/world/1736175-4-countries-restricted-suspended-visas-nigerian-passport-holders/"
+      ]
+    },
+    {
+      "to": "AE",
+      "from": [
+        "NG"
+      ],
+      "since": "2026-06-02",
+      "notes": [
+        "UAE visas for Nigerians have come with extra conditions since 2025. Reports say applicants aged 18 to 45 travelling alone may be refused a tourist visa, a 6-month bank statement with about US$10,000 a month is asked for, and transit visas were suspended.",
+        "In June 2026 the UAE ambassador said restrictions had eased and Nigerians were no longer being refused, but agents still report strict checks. Apply through your airline or an approved agent and confirm the current conditions."
+      ],
+      "checklist": [
+        "Apply through your airline (such as Emirates) or an approved UAE visa agent",
+        "Six months of personal bank statements",
+        "Confirmed return flight and hotel booking"
+      ],
+      "sources": [
+        "https://allafrica.com/stories/202507090444.html",
+        "https://allafrica.com/stories/202606020102.html",
+        "https://www.legit.ng/world/1736175-4-countries-restricted-suspended-visas-nigerian-passport-holders/"
+      ]
+    },
+    {
+      "to": "GB",
+      "from": [
+        "NG"
+      ],
+      "since": "2026-02-25",
+      "notes": [
+        "Since 25 February 2026 UK visas for Nigerians are digital eVisas, with no sticker in your passport. You will need a UKVI account to view and share yours."
+      ],
+      "checklist": [
+        "Create your UKVI account and link your eVisa to your passport"
+      ],
+      "sources": [
+        "https://guardian.ng/news/uk-rolls-out-digital-visas-for-nigerians-from-february-25/",
+        "https://www.arise.tv/uk-ends-visa-stickers-for-nigerians-makes-evisas-mandatory-from-february-25"
+      ]
+    },
+    {
+      "to": "CA",
+      "from": [
+        "NG"
+      ],
+      "since": "2026-10-20",
+      "notes": [
+        "Visitor visa processing for Nigerians was taking around 100 days in October 2026, so apply at least four months ahead."
+      ],
+      "sources": [
+        "https://nairametrics.com/2026/10/20/canada-visitor-visa-processing-time-for-nigerians-rises-to-103-days/"
+      ]
+    },
+    {
+      "to": "CG",
+      "from": [
+        "NG"
+      ],
+      "since": "2026-08-12",
+      "notes": [
+        "The Republic of the Congo has announced visa-free entry for Nigerians from 1 January 2027, with some administrative conditions. Until then you still need a visa."
+      ],
+      "sources": [
+        "https://www.legit.ng/nigeria/1724660-two-countries-grant-visa-free-entry-nigerians/"
+      ]
     }
   ]
 }

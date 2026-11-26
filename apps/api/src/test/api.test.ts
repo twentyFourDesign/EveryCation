@@ -850,6 +850,15 @@ describe('entry requirements and checklists', () => {
     expect(docs.join(' ')).not.toContain('e-visa on the official');
     const gh = (await http().get('/v1/travel/requirements?from=GH&to=ZA').expect(200)).body;
     expect(gh).toMatchObject({ entry: 'visa_free', days: 90, apply: null }); expect(gh.notes[0]).toContain('optional');
+    const us = (await http().get('/v1/travel/requirements?from=NG&to=US').expect(200)).body;
+    expect(us).toMatchObject({ entry: 'no_admission', title: 'Visitor visas suspended', tone: 'bad' });
+    expect(us.checklist[0].text).toContain('before 1 January 2026');
+    expect((await http().get('/v1/travel/requirements?from=GH&to=US').expect(200)).body.title).toBe('Visa required');
+    expect((await http().get('/v1/travel/requirements?from=NG&to=SC').expect(200)).body).toMatchObject({ entry: 'no_admission', title: 'Holiday visits not allowed', days: null });
+    const gb = (await http().get('/v1/travel/requirements?from=NG&to=GB').expect(200)).body;
+    expect(gb).toMatchObject({ entry: 'visa_required', updated: '2026-02-25' }); expect(gb.notes[0]).toContain('eVisa');
+    const gbDocs = gb.checklist.map((i: { text: string }) => i.text);
+    expect(gbDocs).toContain('Book and attend your visa appointment'); expect(gbDocs).toContain('Create your UKVI account and link your eVisa to your passport');
     const zw = (await http().get('/v1/travel/requirements?from=ZW&to=ZA').expect(200)).body;
     expect(zw).toMatchObject({ notes: [], updated: '2026-02-17' });
   });
