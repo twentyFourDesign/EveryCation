@@ -840,6 +840,19 @@ describe('entry requirements and checklists', () => {
     expect((await http().get('/v1/travel/requirements?from=GB&to=GB').expect(200)).body.entry).toBe('own_country');
     await http().get('/v1/travel/requirements?from=NG&to=ZZ').expect(400);
   });
+  it("uses South Africa's new ETA where it replaces the e-visa, and mentions it where it is optional", async () => {
+    const ng = (await http().get('/v1/travel/requirements?from=NG&to=ZA').expect(200)).body;
+    expect(ng).toMatchObject({ entry: 'eta', days: 90, tone: 'warn', title: 'Travel authorisation (ETA)', apply: { url: 'https://eta.dha.gov.za' }, updated: '2026-10-19' });
+    expect(ng.notes.join(' ')).toContain('R500');
+    const docs = ng.checklist.filter((i: { section: string }) => i.section === 'documents').map((i: { text: string }) => i.text);
+    expect(docs).toContain('Apply for your South Africa ETA at eta.dha.gov.za (R500 fee)');
+    expect(docs.filter((t: string) => t.includes('no more than 90 days'))).toHaveLength(1);
+    expect(docs.join(' ')).not.toContain('e-visa on the official');
+    const gh = (await http().get('/v1/travel/requirements?from=GH&to=ZA').expect(200)).body;
+    expect(gh).toMatchObject({ entry: 'visa_free', days: 90, apply: null }); expect(gh.notes[0]).toContain('optional');
+    const zw = (await http().get('/v1/travel/requirements?from=ZW&to=ZA').expect(200)).body;
+    expect(zw).toMatchObject({ notes: [], updated: '2026-02-17' });
+  });
   it('makes one checklist per destination, private to its owner, and remembers the passport', async () => {
     const u = await named('Packing Pelumi'); const other = await named('Nosy Neighbour');
     expect((await u.api.get('/auth/me').expect(200)).body.passportCountry).toBe('NG');

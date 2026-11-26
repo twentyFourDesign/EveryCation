@@ -7,7 +7,7 @@ export interface Country { code: string; name: string }
 export type Entry = 'visa_free' | 'visa_on_arrival' | 'eta' | 'e_visa' | 'visa_required' | 'no_admission' | 'own_country' | 'unknown';
 export type Tone = 'good' | 'warn' | 'bad' | 'neutral';
 export type Section = 'documents' | 'health' | 'money' | 'before';
-export interface Requirement { from: string; to: string; fromName: string; toName: string; entry: Entry; days: number | null; title: string; tone: Tone; summary: string; checklist: { section: Section; text: string }[]; updated: string; source: string }
+export interface Requirement { from: string; to: string; fromName: string; toName: string; entry: Entry; days: number | null; title: string; tone: Tone; summary: string; notes: string[]; apply: { label: string; url: string } | null; checklist: { section: Section; text: string }[]; updated: string; source: string }
 export interface ChecklistSummary { id: string; passport: string; destination: string; destinationName: string; tripId: string | null; total: number; done: number }
 export interface ChecklistItem { id: string; section: Section; text: string; done: boolean; own: boolean }
 export interface Checklist { id: string; passport: string; passportName: string; destination: string; destinationName: string; tripId: string | null; requirement: Pick<Requirement, 'entry' | 'days' | 'title' | 'tone' | 'summary'>; items: ChecklistItem[] }

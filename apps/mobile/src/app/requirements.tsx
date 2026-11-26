@@ -1,7 +1,7 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowRight, ChevronRight, ClipboardCheck } from 'lucide-react-native';
+import { ArrowRight, ChevronRight, ClipboardCheck, ExternalLink } from 'lucide-react-native';
 import { useState } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, Text, View } from 'react-native';
 import { Button, Loading, Note, Progress, Screen, T, colors, go } from '@/ui';
 import { CountryField } from '@/ui/country-field';
 import { errorMessage } from '@/lib/api';
@@ -56,6 +56,12 @@ export default function Requirements() {
               <View className="flex-1"><Text style={{ color: tone.ink }} className="font-pop-sb text-2xl">{r.title}</Text>
                 {r.days ? <Text style={{ color: tone.ink }} className="font-pop-sb text-sm">Up to {r.days} days</Text> : null}</View></View>
             <Text style={{ color: tone.ink }} className="font-pop text-[15px] leading-6">{r.summary}</Text>
+            {r.notes.map((n) => <View key={n} className="flex-row gap-2"><Text style={{ color: tone.ink }} className="font-pop text-sm">•</Text><Text style={{ color: tone.ink }} className="flex-1 font-pop text-sm leading-5">{n}</Text></View>)}
+            {r.apply && (
+              <Pressable accessibilityRole="link" onPress={() => void Linking.openURL(r.apply!.url)} className="min-h-11 flex-row items-center justify-center gap-2 rounded-full bg-white px-4 py-2.5 active:opacity-70">
+                <Text style={{ color: tone.ink }} className="font-pop-sb text-sm">{r.apply.label}</Text><ExternalLink size={15} color={tone.ink} />
+              </Pressable>
+            )}
           </View>
           {r.checklist.length > 0 && (
             <View className="gap-2.5">

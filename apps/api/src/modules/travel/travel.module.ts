@@ -12,6 +12,10 @@ import { checklistItems, travelChecklists, trips } from '../../db/schema.js';
 /** Entry requirements for every passport and destination. See data/README.md for the source and how to refresh it. */
 const data = JSON.parse(readFileSync(new URL('../../../data/visa.json', import.meta.url), 'utf8')) as { updated: string; source: string; codes: string[]; rows: Record<string, string> };
 const index = new Map(data.codes.map((c, i) => [c, i]));
+/** Changes announced after visa.json was published, applied on top of it. See data/visa-overrides.json. */
+interface Rule { to: string; from: string[]; entry?: string; days?: number; since: string; summary?: string; apply?: { label: string; url: string }; notes?: string[]; checklist?: string[]; sources?: string[] }
+const overrides = (JSON.parse(readFileSync(new URL('../../../data/visa-overrides.json', import.meta.url), 'utf8')) as { rules: Rule[] }).rules;
+const ruleFor = (from: string, to: string) => overrides.find((r) => r.to === to && r.from.includes(from));
 const names = new Intl.DisplayNames(['en'], { type: 'region' });
 export const countryName = (code: string) => { try { return names.of(code) ?? code; } catch { return code; } };
 const COUNTRIES = data.codes.map((code) => ({ code, name: countryName(code) })).sort((a, b) => a.name.localeCompare(b.name));
@@ -30,7 +34,8 @@ function lookup(from: string, to: string): { entry: Entry; days: number | null }
 
 /** What a traveller with this passport needs to enter that country. */
 export function requirements(from: string, to: string) {
-  const { entry, days } = lookup(from, to); const country = countryName(to);
+  const rule = ruleFor(from, to); const base = lookup(from, to);
+  const entry = (rule?.entry as Entry | undefined) ?? base.entry; const days = rule?.entry ? rule.days ?? null : base.days; const country = countryName(to);
   const summary = {
     visa_free: days ? `No visa needed for stays of up to ${days} days.` : 'No visa needed.',
     visa_on_arrival: 'You get your visa when you land. Have the fee ready, often in cash.',
@@ -41,21 +46,26 @@ export function requirements(from: string, to: string) {
     own_country: `${country} is your passport's country, so you do not need a visa.`,
     unknown: 'We do not have this combination yet. Check with the embassy before you travel.',
   }[entry];
-  return { from, to, fromName: countryName(from), toName: country, entry, days, title: TITLES[entry], tone: TONES[entry], summary, checklist: template(entry, days, country),
-    updated: data.updated, source: data.source };
+  return { from, to, fromName: countryName(from), toName: country, entry, days, title: TITLES[entry], tone: TONES[entry], summary: rule?.summary ?? summary,
+    notes: rule?.notes ?? [], apply: rule?.apply ?? null, checklist: template(entry, days, country, rule?.checklist),
+    updated: rule && rule.since > data.updated ? rule.since : data.updated, source: rule?.sources?.length ? `${data.source}, with updates from official announcements and news reports` : data.source };
 }
 
 type Section = 'documents' | 'health' | 'money' | 'before';
 /** The checklist a traveller starts with, written for their entry requirement. */
-function template(entry: Entry, days: number | null, country: string): { section: Section; text: string }[] {
+function template(entry: Entry, days: number | null, country: string, specific?: string[]): { section: Section; text: string }[] {
   const docs: string[] = [];
   if (entry === 'no_admission') return [{ section: 'documents', text: `Check the latest official advice on entering ${country} before you book` }];
   if (entry !== 'own_country') docs.push('Passport valid for at least 6 months after you return, with 2 blank pages');
   if (entry === 'visa_required') docs.push(`Apply for a ${country} visa at least 6 to 8 weeks before you fly`, 'Gather visa documents: bank statements, a letter from your employer or school, flight and hotel bookings, passport photos', 'Book and attend your visa appointment');
   if (entry === 'e_visa') docs.push(`Apply for the ${country} e-visa on the official government website (avoid agents who charge extra)`, 'Print your approved e-visa and keep a copy on your phone');
-  if (entry === 'eta') docs.push(`Get your ${country} electronic travel authorisation (ETA) before you fly`, 'Keep your ETA approval on your phone');
+  // Destination-specific steps replace the general ones for the same visa type.
+  if (specific?.length) docs.push(...specific);
+  else {
+    if (entry === 'eta') docs.push(`Get your ${country} electronic travel authorisation (ETA) before you fly`, 'Keep your ETA approval on your phone');
+    if (days) docs.push(`Plan to stay no more than ${days} days`);
+  }
   if (entry === 'visa_on_arrival') docs.push('Have the visa-on-arrival fee ready, often in cash (US dollars)');
-  if (days) docs.push(`Plan to stay no more than ${days} days`);
   if (entry !== 'own_country') docs.push('Return or onward ticket', 'Proof of where you will stay: a hotel booking or an invitation letter', 'A recent bank statement showing you can pay for your stay');
   return [
     ...docs.map((text) => ({ section: 'documents' as const, text })),

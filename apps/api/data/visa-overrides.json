@@ -1,0 +1,109 @@
+{
+  "_about": "Changes newer than visa.json, applied on top of it. Each rule matches a destination and a list of passports. Keep sources so the next person can check them.",
+  "rules": [
+    {
+      "to": "ZA",
+      "from": [
+        "DZ",
+        "CM",
+        "KM",
+        "CI",
+        "CD",
+        "EG",
+        "ET",
+        "GN",
+        "LR",
+        "ML",
+        "MA",
+        "NE",
+        "NG",
+        "SN",
+        "UG",
+        "CO",
+        "CU",
+        "MX",
+        "AM",
+        "BD",
+        "CN",
+        "GE",
+        "IN",
+        "ID",
+        "IR",
+        "OM",
+        "PK",
+        "PS",
+        "PH",
+        "AL",
+        "BY",
+        "MD",
+        "RS",
+        "UA"
+      ],
+      "entry": "eta",
+      "days": 90,
+      "since": "2026-10-19",
+      "summary": "South Africa's Electronic Travel Authorisation (ETA) replaces the e-visa for short visits. Apply online before you fly; approval usually comes within 24 to 72 hours.",
+      "apply": {
+        "label": "Apply at eta.dha.gov.za",
+        "url": "https://eta.dha.gov.za"
+      },
+      "notes": [
+        "The fee is R500 (about US$30). Other visa fees may apply depending on your nationality.",
+        "Stays of up to 90 days for tourism or business. You can ask Home Affairs to extend by up to 90 more days.",
+        "South Africa's old e-visa closes on 1 December 2026, so apply through the ETA.",
+        "At launch, ETA entries were only valid through OR Tambo (Johannesburg), Cape Town International and Lanseria airports. Check this when you apply."
+      ],
+      "checklist": [
+        "Apply for your South Africa ETA at eta.dha.gov.za (R500 fee)",
+        "Apply at least a week before you fly, in case Home Affairs asks for more documents",
+        "Save your ETA approval on your phone and print a copy",
+        "Fly into OR Tambo, Cape Town International or Lanseria, unless your ETA says otherwise",
+        "Plan to stay no more than 90 days"
+      ],
+      "sources": [
+        "https://www.sanews.gov.za/node/83530",
+        "https://www.polity.org.za/article/sas-electronic-travel-authorisation-gathers-pace-paving-the-way-for-digital-processing-of-all-visa-categories-2026-10-01",
+        "https://visasnews.com/en/south-africa-eta-expands-to-53-countries-ahead-of-e-visa-shutdown/",
+        "https://www.buch-dein-visum.de/en/news/sedafrika/suedafrika-eta-jetzt-fuer-53-laender-verfuegbar-e-visum-wird-ende-2026-abgeschaltet-6a17ce"
+      ]
+    },
+    {
+      "to": "ZA",
+      "from": [
+        "GH",
+        "KE",
+        "US",
+        "IL",
+        "JP",
+        "MY",
+        "SA",
+        "SG",
+        "BG",
+        "HR",
+        "FR",
+        "DE",
+        "LT",
+        "NL",
+        "RO",
+        "SK",
+        "CH",
+        "GB",
+        "RU"
+      ],
+      "since": "2026-10-19",
+      "notes": [
+        "You can also apply for South Africa's optional Electronic Travel Authorisation (ETA) at eta.dha.gov.za, which can speed up arrival. It is not required for your passport."
+      ]
+    },
+    {
+      "to": "ZA",
+      "from": [
+        "CG"
+      ],
+      "since": "2026-10-19",
+      "notes": [
+        "South Africa's e-visa closes on 1 December 2026. Check with the South African embassy whether you can apply through the new ETA or need a visa from the embassy."
+      ]
+    }
+  ]
+}
