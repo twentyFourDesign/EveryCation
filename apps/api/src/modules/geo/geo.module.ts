@@ -4,6 +4,7 @@ import { Throttle } from '@nestjs/throttler';
 import { sql } from 'drizzle-orm';
 import { CONFIG, type Config } from '../../config.js';
 import { Database } from '../../db/db.module.js';
+import { notFound } from '../../common/errors.js';
 
 export interface PlaceHit { name: string; detail: string; label: string; countryCode: string; lat: number; lng: number; source: 'everycation' | 'map' }
 interface PhotonFeature { geometry?: { coordinates?: [number, number] }; properties?: { name?: string; country?: string; countrycode?: string; state?: string; county?: string; city?: string; type?: string } }
@@ -27,6 +28,32 @@ export class GeoService {
     const [ours, map] = await Promise.all([this.ours(q), this.map(q)]);
     const seen = new Set<string>(); const key = (h: PlaceHit) => `${h.name.toLowerCase()}|${h.countryCode}`;
     return [...ours, ...map].filter((h) => !seen.has(key(h)) && seen.add(key(h))).slice(0, 7);
+  }
+
+  /**
+   * Names the town or area at a position, for "Use my current location". Answers at town level, never a street or
+   * house number, so a tip never gives away where someone is staying. Returns null when the map service has no answer.
+   */
+  async reverse(lat: number, lng: number): Promise<PlaceHit | null> {
+    if (!this.config.GEOCODER_URL || !Number.isFinite(lat) || !Number.isFinite(lng) || Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+    // About 1 km of rounding: enough for a town, and nearby people share cached answers.
+    const la = Number(lat.toFixed(2)); const lo = Number(lng.toFixed(2)); const k = `@${la},${lo}`;
+    const cached = this.cache.get(k);
+    if (cached && Date.now() - cached.at < 86_400_000) return cached.hits[0] ?? null;
+    try {
+      const res = await fetch(`${this.config.GEOCODER_URL.replace(/\/$/, '')}/reverse?lat=${la}&lon=${lo}&limit=1&lang=en`, { headers: { 'user-agent': 'EveryCation/1.0 (current location)' }, signal: AbortSignal.timeout(4_000) });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const f = ((await res.json()) as { features?: PhotonFeature[] }).features?.[0];
+      const p = f?.properties ?? {};
+      if (!p.countrycode) return null;
+      const country = p.country ?? countryName(p.countrycode);
+      const townLevel = p.type && ['city', 'town', 'village', 'district', 'locality', 'county', 'state'].includes(p.type);
+      const name = p.city ?? (townLevel ? p.name : undefined) ?? p.county ?? p.state ?? country;
+      const region = [p.county, p.state].find((x) => x && x !== name);
+      const hit: PlaceHit = { name, detail: name === country ? 'Country' : [region, country].filter(Boolean).join(', '), label: name === country ? name : `${name}, ${country}`, countryCode: p.countrycode.toUpperCase(), lat: la, lng: lo, source: 'map' };
+      this.cache.set(k, { at: Date.now(), hits: [hit] });
+      return hit;
+    } catch (e) { this.log.warn(`Location lookup is unavailable: ${(e as Error).message}`); return null; }
   }
 
   private async ours(q: string): Promise<PlaceHit[]> {
@@ -65,6 +92,12 @@ class GeoController {
   constructor(private readonly geo: GeoService) {}
   /** Suggestions while the traveller types where they are going. */
   @Throttle({ default: { limit: 60, ttl: 60_000 } }) @Get('search') search(@Query('q') q?: string) { return this.geo.search(q ?? ''); }
+  /** The town at the traveller's position, for "Use my current location". */
+  @Throttle({ default: { limit: 20, ttl: 60_000 } }) @Get('reverse') async reverse(@Query('lat') lat?: string, @Query('lng') lng?: string) {
+    const hit = await this.geo.reverse(Number(lat), Number(lng));
+    if (!hit) throw notFound('Place');
+    return hit;
+  }
 }
 
 @Module({ controllers: [GeoController], providers: [GeoService], exports: [GeoService] })

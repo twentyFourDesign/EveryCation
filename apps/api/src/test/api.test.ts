@@ -829,6 +829,15 @@ describe('place search', () => {
     geocoder.down = false;
     await http().get('/v1/geo/search?q=accra').expect(401);
   });
+  it('names the town at a position, never the street', async () => {
+    const u = await named('Roaming Remi');
+    geocoder.features = [{ geometry: { coordinates: [3.4219, 6.4281] }, properties: { name: '14 Adeola Odeku Street', city: 'Lagos', state: 'Lagos State', country: 'Nigeria', countrycode: 'NG', type: 'house' } }];
+    const hit = (await u.api.get('/geo/reverse?lat=6.428123&lng=3.421934').expect(200)).body;
+    expect(hit).toMatchObject({ name: 'Lagos', label: 'Lagos, Nigeria', detail: 'Lagos State, Nigeria', countryCode: 'NG', lat: 6.43, lng: 3.42 });
+    expect(JSON.stringify(hit)).not.toContain('Adeola');
+    expect(geocoder.asked.at(-1)).toContain('/reverse?lat=6.43&lon=3.42');
+    await u.api.get('/geo/reverse?lat=999&lng=3').expect(404);
+  });
 });
 
 describe('sign in with Google or Apple, and Google Calendar', () => {

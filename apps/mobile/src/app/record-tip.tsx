@@ -1,7 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Camera, ImagePlus, MapPin, Video, X } from 'lucide-react-native';
+import { Camera, ImagePlus, Video, X } from 'lucide-react-native';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, Text, View } from 'react-native';
@@ -9,6 +9,8 @@ import type { z } from 'zod';
 import { tipSchema } from '@everycation/shared';
 import { Button, Chips, FormInput, Note, Photo, Screen, T, colors, go } from '@/ui';
 import { NameGate } from '@/ui/name-gate';
+import { PlaceField } from '@/ui/place-field';
+import type { PlaceHit } from '@/lib/trips';
 import { VoicePlayer, VoiceRecorder, voiceUpload, type VoiceNote } from '@/ui/voice';
 import { errorMessage, uploadMedia } from '@/lib/api';
 import { findCountry, useCreateTip } from '@/lib/community';
@@ -22,6 +24,7 @@ function RecordTipForm() {
   const { control, handleSubmit } = useForm<Form>({ resolver: zodResolver(tipSchema), defaultValues: { format: 'write', place: '', headline: '', category: 'Packing', body: '' } });
   const [asset, setAsset] = useState<ImagePicker.ImagePickerAsset | null>(null); const [voice, setVoice] = useState<VoiceNote | null>(null);
   const [postedId, setPostedId] = useState<string | null>(null); const [error, setError] = useState(''); const [step, setStep] = useState<'idle' | 'uploading' | 'posting'>('idle');
+  const [picked, setPicked] = useState<PlaceHit | null>(null);
   const isVideo = asset?.type === 'video';
 
   async function pick(from: 'library' | 'camera') {
@@ -40,7 +43,7 @@ function RecordTipForm() {
       if (asset) { setStep('uploading'); mediaId = (await uploadMedia(asset)).id; }
       else if (voice) { setStep('uploading'); mediaId = (await uploadMedia(await voiceUpload(voice))).id; }
       setStep('posting');
-      const tip = await create.mutateAsync({ title: v.headline, place: v.place, category: v.category, format: voice && !asset ? 'voice' : isVideo ? 'video' : 'write', body: v.body ?? '', countryCode: findCountry(v.place)?.code, mediaId });
+      const tip = await create.mutateAsync({ title: v.headline, place: v.place, category: v.category, format: voice && !asset ? 'voice' : isVideo ? 'video' : 'write', body: v.body ?? '', countryCode: picked?.countryCode ?? findCountry(v.place)?.code, mediaId });
       setPostedId(tip.id);
     } catch (e) { setError(errorMessage(e)); } finally { setStep('idle'); }
   });
@@ -70,7 +73,9 @@ function RecordTipForm() {
           <VoiceRecorder onDone={(note) => { setError(''); setVoice(note); }} onError={setError} />
         </View>
       )}
-      <View><FormInput control={control} name="place" label="Place *" placeholder="South Iceland" hint="Add the country so travellers can find it, like Vík, Iceland." /><View className="absolute right-4 top-[41px]"><MapPin size={20} color={colors.inkMuted} /></View></View>
+      <Controller control={control} name="place" render={({ field, fieldState }) => (
+        <PlaceField label="Place *" value={field.value} onChangeText={field.onChange} picked={picked} onPick={setPicked} error={fieldState.error?.message} placeholder="Start typing a town, like Vík, Iceland" detect />
+      )} />
       <FormInput control={control} name="headline" label="Tip headline *" placeholder="Pack a rain shell, even in July" maxLength={80} />
       <FormInput control={control} name="body" label={asset || voice ? 'Notes (optional)' : 'Your tip *'} multiline maxLength={1200} placeholder="What do you wish someone had told you?" />
       <Controller control={control} name="category" render={({ field }) => <Chips options={categories} value={field.value} onChange={field.onChange} />} />

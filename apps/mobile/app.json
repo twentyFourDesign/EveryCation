@@ -20,7 +20,11 @@
       "adaptiveIcon": {
         "backgroundColor": "#002C82",
         "foregroundImage": "./assets/images/android-icon-foreground.png"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ]
     },
     "web": {
       "output": "single",
@@ -62,7 +66,15 @@
         }
       ],
       "expo-apple-authentication",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "EveryCation uses your location to fill in the town you are in when you share a tip.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
