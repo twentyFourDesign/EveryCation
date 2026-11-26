@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronLeft, Globe, Heart, MessageCircle, PiggyBank, Phone, X } from 'lucide-react-native';
+import { Check, ChevronLeft, Globe, Heart, MessageCircle, Phone, X } from 'lucide-react-native';
+import { IconSavings } from '@/ui/icons';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -89,12 +90,12 @@ export default function PackageDetail() {
           {entry.data && tone && entry.data.entry !== 'own_country' && (
             <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requirements', params: { to: p.countryCode } })} style={{ backgroundColor: tone.bg }} className="gap-1 rounded-card p-3.5 active:opacity-80">
               <Text style={{ color: tone.ink }} className="font-pop-md text-xs">{flag(p.countryCode)} Visa & entry for {entry.data.toName} · {entry.data.fromName} passport</Text>
-              <Text style={{ color: tone.ink }} className="font-pop-sb text-base">{tone.emoji} {entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text>
+              <View className="flex-row items-center gap-2"><tone.icon size={22} color={tone.ink} accent={tone.accent} /><Text style={{ color: tone.ink }} className="flex-1 font-pop-sb text-base">{entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text></View>
               <Text style={{ color: tone.ink }} className="font-pop-sb text-[13px]">See what you need and make a checklist →</Text>
             </Pressable>
           )}
           <View className="flex-row gap-3">
-            <Button className="flex-1" variant="outline" icon={PiggyBank} label="Save for it" onPress={save} />
+            <Button className="flex-1" variant="outline" icon={IconSavings} label="Save for it" onPress={save} />
             <Button className="flex-1" variant={inBucket ? 'ghost' : 'outline'} icon={Heart} disabled={inBucket} label={inBucket ? 'On bucket list' : 'Bucket list'}
               onPress={() => (signedIn ? addBucket.mutate({ title: p.title, source, vibe: p.vibe ?? undefined, place: p.destination, countryCode: p.countryCode, ...(p.lat !== null && p.lng !== null && { lat: p.lat, lng: p.lng }) }) : router.push('/sign-up'))} />
           </View>

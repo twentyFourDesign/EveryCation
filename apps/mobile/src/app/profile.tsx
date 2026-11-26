@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Settings, Store } from 'lucide-react-native';
+import { Settings } from 'lucide-react-native';
+import { IconStore } from '@/ui/icons';
 import { Pressable, View } from 'react-native';
 import { Avatar, Button, Empty, IconButton, ListRow, Photo, Screen, SectionTitle, Stats, T, go } from '@/ui';
 import { initials, tipImage, tipPhoto, useProfile, useTipsBy } from '@/lib/community';
@@ -25,7 +26,7 @@ export default function Profile() {
         <Button small variant="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} />
       </View>
       <Stats items={[[p?.countries ?? 0, 'countries'], [p?.tips ?? 0, 'tips'], [p?.verifiedAdvice ?? 0, 'verified advice']]} />
-      <ListRow icon={Store} title="Creator studio" subtitle="Share or sell your trip plans" onPress={() => router.push('/creator-studio')} />
+      <ListRow icon={IconStore} title="Creator studio" subtitle="Share or sell your trip plans" onPress={() => router.push('/creator-studio')} />
       <SectionTitle>My tips</SectionTitle>
       {tips.length === 0 ? <Empty>You have not shared a tip yet. Use the + button to post your first.</Empty> : (
         <View className="flex-row flex-wrap gap-2">

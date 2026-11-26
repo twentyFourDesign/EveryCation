@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { BadgeCheck } from 'lucide-react-native';
+import { IconVerified } from '@/ui/icons';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { pinSchema } from '@everycation/shared';
@@ -30,7 +30,7 @@ export default function CreatePin() {
   }
   return (
     <Screen title={changing ? 'Change wallet PIN' : 'Step 2 of 3'} scroll={false} className="items-center justify-between">
-      <View className="items-center gap-2">{!changing && <Badge icon={BadgeCheck} label="Identity confirmed" />}
+      <View className="items-center gap-2">{!changing && <Badge icon={IconVerified} label="Identity confirmed" />}
         <T v="h1" className="text-center">{askCurrent ? 'Enter your current PIN' : first === null ? (changing ? 'Choose a new PIN' : 'Create your wallet PIN') : 'Enter it again to confirm'}</T>
         <T className="text-center text-ink-muted">You&apos;ll use it to approve withdrawals and payments. Avoid your birthday or 1234.</T>
         {!!error && <Text accessibilityRole="alert" className="text-center font-pop-md text-[13px] text-danger">{error}</Text>}

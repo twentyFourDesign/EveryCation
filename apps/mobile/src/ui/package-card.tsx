@@ -5,6 +5,7 @@ import type { TravelPackage } from '@/lib/packages';
 import { flag } from '@/lib/travel';
 import { Photo, T, cx, go } from './index';
 import { VIBES } from './bucket-list';
+import { IconTrip } from './icons';
 
 const GRADIENTS: Record<string, [string, string]> = {
   beach: ['#005F8F', '#3CC4E6'], nature: ['#14532D', '#4CAF6A'], culture: ['#4A1D6B', '#A35BD0'], city: ['#002C82', '#2D6BD8'], adventure: ['#8A3209', '#F07B3C'], food: ['#7A5A00', '#F2B705'],
@@ -18,7 +19,7 @@ export function PackageCover({ p, className, big }: { p: TravelPackage; classNam
   return (
     <View className={cx('overflow-hidden', className)}>
       <LinearGradient colors={[a, b]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ flex: 1 }}>
-        <Text style={{ position: 'absolute', right: big ? 24 : 14, bottom: big ? 48 : 12, fontSize: big ? 120 : 68, opacity: 0.95 }}>{p.vibe ? VIBES[p.vibe].emoji : '✈️'}</Text>
+        {(() => { const V = p.vibe ? VIBES[p.vibe].icon : IconTrip; return <View style={{ position: 'absolute', right: big ? 28 : 16, bottom: big ? 52 : 14, opacity: 0.95 }}><V size={big ? 120 : 64} color="#fff" strokeWidth={1.5} /></View>; })()}
       </LinearGradient>
     </View>
   );

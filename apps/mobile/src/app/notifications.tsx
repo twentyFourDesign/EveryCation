@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Megaphone, PiggyBank, Plane, ShoppingBag, Star } from 'lucide-react-native';
+import { IconAdvice, IconMegaphone, IconSavings, IconShop, IconTrip, type Icon as BrandIconType } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Button, Chips, Empty, Loading, Note, Screen, T, colors, cx, go } from '@/ui';
@@ -8,7 +8,7 @@ import { timeAgo, useInbox, useMarkOneRead, useMarkRead } from '@/lib/community'
 import { useSession } from '@/lib/session';
 
 const filters = ['All', 'Community', 'Wallet', 'Trips', 'News'] as const;
-const icons: Record<string, typeof Star> = { community: Star, wallet: PiggyBank, trips: Plane, shop: ShoppingBag, news: Megaphone };
+const icons: Record<string, BrandIconType> = { community: IconAdvice, wallet: IconSavings, trips: IconTrip, shop: IconShop, news: IconMegaphone };
 
 export default function Notifications() {
   const signedIn = useSession((s) => s.status === 'signedIn');
@@ -24,9 +24,9 @@ export default function Notifications() {
       {!!error && <Note tone="danger">{errorMessage(error)}</Note>}
       {data && list.length === 0 && <Empty>Nothing here yet. Replies, wallet updates and review decisions show up here.</Empty>}
       <View className="gap-1">
-        {list.map((n) => { const Icon = icons[n.type] ?? Star; return (
+        {list.map((n) => { const Icon = icons[n.type] ?? IconMegaphone; return (
           <Pressable key={n.id} disabled={!n.href && n.read} accessibilityRole="button" accessibilityLabel={`${n.read ? '' : 'Unread. '}${n.text}`} onPress={() => { if (!n.read) markOne.mutate(n.id); if (n.href) go(n.href); }} className={cx('flex-row items-center gap-3 rounded-2xl px-2 py-3 active:opacity-70', !n.read && 'bg-tint')}>
-            <View className="h-10 w-10 items-center justify-center rounded-full bg-gold-soft"><Icon size={20} color={colors.navy} /></View>
+            <View className="h-10 w-10 items-center justify-center rounded-full bg-tint"><Icon size={20} color={colors.navy} /></View>
             <View className="flex-1">{n.type === 'news' && n.text.includes('\n') ? <><T v="strong" className="text-sm">{n.text.split('\n')[0]}</T><T className="text-sm leading-5">{n.text.split('\n').slice(1).join(' ')}</T></> : <T className="text-sm leading-5">{n.text}</T>}<T v="small" className="text-xs">{timeAgo(n.at)}</T></View>
           </Pressable>); })}
       </View>

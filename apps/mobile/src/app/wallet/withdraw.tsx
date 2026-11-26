@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Landmark, Lock } from 'lucide-react-native';
+import { IconBank, IconLock } from '@/ui/icons';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { formatNaira, parseNaira } from '@everycation/shared';
@@ -28,7 +28,7 @@ export default function Withdraw() {
         <Option title="Available balance" on={source === 'available'} onPress={() => setSource('available')} right={formatNaira(w.available)} />
         {w.goals.map((g) => g.locked ? (
           <View key={g.id} className="min-h-[60px] flex-row items-center gap-3 rounded-2xl border-[1.5px] border-line bg-surface-muted px-4 py-2.5">
-            <Lock size={18} color={colors.inkMuted} />
+            <IconLock size={18} color={colors.inkMuted} />
             <View className="flex-1"><Text className="font-pop-md text-[15px] text-ink-muted">{g.name} goal</Text><Text className="font-pop text-xs text-ink-muted">Locked · <Text accessibilityRole="link" onPress={() => go(`/wallet/goal/${g.id}`)} className="font-pop-sb text-heading-blue">Unlock</Text></Text></View>
             <Text className="font-pop-sb text-sm text-ink-muted">{formatNaira(g.saved)}</Text>
           </View>
@@ -36,7 +36,7 @@ export default function Withdraw() {
       </View>
       <View className="gap-2"><T v="label">To</T>
         {bank ? (
-          <View className="flex-row items-center gap-3 rounded-2xl border-[1.5px] border-line p-3.5"><View className="h-10 w-10 items-center justify-center rounded-full bg-tint"><Landmark size={20} color={colors.navy} /></View>
+          <View className="flex-row items-center gap-3 rounded-2xl border-[1.5px] border-line p-3.5"><View className="h-10 w-10 items-center justify-center rounded-full bg-tint"><IconBank size={20} color={colors.navy} /></View>
             <View className="flex-1"><T v="strong">{bank.bankName} •••• {bank.last4}</T><T v="small">{bank.accountName} · verified</T></View>
             <Text accessibilityRole="link" onPress={() => router.push('/wallet/settings')} className="font-pop-sb text-[13px] text-heading-blue">Change</Text></View>
         ) : <Button variant="outline" label="Link a bank account" onPress={() => router.push('/wallet/setup/bank')} />}

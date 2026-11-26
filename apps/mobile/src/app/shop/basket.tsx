@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Minus, PiggyBank, Plus } from 'lucide-react-native';
+import { Minus, Plus } from 'lucide-react-native';
+import { IconSavings } from '@/ui/icons';
 import { Pressable, View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
 import { Button, KeyValue, Note, Screen, T, colors } from '@/ui';
@@ -25,7 +26,7 @@ export default function Basket() {
               <View className="flex-row items-center gap-3"><Step icon={Minus} label={qty === 1 ? `Remove ${p.name}` : 'One fewer'} onPress={() => setQty(p.id, qty - 1)} /><T v="strong" accessibilityLabel={`Quantity ${qty}`}>{qty}</T><Step icon={Plus} label="One more" onPress={() => setQty(p.id, qty + 1)} /></View></View></View>
         </View>
       ))}
-      {shopping && <Note icon={PiggyBank}>{`Your ${shopping.name} goal (${formatNaira(shopping.saved)}) can pay for this at checkout.`}</Note>}
+      {shopping && <Note icon={IconSavings}>{`Your ${shopping.name} goal (${formatNaira(shopping.saved)}) can pay for this at checkout.`}</Note>}
       <View><KeyValue k="Subtotal" v={formatNaira(subtotal)} /><KeyValue k="Delivery" v="At checkout" /></View>
     </Screen>
   );

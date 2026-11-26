@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Package, Plane, ShoppingBag } from 'lucide-react-native';
+import { IconPackages, IconShop, IconTrip } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { formatNaira, parseNaira } from '@everycation/shared';
@@ -8,7 +8,7 @@ import { DateField, addDays, todayIso } from '@/ui/date-field';
 import { errorMessage } from '@/lib/api';
 import { useCreateGoal } from '@/lib/wallet';
 
-const kinds = [{ k: 'trip', l: 'A trip', i: Plane }, { k: 'shopping', l: 'Shopping', i: ShoppingBag }, { k: 'package', l: 'A package', i: Package }] as const;
+const kinds = [{ k: 'trip', l: 'A trip', i: IconTrip }, { k: 'shopping', l: 'Shopping', i: IconShop }, { k: 'package', l: 'A package', i: IconPackages }] as const;
 const freq = ['Daily', 'Weekly', 'Monthly'] as const;
 const everyDays = { daily: 1, weekly: 7, monthly: 30 };
 

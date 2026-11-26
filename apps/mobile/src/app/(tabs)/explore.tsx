@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Bell, Search } from 'lucide-react-native';
+import { Search } from 'lucide-react-native';
+import { IconBell } from '@/ui/icons';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
 import { usePlans } from '@/lib/plans';
@@ -21,7 +22,7 @@ export default function Explore() {
     <Screen edges={['top']}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2"><Mark size={30} color="brand" /><Text className="font-pop-sb text-lg text-navy">EveryCation</Text></View>
-        <IconButton icon={Bell} label="Notifications" badge={unread || undefined} onPress={() => router.push('/notifications')} />
+        <IconButton icon={IconBell} label="Notifications" badge={unread || undefined} onPress={() => router.push('/notifications')} />
       </View>
       <T v="h1">Where to next?</T>
       <Pressable accessibilityRole="search" accessibilityLabel="Search places, tips and trip plans" onPress={() => router.push('/search')} className="h-[52px] flex-row items-center gap-3 rounded-full bg-surface-muted px-4">

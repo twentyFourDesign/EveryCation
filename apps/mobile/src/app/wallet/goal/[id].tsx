@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Lightbulb, Lock } from 'lucide-react-native';
+import { ChevronLeft } from 'lucide-react-native';
+import { IconLock, IconTips } from '@/ui/icons';
 import { useState } from 'react';
 import { ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,10 +27,10 @@ export default function SavingsGoal() {
         <Photo k={goalImage(g)} className="h-[200px]" />
         <SafeAreaView edges={['top']} className="absolute left-0 right-0 top-0"><View className="px-4 pt-2"><IconButton tone="glass" icon={ChevronLeft} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/wallet'))} /></View></SafeAreaView>
         <View className="-mt-6 gap-4 rounded-t-[28px] bg-white px-5 pb-6 pt-6">
-          <View className="gap-1.5"><T v="h1">{g.name}</T>{g.targetDate && <T v="small">Goal date {formatDay(g.targetDate)}{days ? ` · ${days} days left` : ''}</T>}{g.locked && <Badge icon={Lock} label="Locked" />}</View>
+          <View className="gap-1.5"><T v="h1">{g.name}</T>{g.targetDate && <T v="small">Goal date {formatDay(g.targetDate)}{days ? ` · ${days} days left` : ''}</T>}{g.locked && <Badge icon={IconLock} label="Locked" />}</View>
           <View className="gap-2"><Text className="font-pop-sb text-[28px] text-ink">{formatNaira(g.saved)} <Text className="font-pop text-base text-ink-muted">of {formatNaira(g.target)}</Text></Text>
             <Progress pct={g.percent} /><View className="flex-row justify-between"><T v="label">{g.percent}% saved</T><T v="small">{left ? `${formatNaira(left)} to go` : 'Goal reached'}</T></View></View>
-          {g.autoSave && left > 0 && <Note icon={Lightbulb} tone="gold">{`Your plan: ${formatNaira(g.autoSave.amount)} ${per[g.autoSave.frequency]}${days ? ` gets you there by ${formatDay(g.targetDate)}` : ''}. Add it yourself for now; automatic debits come later.`}</Note>}
+          {g.autoSave && left > 0 && <Note icon={IconTips} tone="gold">{`Your plan: ${formatNaira(g.autoSave.amount)} ${per[g.autoSave.frequency]}${days ? ` gets you there by ${formatDay(g.targetDate)}` : ''}. Add it yourself for now; automatic debits come later.`}</Note>}
           <View className="rounded-card bg-surface-muted px-4 py-1">
             <View className="flex-row items-center gap-3 py-3"><View className="flex-1"><T v="strong">Lock this goal</T><T v="small">Keeps this money for the {g.kind === 'shopping' ? 'shop' : 'trip'}. You can unlock it any time.</T></View><Toggle label="Lock this goal" value={g.locked} onChange={setLocked} /></View>
           </View>

@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { BadgeCheck, Clock, PenLine, Share2 } from 'lucide-react-native';
+import { Clock, PenLine, Share2 } from 'lucide-react-native';
+import { IconVerified } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, Share, Text, View } from 'react-native';
 import { sample } from '@everycation/shared';
@@ -52,7 +53,7 @@ export default function CountryAdvice() {
             <View className="flex-row items-center gap-3">
               <Avatar initials={initials(a.author.name)} onPress={() => go(`/traveller/${a.author.id}`)} />
               <View className="flex-1 gap-1"><T v="strong">{a.mine ? 'You' : a.author.name}</T>
-                <View className="flex-row flex-wrap items-center gap-1.5"><Badge icon={verified ? BadgeCheck : Clock} tone={s.tone} label={s.label} /><T v="small" className="text-xs">{a.city}{a.visited ? ` · ${a.visited}` : ''}</T></View></View>
+                <View className="flex-row flex-wrap items-center gap-1.5"><Badge icon={verified ? IconVerified : Clock} tone={s.tone} label={s.label} /><T v="small" className="text-xs">{a.city}{a.visited ? ` · ${a.visited}` : ''}</T></View></View>
             </View>
             <T v="eyebrow">{a.topic.toUpperCase()}</T>
             <T>{a.body}</T>

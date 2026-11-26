@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { CalendarDays } from 'lucide-react-native';
+import { IconCalendar } from '@/ui/icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Badge, Button, ListRow, Screen, T, Toggle } from '@/ui';
@@ -26,7 +26,7 @@ export default function Settings() {
         <ListRow title="Currency" right={<T v="small">Naira (₦)</T>} onPress={() => {}} />
       </Group>
       <Group title="CONNECTED APPS">
-        <ListRow icon={CalendarDays} title="Google Calendar" subtitle="Connected · trips sync automatically" right={<Badge label="Manage" />} onPress={() => router.push('/travels?view=Calendar')} chevron={false} />
+        <ListRow icon={IconCalendar} title="Google Calendar" subtitle="Connected · trips sync automatically" right={<Badge label="Manage" />} onPress={() => router.push('/travels?view=Calendar')} chevron={false} />
       </Group>
       <Group title="PRIVACY & COMMUNITY">
         <ListRow title="Who can see my trips" right={<T v="small">{visibility}</T>} onPress={nextVisibility} />

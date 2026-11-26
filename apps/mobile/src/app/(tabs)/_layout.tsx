@@ -1,14 +1,15 @@
 import { Tabs } from 'expo-router/js-tabs';
 import { router } from 'expo-router';
-import { Compass, Map, Plus, ShoppingBag, Wallet, type LucideIcon } from 'lucide-react-native';
+import { Plus } from 'lucide-react-native';
+import { IconExplore, IconShop, IconTravels, IconWallet, type Icon } from '@/ui/icons';
 import { Pressable, Text, View } from 'react-native';
 import { colors } from '@/ui';
 
-const tabs: Record<string, { label: string; icon: LucideIcon }> = {
-  explore: { label: 'Explore', icon: Compass },
-  wallet: { label: 'Wallet', icon: Wallet },
-  shop: { label: 'Shop', icon: ShoppingBag },
-  travels: { label: 'My travels', icon: Map },
+const tabs: Record<string, { label: string; icon: Icon }> = {
+  explore: { label: 'Explore', icon: IconExplore },
+  wallet: { label: 'Wallet', icon: IconWallet },
+  shop: { label: 'Shop', icon: IconShop },
+  travels: { label: 'My travels', icon: IconTravels },
 };
 
 export default function TabsLayout() {
@@ -23,7 +24,7 @@ export default function TabsLayout() {
             const item = (
               <Pressable key={route.key} accessibilityRole="tab" accessibilityState={{ selected: on }} accessibilityLabel={tab.label}
                 onPress={() => navigateToTab(route.key)} className="h-14 flex-1 items-center justify-center gap-0.5">
-                <tab.icon size={22} color={on ? colors.navy : colors.inkMuted} strokeWidth={on ? 2.4 : 1.8} />
+                <tab.icon size={24} color={on ? colors.navy : colors.inkMuted} mono={!on} strokeWidth={on ? 2 : 1.7} />
                 <Text className={on ? 'font-pop-sb text-[11px] text-navy' : 'font-pop text-[11px] text-ink-muted'}>{tab.label}</Text>
               </Pressable>
             );

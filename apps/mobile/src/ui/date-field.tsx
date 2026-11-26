@@ -1,4 +1,5 @@
-import { CalendarDays, ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, X } from 'lucide-react-native';
+import { IconCalendar } from '@/ui/icons';
 import { useState } from 'react';
 import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { T, colors, cx } from './index';
@@ -78,7 +79,7 @@ export function DateField({ label, value, onChange, min, max, error, placeholder
       <Pressable accessibilityRole="button" accessibilityLabel={`${label}${value ? `, ${showDate(value)}` : ''}`} onPress={() => setOpen(true)}
         className={cx('h-[52px] flex-row items-center gap-2 rounded-xl border-[1.5px] bg-white px-4', error ? 'border-danger' : open ? 'border-navy' : 'border-control-border')}>
         <Text numberOfLines={1} className={cx('flex-1 font-pop text-[15px]', value ? 'text-ink' : 'text-ink-muted')}>{value ? showDate(value) : placeholder}</Text>
-        <CalendarDays size={19} color={value ? colors.navy : colors.inkMuted} />
+        <IconCalendar size={19} color={value ? colors.navy : colors.inkMuted} />
       </Pressable>
       {!!error && <Text accessibilityRole="alert" className="font-pop-md text-xs text-danger">{error}</Text>}
       <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>

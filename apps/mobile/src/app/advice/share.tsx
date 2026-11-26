@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ShieldCheck } from 'lucide-react-native';
+import { IconShield } from '@/ui/icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { sample } from '@everycation/shared';
@@ -28,7 +28,7 @@ function ShareAdviceForm() {
   }
   if (sentTo) return (
     <Screen title="Share advice" footer={<Button label="DONE" onPress={() => { router.dismissTo('/advice'); router.push(`/advice/${sentTo}`); }} />}>
-      <View className="items-center gap-3 pt-10"><View className="h-20 w-20 items-center justify-center rounded-full bg-tint"><ShieldCheck size={40} color="#002C82" /></View>
+      <View className="items-center gap-3 pt-10"><View className="h-20 w-20 items-center justify-center rounded-full bg-tint"><IconShield size={40} color="#002C82" /></View>
         <T v="h2" className="text-center">Sent for review</T><T className="text-center text-ink-muted">Our team checks every piece of advice. We&apos;ll tell you when it&apos;s approved and has the Verified badge.</T></View>
     </Screen>
   );
@@ -41,7 +41,7 @@ function ShareAdviceForm() {
           <View className="gap-2"><T v="label">Topic</T><Chips wrap options={sample.adviceTopics} value={topic} onChange={setTopic} /></View>
         </>
       )}
-      <Note icon={ShieldCheck}>Reviewed before it&apos;s verified. Our team checks every piece of advice. Once approved it gets the Verified badge.</Note>
+      <Note icon={IconShield}>Reviewed before it&apos;s verified. Our team checks every piece of advice. Once approved it gets the Verified badge.</Note>
       <Input label="Your advice *" value={body} onChangeText={setBody} multiline maxLength={600} placeholder="What should someone know before they go?" error={tried ? errors.body : undefined} hint={`${body.trim().length} of 600 characters. At least 30.`} />
       {!editing && (
         <>

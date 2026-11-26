@@ -1,7 +1,8 @@
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
-import { Camera, ImagePlus, Video, X } from 'lucide-react-native';
+import { ImagePlus, Video, X } from 'lucide-react-native';
+import { IconCamera } from '@/ui/icons';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { Pressable, Text, View } from 'react-native';
@@ -69,7 +70,7 @@ function RecordTipForm() {
       ) : (
         <View className="gap-2.5 rounded-card border-[1.5px] border-dashed border-control-border p-4">
           <T v="strong">Add a photo, a short video or a voice note</T><T v="small">Optional. Photos up to 8 MB, videos up to one minute, voice up to two minutes.</T>
-          <View className="flex-row gap-2.5"><Button className="flex-1" small variant="navy" icon={ImagePlus} label="Choose" onPress={() => pick('library')} /><Button className="flex-1" small variant="outline" icon={Camera} label="Camera" onPress={() => pick('camera')} /></View>
+          <View className="flex-row gap-2.5"><Button className="flex-1" small variant="navy" icon={ImagePlus} label="Choose" onPress={() => pick('library')} /><Button className="flex-1" small variant="outline" icon={IconCamera} label="Camera" onPress={() => pick('camera')} /></View>
           <VoiceRecorder onDone={(note) => { setError(''); setVoice(note); }} onError={setError} />
         </View>
       )}

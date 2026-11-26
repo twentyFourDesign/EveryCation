@@ -1,6 +1,7 @@
 import { randomUUID } from 'expo-crypto';
 import { router, useLocalSearchParams } from 'expo-router';
-import { BadgeCheck, ChevronLeft, Lock, Share2 } from 'lucide-react-native';
+import { ChevronLeft, Share2 } from 'lucide-react-native';
+import { IconLock, IconVerified } from '@/ui/icons';
 import { useState } from 'react';
 import { ScrollView, Share, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -60,7 +61,7 @@ export default function PlanDetail() {
           <View className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5">
             <Avatar initials={initials(p.author.name)} onPress={() => go(`/traveller/${p.author.id}`)} />
             <View className="flex-1 gap-1"><View className="flex-row items-center gap-2"><T v="strong">{p.mine ? 'You' : p.author.name}</T><Badge label="CREATOR" tone="navy" /></View>
-              {p.tripEnded && <View className="flex-row items-center gap-1"><BadgeCheck size={14} color="#002C82" /><T v="small" className="text-xs">Made this trip, ended {fmt(p.tripEndDate)}</T></View>}</View>
+              {p.tripEnded && <View className="flex-row items-center gap-1"><IconVerified size={14} color="#002C82" /><T v="small" className="text-xs">Made this trip, ended {fmt(p.tripEndDate)}</T></View>}</View>
           </View>
           {!!p.summary && <T>{p.summary}</T>}
           <View className="flex-row gap-2">{[`${p.days} day${p.days === 1 ? '' : 's'}`, `${p.stops} stops`, 'Times for each stop'].map((i) => <View key={i} className="flex-1 items-center justify-center rounded-2xl bg-tint px-2 py-3"><T v="label" className="text-center text-navy">{i}</T></View>)}</View>
@@ -68,8 +69,8 @@ export default function PlanDetail() {
             <View key={d} className="gap-2.5"><T v="title">{p.unlocked ? `Day ${d}` : `Preview · Day ${d}`}</T>
               {p.itinerary.filter((i) => i.day === d).map((s, n) => <View key={n} className="flex-row gap-3"><T v="label" className="w-12 text-heading-blue">{s.time}</T><View className="flex-1"><T>{s.title}</T>{!!s.note && <T v="small">{s.note}</T>}</View></View>)}</View>
           ))}
-          {!p.unlocked && p.lockedStops > 0 && <Note icon={Lock} tone="gold">{`${p.lockedStops} more stop${p.lockedStops === 1 ? '' : 's'} after you buy`}</Note>}
-          {p.owned && <Note icon={BadgeCheck}>This plan is in your library. Find it under Trip plans → My library.</Note>}
+          {!p.unlocked && p.lockedStops > 0 && <Note icon={IconLock} tone="gold">{`${p.lockedStops} more stop${p.lockedStops === 1 ? '' : 's'} after you buy`}</Note>}
+          {p.owned && <Note icon={IconVerified}>This plan is in your library. Find it under Trip plans → My library.</Note>}
           {!!problem && <Note tone="danger">{problem}</Note>}
         </View>
       </View></ScrollView>

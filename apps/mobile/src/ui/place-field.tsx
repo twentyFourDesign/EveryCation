@@ -1,5 +1,6 @@
 import * as Location from 'expo-location';
-import { LocateFixed, MapPin } from 'lucide-react-native';
+import { LocateFixed } from 'lucide-react-native';
+import { IconPlace } from '@/ui/icons';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, Text, TextInput, View } from 'react-native';
 import { api } from '@/lib/api';
@@ -57,14 +58,14 @@ export function PlaceField({ label, value, onChangeText, picked, onPick, error, 
           onChangeText={(v) => { touched.current = true; onChangeText(v); onPick(null); }} onFocus={() => setFocused(true)} onBlur={() => setTimeout(() => setFocused(false), 200)}
           className={cx('h-[52px] rounded-xl border-[1.5px] bg-white pl-4 pr-12 font-pop text-[15px] text-ink focus:border-navy', note ? 'border-danger' : 'border-control-border')} />
         <View pointerEvents="none" className="absolute right-4 top-[15px]">
-          {locating ? <ActivityIndicator size="small" color={colors.navy} /> : <MapPin size={20} color={picked ? colors.navy : colors.inkMuted} />}
+          {locating ? <ActivityIndicator size="small" color={colors.navy} /> : <IconPlace size={20} color={picked ? colors.navy : colors.inkMuted} />}
         </View>
       </View>
       {suggestions.length > 0 && (
         <View className="overflow-hidden rounded-2xl border border-line bg-white" accessibilityLabel="Place suggestions">
           {suggestions.map((h, i) => (
             <Pressable key={`${h.label}${h.lat}`} accessibilityRole="button" accessibilityLabel={`${h.name}, ${h.detail}`} onPress={() => choose(h)} className={cx('flex-row items-center gap-3 px-3.5 py-3 active:bg-surface-muted', i > 0 && 'border-t border-line')}>
-              <MapPin size={18} color={h.source === 'everycation' ? colors.navy : colors.inkMuted} />
+              <IconPlace size={18} color={h.source === 'everycation' ? colors.navy : colors.inkMuted} />
               <View className="flex-1"><T v="strong" className="text-sm">{h.name}</T><T v="small" className="text-xs">{h.detail}</T></View>
             </Pressable>
           ))}

@@ -1,6 +1,7 @@
 import { FlashList } from '@shopify/flash-list';
 import { router } from 'expo-router';
-import { BadgeCheck, ChevronRight, PenLine } from 'lucide-react-native';
+import { ChevronRight, PenLine } from 'lucide-react-native';
+import { IconVerified } from '@/ui/icons';
 import { useMemo, useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -36,7 +37,7 @@ export default function TravelAdvice() {
           <SearchBar value={term} onChangeText={setTerm} placeholder="Choose a country" />
           <View className="flex-row items-center justify-between">
             <View className="h-9 justify-center rounded-full border-[1.5px] border-control-border px-3"><Text className="font-pop-md text-[13px] text-ink">Passport: Nigeria</Text></View>
-            <View className="flex-row items-center gap-2"><BadgeCheck size={18} color={colors.navy} /><T v="label">Verified only</T><Toggle label="Verified only" value={verifiedOnly} onChange={setVerifiedOnly} /></View>
+            <View className="flex-row items-center gap-2"><IconVerified size={18} color={colors.navy} /><T v="label">Verified only</T><Toggle label="Verified only" value={verifiedOnly} onChange={setVerifiedOnly} /></View>
           </View>
         </View>
         <FlashList data={items} keyExtractor={(i, n) => (i.kind === 'head' ? `h${i.title}` : `${i.c.code}${n}`)} getItemType={(i) => i.kind} contentContainerStyle={{ paddingHorizontal: 20, paddingBottom: 96 }}

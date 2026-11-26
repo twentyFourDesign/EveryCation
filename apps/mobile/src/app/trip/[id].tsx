@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, Plus, Store, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, Plus, Trash2 } from 'lucide-react-native';
+import { IconStore } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,7 +30,7 @@ export default function TripDetail() {
         <Photo k={tripImage(t)} className="h-[230px]" alt={t.place} />
         <SafeAreaView edges={['top']} className="absolute left-0 right-0 top-0"><View className="flex-row justify-between px-4 pt-2">
           <IconButton tone="glass" icon={ChevronLeft} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/travels'))} />
-          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/plans/sell', params: { tripId: t.id } })} className="h-11 flex-row items-center gap-2 rounded-full bg-white px-4 active:opacity-80"><Store size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">Share or sell plan</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/plans/sell', params: { tripId: t.id } })} className="h-11 flex-row items-center gap-2 rounded-full bg-white px-4 active:opacity-80"><IconStore size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">Share or sell plan</Text></Pressable>
         </View></SafeAreaView>
         <View className="-mt-6 gap-4 rounded-t-[28px] bg-white px-5 pb-6 pt-6">
           <View className="gap-1"><T v="h1">{t.title}</T><T v="small">{t.place} · {tripDates(t)} · {t.nights} night{t.nights === 1 ? '' : 's'} · {t.travellers} traveller{t.travellers > 1 ? 's' : ''}</T>
@@ -48,7 +49,7 @@ export default function TripDetail() {
             <Pressable accessibilityRole="button" accessibilityLabel={`Visa and entry for ${entry.data.toName}: ${entry.data.title}`} onPress={() => (checklist ? go(`/checklist/${checklist.id}`) : router.push({ pathname: '/requirements', params: { to: t.countryCode, tripId: t.id } }))}
               style={{ backgroundColor: TONE_STYLE[entry.data.tone].bg }} className="gap-1 rounded-card p-3.5 active:opacity-80">
               <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-md text-xs">{flag(t.countryCode)} Visa & entry for {entry.data.toName} · {entry.data.fromName} passport</Text>
-              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-base">{TONE_STYLE[entry.data.tone].emoji} {entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text>
+              <View className="flex-row items-center gap-2">{(() => { const T2 = TONE_STYLE[entry.data.tone]; return <T2.icon size={22} color={T2.ink} accent={T2.accent} />; })()}<Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="flex-1 font-pop-sb text-base">{entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text></View>
               <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-[13px]">{checklist ? `Checklist: ${checklist.done} of ${checklist.total} done →` : 'See what you need and make a checklist →'}</Text>
             </Pressable>
           )}

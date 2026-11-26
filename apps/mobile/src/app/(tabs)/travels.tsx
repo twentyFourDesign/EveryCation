@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ChevronLeft, ChevronRight, MapPin, Plane, Plus } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, Plus } from 'lucide-react-native';
+import { IconPlace, IconTrip, IconVisa } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar, Button, Chips, Empty, IconButton, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
@@ -37,7 +38,7 @@ function Timeline({ trips }: { trips: Trip[] }) {
       ))}
       <Button variant="outline" icon={Plus} label="Add a trip" onPress={() => router.push('/trip/new')} />
       <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requirements', params: next ? { to: next.countryCode, tripId: next.id } : {} })} className="flex-row items-center gap-3 rounded-card bg-tint p-3.5 active:opacity-80">
-        <Text className="text-2xl">🛂</Text>
+        <IconVisa size={28} />
         <View className="flex-1"><T v="strong">Visa & entry checklists</T><T v="small">See what your passport needs for any country, then tick it off as you prepare.</T></View>
         <ChevronRight size={18} color={colors.inkMuted} />
       </Pressable>
@@ -103,7 +104,7 @@ function Calendar({ trips }: { trips: Trip[] }) {
       {shown.length === 0 && <T v="small" className="text-center">{picked ? `Nothing on ${fmt(picked, { day: 'numeric', month: 'long' })}.` : 'No trips this month.'}</T>}
       {shown.map((t) => (
         <Pressable key={t.id} accessibilityRole="button" onPress={() => go(`/trip/${t.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5 active:opacity-80">
-          <View className="h-10 w-10 items-center justify-center rounded-full bg-navy"><Plane size={20} color="#fff" /></View>
+          <View className="h-10 w-10 items-center justify-center rounded-full bg-navy"><IconTrip size={20} color="#fff" /></View>
           <View className="flex-1"><T v="strong">{t.title}</T><T v="small">{tripDates(t)} · {t.nights} nights</T></View><ChevronRight size={18} color={colors.inkMuted} />
         </Pressable>
       ))}
@@ -138,7 +139,7 @@ function TravelMap({ trips }: { trips: Trip[] }) {
           <T v="strong">{name(shown)}</T>
           {shown.map((t) => (
             <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/trip/${t.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5 active:opacity-80">
-              <View className={cx('h-10 w-10 items-center justify-center rounded-full', t.status === 'upcoming' ? 'bg-cyan' : 'bg-navy')}><MapPin size={20} color="#fff" /></View>
+              <View className={cx('h-10 w-10 items-center justify-center rounded-full', t.status === 'upcoming' ? 'bg-cyan' : 'bg-navy')}><IconPlace size={20} color="#fff" /></View>
               <View className="flex-1"><T v="strong">{t.title}</T><T v="small">{t.place} · {tripDates(t)}</T></View><ChevronRight size={18} color={colors.inkMuted} />
             </Pressable>
           ))}

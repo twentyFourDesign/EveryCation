@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { CalendarClock, Check } from 'lucide-react-native';
+import { Check } from 'lucide-react-native';
+import { IconCalendar } from '@/ui/icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { formatNaira, parseNaira, planSaleSplit } from '@everycation/shared';
@@ -47,7 +48,7 @@ function SellForm({ trip, listing, choices, onPick }: { trip: Trip; listing: Pla
           {!priceError && <T v="small">You get <T v="label">{formatNaira(split.sellerGets)}</T> per sale after the 25% platform fee ({formatNaira(split.fee)}). Paid into your wallet after each payout run.</T>}
           {trip.status === 'past'
             ? <Note icon={Check}>Your trip has ended, so this plan goes on sale as soon as you save.</Note>
-            : <Note icon={CalendarClock} tone="gold">{`Goes on sale on ${fmt(opens)}, the morning after your trip ends on ${fmt(trip.endDate)}, so buyers get a tested plan. You can share it free any time.`}</Note>}
+            : <Note icon={IconCalendar} tone="gold">{`Goes on sale on ${fmt(opens)}, the morning after your trip ends on ${fmt(trip.endDate)}, so buyers get a tested plan. You can share it free any time.`}</Note>}
         </>
       )}
       {mode === 'Share free' && <Note icon={Check}>Anyone can save this plan at no cost. You can share a free plan before, during or after your trip.</Note>}

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { ArrowDownToLine, ArrowUpFromLine, Check, History, Lock, ShieldCheck, Target } from 'lucide-react-native';
+import { Check, History } from 'lucide-react-native';
+import { IconGoal, IconLock, IconShield, IconTopUp, IconWithdraw } from '@/ui/icons';
 import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { formatNaira } from '@everycation/shared';
@@ -12,7 +13,7 @@ import { goalImage, nextSetupStep, useWallet } from '@/lib/wallet';
 function Intro({ title, body, children }: { title: string; body: string; children: React.ReactNode }) {
   return (
     <View className="gap-5 px-5 pt-8">
-      <View className="items-center gap-3"><View className="h-20 w-20 items-center justify-center rounded-full bg-tint"><ShieldCheck size={40} color={colors.navy} /></View>
+      <View className="items-center gap-3"><View className="h-20 w-20 items-center justify-center rounded-full bg-tint"><IconShield size={40} color={colors.navy} /></View>
         <T v="h2" className="text-center">{title}</T><T className="text-center text-ink-muted">{body}</T></View>
       {children}
     </View>
@@ -22,7 +23,7 @@ function Intro({ title, body, children }: { title: string; body: string; childre
 export default function Wallet() {
   const status = useSession((s) => s.status);
   const { data: w, isLoading, error, refetch, isRefetching } = useWallet();
-  const actions = [{ l: 'Add money', i: ArrowDownToLine, h: '/wallet/add-money' }, { l: 'Withdraw', i: ArrowUpFromLine, h: '/wallet/withdraw' }, { l: 'New goal', i: Target, h: '/wallet/new-goal' }];
+  const actions = [{ l: 'Add money', i: IconTopUp, h: '/wallet/add-money' }, { l: 'Withdraw', i: IconWithdraw, h: '/wallet/withdraw' }, { l: 'New goal', i: IconGoal, h: '/wallet/new-goal' }];
   const steps = w ? [['Confirm your identity', w.setup.identity === 'verified'], ['Create your wallet PIN', w.setup.hasPin], ['Link your bank account', w.setup.hasBank]] as const : [];
   return (
     <SafeAreaView edges={['top']} className="flex-1 bg-white">
@@ -52,7 +53,7 @@ export default function Wallet() {
                   <View><Text className="font-pop text-xs text-navy-text-soft">In savings goals</Text><Text className="font-pop-sb text-base text-white">{formatNaira(w.inGoals)}</Text></View>
                 </View>
               </View>
-              {w.frozen && <Note tone="danger" icon={Lock}>Your wallet is frozen. No money can go out until you unfreeze it in Wallet settings.</Note>}
+              {w.frozen && <Note tone="danger" icon={IconLock}>Your wallet is frozen. No money can go out until you unfreeze it in Wallet settings.</Note>}
               <View className="flex-row gap-3">
                 {actions.map((a) => (
                   <Pressable key={a.l} accessibilityRole="button" accessibilityLabel={a.l} onPress={() => go(a.h)} className="flex-1 items-center gap-2 rounded-card bg-surface-muted py-4 active:opacity-70">
@@ -66,7 +67,7 @@ export default function Wallet() {
                 <Pressable key={g.id} accessibilityRole="button" accessibilityLabel={`${g.name}, ${formatNaira(g.saved)} of ${formatNaira(g.target)}`} onPress={() => go(`/wallet/goal/${g.id}`)} className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3 active:opacity-80">
                   <Photo k={goalImage(g)} className="h-16 w-16 rounded-2xl" />
                   <View className="flex-1 gap-1.5">
-                    <View className="flex-row items-center gap-2"><T v="strong" className="flex-shrink" numberOfLines={1}>{g.name}</T>{g.locked && <Lock size={14} color={colors.inkMuted} accessibilityLabel="Locked" />}</View>
+                    <View className="flex-row items-center gap-2"><T v="strong" className="flex-shrink" numberOfLines={1}>{g.name}</T>{g.locked && <IconLock size={14} color={colors.inkMuted} accessibilityLabel="Locked" />}</View>
                     <Progress pct={g.percent} /><T v="small" className="text-xs">{formatNaira(g.saved)} of {formatNaira(g.target)}</T>
                   </View>
                 </Pressable>

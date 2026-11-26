@@ -1,6 +1,7 @@
 import * as Haptics from 'expo-haptics';
 import { router } from 'expo-router';
-import { Check, PiggyBank, Plane, Plus, Shuffle, Trash2, X } from 'lucide-react-native';
+import { Check, Plus, Shuffle, Trash2, X } from 'lucide-react-native';
+import { IconAdventure, IconBeach, IconCity, IconCulture, IconDreamer, IconExplore, IconFood, IconGlobe, IconInspire, IconNature, IconSavings, IconTravels, IconTrip, IconTrophy, IconWanderer, type Icon } from '@/ui/icons';
 import { useEffect, useMemo, useState } from 'react';
 import { Platform, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import Animated, { Easing, FadeIn, FadeOut, LinearTransition, useAnimatedStyle, useSharedValue, withDelay, withSequence, withSpring, withTiming, ZoomIn } from 'react-native-reanimated';
@@ -13,26 +14,26 @@ import { PlaceField } from './place-field';
 // Lets Tailwind classes style Reanimated views, merged with their animated styles.
 cssInterop(Animated.View, { className: 'style' });
 
-export const VIBES: Record<Vibe, { label: string; emoji: string; bg: string; ink: string }> = {
-  beach: { label: 'Beach', emoji: '🏖️', bg: '#DDF3FB', ink: '#00618F' },
-  city: { label: 'City', emoji: '🏙️', bg: '#E5EAF6', ink: colors.navy },
-  adventure: { label: 'Adventure', emoji: '🧗', bg: '#FFE9DC', ink: '#A4440B' },
-  food: { label: 'Food', emoji: '🍲', bg: '#FFF1BC', ink: '#7A5A00' },
-  culture: { label: 'Culture', emoji: '🏛️', bg: '#F1E6FA', ink: '#6A2C91' },
-  nature: { label: 'Nature', emoji: '🌿', bg: '#E2F5E6', ink: '#1E7034' },
+export const VIBES: Record<Vibe, { label: string; icon: Icon; bg: string; ink: string }> = {
+  beach: { label: 'Beach', icon: IconBeach, bg: '#DDF3FB', ink: '#00618F' },
+  city: { label: 'City', icon: IconCity, bg: '#E5EAF6', ink: colors.navy },
+  adventure: { label: 'Adventure', icon: IconAdventure, bg: '#FFE9DC', ink: '#A4440B' },
+  food: { label: 'Food', icon: IconFood, bg: '#FFF1BC', ink: '#7A5A00' },
+  culture: { label: 'Culture', icon: IconCulture, bg: '#F1E6FA', ink: '#6A2C91' },
+  nature: { label: 'Nature', icon: IconNature, bg: '#E2F5E6', ink: '#1E7034' },
 };
 const vibeList = Object.keys(VIBES) as Vibe[];
-const DEFAULT = { label: 'Dream', emoji: '✨', bg: '#F3F3F3', ink: colors.ink };
+const DEFAULT = { label: 'Dream', icon: IconInspire, bg: '#F3F3F3', ink: colors.ink };
 const look = (v: Vibe | null) => (v ? VIBES[v] : DEFAULT);
 
 /** 🇳🇬 from "NG". */
 export const flag = (code?: string | null) => (code && /^[A-Z]{2}$/i.test(code) ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '');
 
 /** Traveller levels, by how many dreams are ticked off. */
-const LEVELS = [[0, 'Dreamer', '💭'], [1, 'Wanderer', '🎒'], [3, 'Explorer', '🧭'], [6, 'Adventurer', '🗺️'], [10, 'Globetrotter', '🌍'], [20, 'Legend', '🏆']] as const;
+const LEVELS = [[0, 'Dreamer', IconDreamer], [1, 'Wanderer', IconWanderer], [3, 'Explorer', IconExplore], [6, 'Adventurer', IconTravels], [10, 'Globetrotter', IconGlobe], [20, 'Legend', IconTrophy]] as const;
 function level(done: number) {
   let i = 0; LEVELS.forEach(([min], n) => { if (done >= min) i = n; }); const next = LEVELS[i + 1];
-  return { name: LEVELS[i]![1], emoji: LEVELS[i]![2], next: next ? { name: next[1], left: next[0] - done } : null };
+  return { name: LEVELS[i]![1], icon: LEVELS[i]![2], next: next ? { name: next[1], left: next[0] - done } : null };
 }
 
 /** Ideas for "Need inspiration?". Places a Nigerian traveller can reach, and some further away. */
@@ -91,7 +92,7 @@ function Tile({ item, size = 56 }: { item: Pick<BucketItem, 'vibe' | 'imageKey' 
   return (
     <View style={{ width: size, height: size }}>
       {item.imageKey ? <Photo k={item.imageKey as never} className="h-full w-full rounded-2xl" />
-        : <View style={{ backgroundColor: v.bg }} className="h-full w-full items-center justify-center rounded-2xl"><Text style={{ fontSize: size * 0.48 }}>{v.emoji}</Text></View>}
+        : <View style={{ backgroundColor: v.bg }} className="h-full w-full items-center justify-center rounded-2xl"><v.icon size={size * 0.56} color={v.ink} /></View>}
       {!!item.countryCode && <View className="absolute -bottom-1 -right-1 h-6 w-6 items-center justify-center rounded-full border-2 border-white bg-white"><Text className="text-[13px]">{flag(item.countryCode)}</Text></View>}
     </View>
   );
@@ -121,7 +122,7 @@ function Hero({ items }: { items: BucketItem[] }) {
   return (
     <View className="gap-3 overflow-hidden rounded-card bg-navy p-4">
       <View className="flex-row items-center gap-3">
-        <View className="h-12 w-12 items-center justify-center rounded-full bg-white/15"><Text className="text-2xl">{lv.emoji}</Text></View>
+        <View className="h-12 w-12 items-center justify-center rounded-full bg-white/15"><lv.icon size={28} color="#fff" /></View>
         <View className="flex-1">
           <Text className="font-pop-sb text-[11px] tracking-widest text-gold">YOUR LEVEL</Text>
           <Text className="font-pop-sb text-xl text-white">{lv.name}</Text>
@@ -156,7 +157,7 @@ function AddDream({ onClose }: { onClose: () => void }) {
           {vibeList.map((k) => { const v = VIBES[k]; const on = vibe === k; return (
             <Pressable key={k} accessibilityRole="radio" accessibilityState={{ selected: on }} onPress={() => { buzz('tap'); setVibe(on ? null : k); }}
               style={on ? { backgroundColor: v.bg, borderColor: v.ink } : undefined} className={cx('h-10 flex-row items-center gap-1.5 rounded-full border-[1.5px] px-3.5', !on && 'border-control-border bg-white')}>
-              <Text className="text-base">{v.emoji}</Text><Text style={on ? { color: v.ink } : undefined} className={cx('font-pop-md text-[13px]', !on && 'text-ink')}>{v.label}</Text>
+              <v.icon size={18} color={on ? v.ink : colors.inkMuted} mono={!on} /><Text style={on ? { color: v.ink } : undefined} className={cx('font-pop-md text-[13px]', !on && 'text-ink')}>{v.label}</Text>
             </Pressable>
           ); })}
         </View>
@@ -182,7 +183,7 @@ function Ideas({ have }: { have: Set<string> }) {
       <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">
         {shown.map((idea) => { const v = VIBES[idea.vibe]; return (
           <Animated.View key={idea.id} entering={FadeIn.duration(250)} layout={LinearTransition} style={{ backgroundColor: v.bg }} className="w-[170px] gap-2 rounded-card p-3.5">
-            <View className="flex-row items-center justify-between"><Text className="text-3xl">{v.emoji}</Text><Text className="text-lg">{flag(idea.countryCode)}</Text></View>
+            <View className="flex-row items-center justify-between"><v.icon size={34} color={v.ink} /><Text className="text-lg">{flag(idea.countryCode)}</Text></View>
             <Text style={{ color: v.ink }} className="min-h-[40px] font-pop-sb text-sm leading-5" numberOfLines={2}>{idea.title}</Text>
             <Text className="font-pop text-xs text-ink-muted" numberOfLines={1}>{idea.place}</Text>
             <Pressable accessibilityRole="button" accessibilityLabel={`Add ${idea.title}`} disabled={add.isPending} onPress={() => { buzz('tap'); const { id, ...dream } = idea; add.mutate({ ...dream, source: `idea:${id}` }); }}
@@ -210,7 +211,7 @@ function DreamCard({ item }: { item: BucketItem }) {
       <View className="flex-row items-center gap-3">
         <Tile item={item} />
         <View className="flex-1 gap-0.5">
-          <Text style={{ color: v.ink }} className="font-pop-sb text-[11px] tracking-wider">{done ? `✓ DONE${item.doneAt ? ` · ${monthYear(item.doneAt).toUpperCase()}` : ''}` : `${v.emoji} ${v.label.toUpperCase()}`}</Text>
+          <Text style={{ color: v.ink }} className="font-pop-sb text-[11px] tracking-wider">{done ? `✓ DONE${item.doneAt ? ` · ${monthYear(item.doneAt).toUpperCase()}` : ''}` : v.label.toUpperCase()}</Text>
           <Text className={cx('font-pop-sb text-[15px] text-ink', done && 'text-ink-muted line-through')}>{item.title}</Text>
           {!!item.place && <T v="small" className="text-xs" numberOfLines={1}>{item.place}</T>}
         </View>
@@ -231,8 +232,8 @@ function DreamCard({ item }: { item: BucketItem }) {
         <Text className="font-pop text-[13px] italic text-ink-muted">“{item.memory}”</Text>
       ) : null}
       <View className="flex-row flex-wrap items-center gap-x-4 gap-y-1">
-        {!done && <Action icon={Plane} label="Plan a trip" onPress={planTrip} />}
-        {!done && <Action icon={PiggyBank} label="Start saving" onPress={() => router.push({ pathname: '/wallet/new-goal', params: { name: item.title } })} />}
+        {!done && <Action icon={IconTrip} label="Plan a trip" onPress={planTrip} />}
+        {!done && <Action icon={IconSavings} label="Start saving" onPress={() => router.push({ pathname: '/wallet/new-goal', params: { name: item.title } })} />}
         {done && !item.memory && !asking && <Action label="✍️ Add a memory" onPress={() => setAsking(true)} />}
         <View className="flex-1" />
         <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${item.title}`} hitSlop={10} onPress={() => remove.mutate(item.id)}><Trash2 size={17} color={colors.inkMuted} /></Pressable>
@@ -240,7 +241,7 @@ function DreamCard({ item }: { item: BucketItem }) {
     </Animated.View>
   );
 }
-const Action = ({ icon: Icon, label, onPress }: { icon?: typeof Plane; label: string; onPress: () => void }) => (
+const Action = ({ icon: Icon, label, onPress }: { icon?: typeof IconTrip; label: string; onPress: () => void }) => (
   <Pressable accessibilityRole="button" onPress={onPress} hitSlop={6} className="flex-row items-center gap-1.5 py-1 active:opacity-60">
     {Icon && <Icon size={15} color={colors.navy} />}<Text className="font-pop-sb text-[13px] text-heading-blue">{label}</Text>
   </Pressable>
@@ -262,7 +263,7 @@ export function BucketList() {
       <Ideas have={have} />
       {data.length > 0 && <Segmented options={filters} value={filter} onChange={setFilter} />}
       {data.length === 0 ? (
-        <View className="items-center gap-2 py-6"><Text className="text-5xl">🌍</Text><T v="strong" className="text-center">Where do you dream of going?</T><T v="small" className="text-center">Add your own, pick an idea above, or tap “Add to bucket list” on any tip or place.</T></View>
+        <View className="items-center gap-2 py-6"><IconGlobe size={56} /><T v="strong" className="text-center">Where do you dream of going?</T><T v="small" className="text-center">Add your own, pick an idea above, or tap “Add to bucket list” on any tip or place.</T></View>
       ) : shown.length === 0 ? (
         <T v="small" className="py-6 text-center">{filter === 'Done' ? 'Nothing ticked off yet. Your first one is closer than you think.' : `All ${doneCount} done. Time to dream up some more!`}</T>
       ) : shown.map((b) => <DreamCard key={b.id} item={b} />)}

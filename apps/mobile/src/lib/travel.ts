@@ -1,5 +1,6 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { create } from 'zustand';
+import { IconApply, IconHealth, IconHome, IconMoney, IconPackages, IconVerified, IconVisa, type Icon } from '@/ui/icons';
 import { api } from './api';
 import { queryClient } from './query';
 import { useSession } from './session';
@@ -13,8 +14,8 @@ export interface ChecklistSummary { id: string; passport: string; destination: s
 export interface ChecklistItem { id: string; section: Section; text: string; done: boolean; own: boolean }
 export interface Checklist { id: string; passport: string; passportName: string; destination: string; destinationName: string; tripId: string | null; requirement: Pick<Requirement, 'entry' | 'days' | 'title' | 'tone' | 'summary'>; items: ChecklistItem[] }
 
-export const SECTIONS: Record<Section, { title: string; emoji: string }> = {
-  documents: { title: 'Documents', emoji: '🛂' }, health: { title: 'Health', emoji: '💉' }, money: { title: 'Money', emoji: '💳' }, before: { title: 'Before you go', emoji: '🧳' },
+export const SECTIONS: Record<Section, { title: string; icon: Icon }> = {
+  documents: { title: 'Documents', icon: IconVisa }, health: { title: 'Health', icon: IconHealth }, money: { title: 'Money', icon: IconMoney }, before: { title: 'Before you go', icon: IconPackages },
 };
 
 export interface PassportOverview { from: string; fromName: string; updated: string; groups: { title: string; tone: Tone; countries: { code: string; name: string; entry: Entry; days: number | null; title: string }[] }[] }
@@ -57,6 +58,7 @@ export const useDeleteChecklist = () => useMutation({ mutationFn: (id: string) =
 
 /** 🇳🇬 from "NG". */
 export const flag = (code?: string | null) => (code && /^[A-Z]{2}$/i.test(code) ? String.fromCodePoint(...[...code.toUpperCase()].map((c) => 0x1f1a5 + c.charCodeAt(0))) : '');
-export const TONE_STYLE: Record<Tone, { bg: string; ink: string; emoji: string }> = {
-  good: { bg: '#E2F5E6', ink: '#1E7034', emoji: '✅' }, warn: { bg: '#FFF1BC', ink: '#7A5A00', emoji: '📝' }, bad: { bg: '#FDE4E1', ink: '#B42318', emoji: '🛂' }, neutral: { bg: '#F1F1F1', ink: '#262626', emoji: '🏠' },
+/** Colours and icon for an entry rule. `accent` keeps the icon's highlight visible on its background. */
+export const TONE_STYLE: Record<Tone, { bg: string; ink: string; icon: Icon; accent: string }> = {
+  good: { bg: '#E2F5E6', ink: '#1E7034', icon: IconVerified, accent: '#FFC502' }, warn: { bg: '#FFF1BC', ink: '#7A5A00', icon: IconApply, accent: '#002C82' }, bad: { bg: '#FDE4E1', ink: '#B42318', icon: IconVisa, accent: '#FFC502' }, neutral: { bg: '#F1F1F1', ink: '#262626', icon: IconHome, accent: '#FFC502' },
 };

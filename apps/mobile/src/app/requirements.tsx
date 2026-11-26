@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, ClipboardCheck, ExternalLink } from 'lucide-react-native';
+import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, ExternalLink } from 'lucide-react-native';
+import { IconChecklist } from '@/ui/icons';
 import { useState } from 'react';
 import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Loading, Note, Progress, Screen, T, colors, go } from '@/ui';
@@ -71,7 +72,7 @@ export default function Requirements() {
   }
 
   return (
-    <Screen title="Visa & entry" footer={r && r.entry !== 'own_country' ? <Button icon={ClipboardCheck} disabled={create.isPending} label={create.isPending ? 'MAKING YOUR CHECKLIST…' : existing ? 'OPEN MY CHECKLIST' : signedIn ? 'CREATE MY CHECKLIST' : 'SIGN IN TO MAKE A CHECKLIST'} onPress={checklist} /> : undefined}>
+    <Screen title="Visa & entry" footer={r && r.entry !== 'own_country' ? <Button icon={IconChecklist} disabled={create.isPending} label={create.isPending ? 'MAKING YOUR CHECKLIST…' : existing ? 'OPEN MY CHECKLIST' : signedIn ? 'CREATE MY CHECKLIST' : 'SIGN IN TO MAKE A CHECKLIST'} onPress={checklist} /> : undefined}>
       <T className="-mt-2 text-ink-muted">See what your passport needs to enter any country, then turn it into a checklist.</T>
       <CountryField label="Your passport" value={from} onChange={passport.choose} hint={passport.chosen ? (signedIn ? 'We remember this for next time.' : undefined) : undefined} />
       {!passport.chosen && countries && (
@@ -89,7 +90,7 @@ export default function Requirements() {
           <View style={{ backgroundColor: tone.bg }} className="gap-3 rounded-card p-4">
             <View className="flex-row items-center gap-2"><Text className="text-2xl">{flag(r.from)}</Text><ArrowRight size={18} color={tone.ink} /><Text className="text-2xl">{flag(r.to)}</Text>
               <Text style={{ color: tone.ink }} numberOfLines={1} className="flex-1 font-pop-md text-[13px]">{r.fromName} passport to {r.toName}</Text></View>
-            <View className="flex-row items-center gap-2.5"><Text className="text-3xl">{tone.emoji}</Text>
+            <View className="flex-row items-center gap-2.5"><tone.icon size={34} color={tone.ink} accent={tone.accent} />
               <View className="flex-1"><Text style={{ color: tone.ink }} className="font-pop-sb text-2xl">{r.title}</Text>
                 {r.days ? <Text style={{ color: tone.ink }} className="font-pop-sb text-sm">Up to {r.days} days</Text> : null}</View></View>
             <Text style={{ color: tone.ink }} className="font-pop text-[15px] leading-6">{r.summary}</Text>
@@ -104,7 +105,7 @@ export default function Requirements() {
             <View className="gap-2.5">
               <T v="strong">What you will need</T>
               {r.checklist.filter((i) => i.section === 'documents').map((i) => (
-                <View key={i.text} className="flex-row gap-2.5"><Text className="pt-0.5 text-sm">{SECTIONS.documents.emoji}</Text><T className="flex-1 text-[15px]">{i.text}</T></View>
+                <View key={i.text} className="flex-row gap-2.5"><View className="pt-0.5"><SECTIONS.documents.icon size={18} /></View><T className="flex-1 text-[15px]">{i.text}</T></View>
               ))}
               <T v="small">Your checklist adds health, money and before-you-go items too, and you can add your own.</T>
             </View>

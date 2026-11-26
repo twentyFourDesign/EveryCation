@@ -39,7 +39,7 @@ export default function ChecklistScreen() {
         <Text className="font-pop-sb text-xl text-white">{pct === 100 ? `🎉 You are ready for ${c.destinationName}!` : `${done} of ${total} done`}</Text>
         <Progress pct={pct} tone="gold" />
         <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requirements', params: { to: c.destination } })} style={{ backgroundColor: tone.bg }} className="flex-row items-center gap-2 self-start rounded-full px-3 py-1.5">
-          <Text className="text-sm">{tone.emoji}</Text><Text style={{ color: tone.ink }} className="font-pop-sb text-[13px]">{c.requirement.title}{c.requirement.days ? ` · ${c.requirement.days} days` : ''} for {c.passportName} passports</Text>
+          <tone.icon size={18} color={tone.ink} accent={tone.accent} /><Text style={{ color: tone.ink }} className="font-pop-sb text-[13px]">{c.requirement.title}{c.requirement.days ? ` · ${c.requirement.days} days` : ''} for {c.passportName} passports</Text>
         </Pressable>
       </View>
 
@@ -48,7 +48,7 @@ export default function ChecklistScreen() {
         const left = items.filter((i) => !i.done).length;
         return (
           <View key={s} className="gap-0.5">
-            <View className="flex-row items-center"><T v="strong" className="flex-1">{SECTIONS[s].emoji}  {SECTIONS[s].title}</T><T v="small" className="text-xs">{left ? `${left} to do` : 'Done ✓'}</T></View>
+            <View className="flex-row items-center">{(() => { const S = SECTIONS[s].icon; return <S size={22} />; })()}<T v="strong" className="ml-2 flex-1">{SECTIONS[s].title}</T><T v="small" className="text-xs">{left ? `${left} to do` : 'Done ✓'}</T></View>
             <View className="divide-y divide-line">
               {items.map((i) => <Item key={i.id} item={i} onTick={() => { buzz(); tick.mutate({ itemId: i.id, done: !i.done }); }} onRemove={() => removeItem.mutate(i.id)} />)}
             </View>
@@ -64,7 +64,7 @@ export default function ChecklistScreen() {
         <View className="flex-row flex-wrap gap-2">
           {order.map((s) => (
             <Pressable key={s} accessibilityRole="radio" accessibilityState={{ selected: s === section }} onPress={() => setSection(s)} className={cx('h-9 justify-center rounded-full px-3', s === section ? 'bg-navy' : 'border-[1.5px] border-control-border bg-white')}>
-              <Text className={cx('font-pop-md text-[13px]', s === section ? 'text-white' : 'text-ink')}>{SECTIONS[s].emoji} {SECTIONS[s].title}</Text>
+              <Text className={cx('font-pop-md text-[13px]', s === section ? 'text-white' : 'text-ink')}>{SECTIONS[s].title}</Text>
             </Pressable>
           ))}
         </View>

@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Bell, Bookmark, Heart, MessageCircle, Play } from 'lucide-react-native';
+import { Bookmark, Heart, MessageCircle, Play } from 'lucide-react-native';
+import { IconBell } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { Avatar, Button, Chips, Empty, IconButton, Loading, Note, Photo, Screen, T, colors, go } from '@/ui';
@@ -18,7 +19,7 @@ export default function CommunityFeed() {
   const signedIn = useSession((s) => s.status === 'signedIn');
   const { savedTips, toggle } = useApp();
   return (
-    <Screen title="Community" right={<IconButton icon={Bell} label="Notifications" onPress={() => router.push('/notifications')} />}>
+    <Screen title="Community" right={<IconButton icon={IconBell} label="Notifications" onPress={() => router.push('/notifications')} />}>
       <Chips options={feeds} value={feed} onChange={setFeed} />
       {isLoading && <Loading what="the feed" />}
       {!!error && <><Note tone="danger">{errorMessage(error)}</Note><Button variant="outline" label="Try again" onPress={() => refetch()} /></>}

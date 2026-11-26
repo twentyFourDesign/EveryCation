@@ -1,5 +1,5 @@
 import { router } from 'expo-router';
-import { Landmark, ShieldCheck } from 'lucide-react-native';
+import { IconBank, IconShield } from '@/ui/icons';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
@@ -14,10 +14,10 @@ export default function WalletSettings() {
   if (!w) return <Screen title="Wallet settings"><Loading what="your settings" /></Screen>;
   return (
     <Screen title="Wallet settings">
-      {w.setup.identity === 'verified' ? <Note icon={ShieldCheck}>Identity verified.</Note> : <Button variant="outline" label="Confirm your identity" onPress={() => router.push('/wallet/setup/identity')} />}
+      {w.setup.identity === 'verified' ? <Note icon={IconShield}>Identity verified.</Note> : <Button variant="outline" label="Confirm your identity" onPress={() => router.push('/wallet/setup/identity')} />}
       <View><View className="flex-row items-end justify-between"><SectionTitle>Linked bank accounts</SectionTitle><Button small variant="ghost" label="+ Add" onPress={() => router.push('/wallet/setup/bank')} /></View>
         {w.banks.length === 0 && <T v="small" className="py-3">No bank account linked yet.</T>}
-        {w.banks.map((b) => <ListRow key={b.id} icon={Landmark} title={`${b.bankName} •••• ${b.last4}`} subtitle={b.isDefault ? 'Default for withdrawals' : b.accountName} />)}</View>
+        {w.banks.map((b) => <ListRow key={b.id} icon={IconBank} title={`${b.bankName} •••• ${b.last4}`} subtitle={b.isDefault ? 'Default for withdrawals' : b.accountName} />)}</View>
       <View><SectionTitle>Security</SectionTitle>
         <ListRow title={w.setup.hasPin ? 'Change wallet PIN' : 'Create wallet PIN'} onPress={() => router.push('/wallet/setup/pin')} />
         <ListRow title="Withdrawal limit" subtitle={`${formatNaira(w.dailyWithdrawalLimit)} per day. Larger requests are reviewed first.`} />

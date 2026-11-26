@@ -1,4 +1,5 @@
-import { ArrowDownLeft, ArrowLeftRight, ArrowUpRight } from 'lucide-react-native';
+import { ArrowDownLeft, ArrowUpRight } from 'lucide-react-native';
+import { IconTransfer } from '@/ui/icons';
 import { useState } from 'react';
 import { Text, View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
@@ -19,7 +20,7 @@ function toRow(t: HistoryItem): Row {
   return { ...t, direction, amount, detail: `${day}${where}` };
 }
 const match: Record<(typeof filters)[number], (r: Row) => boolean> = { All: () => true, 'Money in': (r) => r.direction === 'in', 'Money out': (r) => r.direction === 'out', Goals: (r) => r.kind.startsWith('goal') || r.movements.some((m) => m.account !== 'Available balance') };
-const icon = { in: ArrowDownLeft, out: ArrowUpRight, move: ArrowLeftRight };
+const icon = { in: ArrowDownLeft, out: ArrowUpRight, move: IconTransfer };
 const group = (iso: string) => { const d = new Date(iso); const now = new Date(); return d.toDateString() === now.toDateString() ? 'TODAY' : d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }).toUpperCase(); };
 
 export default function History() {

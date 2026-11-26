@@ -1,5 +1,6 @@
 import { RecordingPresets, requestRecordingPermissionsAsync, setAudioModeAsync, useAudioPlayer, useAudioPlayerStatus, useAudioRecorder, useAudioRecorderState } from 'expo-audio';
-import { Mic, Pause, Play, Square } from 'lucide-react-native';
+import { Pause, Play, Square } from 'lucide-react-native';
+import { IconMic } from '@/ui/icons';
 import { useEffect, useRef, useState } from 'react';
 import { Platform, Pressable, Text, View } from 'react-native';
 import { colors } from './index';
@@ -57,7 +58,7 @@ export function VoiceRecorder({ onDone, onError }: { onDone: (note: VoiceNote) =
   );
   return (
     <Pressable accessibilityRole="button" accessibilityLabel="Record a voice tip" disabled={starting} onPress={start} className="h-11 flex-row items-center justify-center gap-2 rounded-full border-[1.5px] border-navy active:opacity-70">
-      <Mic size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">{starting ? 'Starting…' : 'Record a voice tip'}</Text>
+      <IconMic size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">{starting ? 'Starting…' : 'Record a voice tip'}</Text>
     </Pressable>
   );
 }

@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { router, type Href } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, Delete, Search, X, type LucideIcon } from 'lucide-react-native';
+import { Check, ChevronLeft, ChevronRight, Delete, Search, X } from 'lucide-react-native';
+import type { Icon as LucideIcon } from './icons';
 import type { ReactNode } from 'react';
 import { Controller, type Control, type FieldPath, type FieldValues } from 'react-hook-form';
 import { Pressable, ScrollView, Switch, Text, TextInput, View, type TextInputProps, type TextProps } from 'react-native';
@@ -84,7 +85,7 @@ export function Button({ label, onPress, variant = 'primary', disabled, icon: Ic
   return (
     <Pressable accessibilityRole="button" accessibilityState={{ disabled: !!disabled }} disabled={disabled} onPress={onPress}
       className={cx('flex-row items-center justify-center gap-2 rounded-full px-5 active:opacity-80', small ? 'h-10' : 'h-[52px]', box, disabled && 'opacity-40', className)}>
-      {Icon && <Icon size={18} color={variant === 'navy' ? '#fff' : variant === 'ghost' ? colors.headingBlue : colors.ink} />}
+      {Icon && <Icon size={18} color={variant === 'navy' ? '#fff' : variant === 'ghost' ? colors.headingBlue : colors.ink} accent={variant === 'primary' ? colors.navy : undefined} />}
       <Text className={cx('font-pop-sb', small ? 'text-[13px]' : 'text-sm', variant === 'primary' && !small && 'tracking-wide', text)}>{label}</Text>
     </Pressable>
   );
