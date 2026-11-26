@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { errorMessage, uploadPhoto } from '@/lib/api';
 
 /** Shows the current photo and lets staff replace it. Uploads as soon as a file is chosen. */
-export function PhotoField({ folder, value, onChange }: { folder: 'products' | 'places'; value: string | null; onChange: (url: string) => void }) {
+export function PhotoField({ folder, value, onChange }: { folder: 'products' | 'places' | 'packages'; value: string | null; onChange: (url: string) => void }) {
   const [busy, setBusy] = useState(false); const [error, setError] = useState('');
   return (
     <div className="flex items-center gap-3">

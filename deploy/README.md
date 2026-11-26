@@ -30,6 +30,15 @@ cd /opt/everycation/deploy && docker compose exec api node dist/scripts/create-a
 | Change a setting | edit `.env`, then `docker compose up -d` |
 | Back up now | `./backup.sh` (copies go to `/var/backups/everycation`) |
 
+## Showcase travel packages
+
+Five sample sponsored packages (including Jara Beach Resort and Lufasi Lodges) show advertisers how packages look. Prices are illustrative and their buttons never contact anyone.
+
+```sh
+docker compose exec api node dist/scripts/showcase-packages.js           # add or refresh them
+docker compose exec api node dist/scripts/showcase-packages.js --pause   # take them down
+```
+
 ## Moving to a real domain
 
 Point `api.`, `admin.` and `app.` records for the domain at the server's IP, set `API_HOST`, `ADMIN_HOST` and `APP_HOST` in `.env`, then run `docker compose up -d --build` (the console and web app are rebuilt because their API address is built in). Update `EXPO_PUBLIC_API_URL` in the app builds to match.

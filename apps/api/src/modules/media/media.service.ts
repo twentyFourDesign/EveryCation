@@ -60,7 +60,7 @@ export class MediaService {
   }
 
   /** Stores a photo chosen by staff for a product or place and returns its address. No per-user record is kept. */
-  async storeImage(folder: 'products' | 'places', file: { buffer: Buffer; size: number } | undefined) {
+  async storeImage(folder: 'products' | 'places' | 'packages', file: { buffer: Buffer; size: number } | undefined) {
     if (!file?.buffer?.length) throw badRequest('file_required', 'Choose a photo to upload.');
     const type = sniff(file.buffer);
     if (!type?.startsWith('image/')) throw badRequest('file_type', 'Use a JPEG, PNG or WebP photo.');

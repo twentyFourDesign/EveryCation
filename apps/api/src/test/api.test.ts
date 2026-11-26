@@ -827,6 +827,49 @@ describe('timed jobs', () => {
   });
 });
 
+describe('sponsored travel packages', () => {
+  it('lets staff sell a package, shows it while its ad runs, and counts views and enquiries', async () => {
+    const ads = await staff('shop_ops'); const mod = await staff('moderator'); const support = await staff('support');
+    await support.get('/packages').expect(403);
+    await mod.post('/advertisers', { name: 'Nope Travels' }).expect(403);
+    const agency = (await ads.post('/advertisers', { name: 'Coastline Tours Ltd', kind: 'agency', whatsapp: '+234 803 000 0000', phone: '08030000000', website: 'https://coastline.example' }).expect(201)).body;
+    const body = { advertiserId: agency.id, title: 'Accra Long Weekend', destination: 'Accra, Ghana', countryCode: 'gh', nights: 3, price: 450_000_00, priceNote: 'per person sharing',
+      includes: ['Flights', 'Hotel'], plan: 'featured', status: 'live', adStarts: '2026-01-01' };
+    const pkg = (await ads.post('/packages', body).expect(201)).body;
+    const later = (await ads.post('/packages', { ...body, title: 'Next year only', adStarts: '2099-01-01' }).expect(201)).body;
+    const draft = (await ads.post('/packages', { ...body, title: 'Still a draft', status: 'draft' }).expect(201)).body;
+    const ended = (await ads.post('/packages', { ...body, title: 'Ad finished', adEnds: '2026-02-01' }).expect(201)).body;
+    const spot = (await ads.post('/packages', { ...body, title: 'Top spot', plan: 'spotlight', countryCode: 'KE', destination: 'Nairobi' }).expect(201)).body;
+    const shown = (await http().get('/v1/packages').expect(200)).body as { id: string; plan: string }[];
+    const ids = shown.map((p) => p.id);
+    expect(ids).toContain(pkg.id); expect(ids).not.toContain(later.id); expect(ids).not.toContain(draft.id); expect(ids).not.toContain(ended.id);
+    expect(ids.indexOf(spot.id)).toBeLessThan(ids.indexOf(pkg.id));
+    expect((await http().get('/v1/packages?country=gh').expect(200)).body.every((p: { countryCode: string }) => p.countryCode === 'GH')).toBe(true);
+    const one = (await http().get(`/v1/packages/${pkg.id}`).expect(200)).body;
+    expect(one).toMatchObject({ title: 'Accra Long Weekend', countryName: 'Ghana', advertiser: { name: 'Coastline Tours Ltd' }, sample: false, contact: { whatsapp: true, call: true, website: true } });
+    await http().get(`/v1/packages/${draft.id}`).expect(404);
+    const wa = (await http().post(`/v1/packages/${pkg.id}/enquire`).send({ channel: 'whatsapp' }).expect(200)).body;
+    expect(wa.url).toMatch(/^https:\/\/wa\.me\/2348030000000\?text=.*Accra%20Long%20Weekend/);
+    expect((await http().post(`/v1/packages/${pkg.id}/enquire`).send({ channel: 'call' }).expect(200)).body.url).toBe('tel:+2348030000000');
+    await http().post(`/v1/packages/${pkg.id}/enquire`).send({ channel: 'fax' }).expect(400);
+    const listed = ((await ads.get('/packages').expect(200)).body as { id: string; running: boolean; stats: { views: number; enquiries: number; whatsapp: number; enquiryRate: number } }[]);
+    expect(listed.find((p) => p.id === pkg.id)).toMatchObject({ running: true, stats: { views: 1, enquiries: 2, whatsapp: 1, enquiryRate: 200 } });
+    expect(listed.find((p) => p.id === later.id)?.running).toBe(false);
+    await ads.patch(`/packages/${pkg.id}`, { status: 'paused' }).expect(200);
+    await http().get(`/v1/packages/${pkg.id}`).expect(404);
+    const kept = ((await ads.get('/packages').expect(200)).body as { id: string; includes: string[]; plan: string; priceNote: string }[]).find((p) => p.id === pkg.id);
+    expect(kept).toMatchObject({ includes: ['Flights', 'Hotel'], plan: 'featured', priceNote: 'per person sharing' }); // a one-field edit keeps the rest
+    expect((await ads.get('/advertisers').expect(200)).body.find((a: { id: string }) => a.id === agency.id)).toMatchObject({ packages: 5, live: 3 });
+  });
+  it('never sends travellers from a showcase package to a real contact', async () => {
+    const ads = await staff('super_admin');
+    const sample = (await ads.post('/advertisers', { name: 'Showcase Co' }).expect(201)).body;
+    await app.get(Database).db.execute(sql`UPDATE advertisers SET sample = true, whatsapp = '2348000000000' WHERE id = ${sample.id}`);
+    const pkg = (await ads.post('/packages', { advertiserId: sample.id, title: 'Sample trip', destination: 'Lagos', countryCode: 'NG', nights: 1, price: 100_00, plan: 'listing', status: 'live', adStarts: '2026-01-01' }).expect(201)).body;
+    expect((await http().post(`/v1/packages/${pkg.id}/enquire`).send({ channel: 'whatsapp' }).expect(200)).body).toEqual({ url: null, sample: true });
+  });
+});
+
 describe('entry requirements and checklists', () => {
   it('shows what a passport needs for a destination', async () => {
     const countries = (await http().get('/v1/travel/countries').expect(200)).body as { code: string; name: string }[];

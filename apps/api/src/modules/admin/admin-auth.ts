@@ -11,7 +11,7 @@ import { admins, adminSessions, auditLog } from '../../db/schema.js';
 import { newTotpSecret, totpValid } from './totp.js';
 
 export type AdminRole = (typeof admins.$inferSelect)['role'];
-export type Area = 'moderation' | 'users' | 'wallet' | 'payouts' | 'plans' | 'shop' | 'broadcasts' | 'settings';
+export type Area = 'moderation' | 'users' | 'wallet' | 'payouts' | 'plans' | 'shop' | 'broadcasts' | 'settings' | 'ads';
 type Level = 'view' | 'edit';
 export interface Admin { id: string; email: string; name: string; role: AdminRole }
 
@@ -25,6 +25,7 @@ export const PERMISSIONS: Record<Area, Partial<Record<AdminRole, Level>>> = {
   shop: { super_admin: 'edit', finance: 'view', shop_ops: 'edit', support: 'view' },
   broadcasts: { super_admin: 'edit', moderator: 'view', shop_ops: 'edit' },
   settings: { super_admin: 'edit', finance: 'view' },
+  ads: { super_admin: 'edit', shop_ops: 'edit', finance: 'view', moderator: 'view' },
 };
 export const can = (role: AdminRole, area: Area, level: Level) => { const has = PERMISSIONS[area][role]; return has === 'edit' || (has === 'view' && level === 'view'); };
 

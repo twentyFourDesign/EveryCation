@@ -32,4 +32,4 @@ export const ago = (iso: string) => { const m = Math.max(0, Math.round((Date.now
 export const when = (iso: string) => new Date(iso).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' });
 
 /** Uploads one photo for a product or a place and returns its address. */
-export async function uploadPhoto(folder: 'products' | 'places', file: File) { const form = new FormData(); form.append('file', file); return (await adminApi<{ url: string }>(`/uploads/${folder}`, { method: 'POST', body: form })).url; }
+export async function uploadPhoto(folder: 'products' | 'places' | 'packages', file: File) { const form = new FormData(); form.append('file', file); return (await adminApi<{ url: string }>(`/uploads/${folder}`, { method: 'POST', body: form })).url; }

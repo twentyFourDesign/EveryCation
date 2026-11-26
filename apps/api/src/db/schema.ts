@@ -561,3 +561,68 @@ export const jobRuns = pgTable('job_runs', {
   lastMs: integer().notNull().default(0),
   lastDid: integer().notNull().default(0),
 });
+
+// ───────────── Sponsored travel packages ─────────────
+/** A travel agency, hotel or tour company that pays to show packages in the app. */
+export const advertisers = pgTable('advertisers', {
+  id: id(),
+  name: text().notNull(),
+  /** agency, hotel, tour_operator or other */
+  kind: text().notNull().default('agency'),
+  contactName: text(),
+  email: text(),
+  phone: text(),
+  whatsapp: text(),
+  website: text(),
+  /** Made up to show how packages look; never a paying advertiser. */
+  sample: boolean().notNull().default(false),
+  createdAt: createdAt(),
+});
+
+/** A package an advertiser pays to show. It is visible while live and inside its ad dates. */
+export const travelPackages = pgTable('travel_packages', {
+  id: id(),
+  advertiserId: uuid().notNull().references(() => advertisers.id),
+  title: text().notNull(),
+  summary: text().notNull().default(''),
+  destination: text().notNull(),
+  countryCode: text().notNull(),
+  lat: doublePrecision(),
+  lng: doublePrecision(),
+  nights: integer().notNull(),
+  /** Lowest price, in kobo, with what it covers in priceNote ("per person sharing, flights included"). */
+  price: kobo().notNull(),
+  priceNote: text().notNull().default(''),
+  includes: jsonb().$type<string[]>().notNull().default([]),
+  excludes: jsonb().$type<string[]>().notNull().default([]),
+  itinerary: jsonb().$type<{ day: string; title: string; detail: string }[]>().notNull().default([]),
+  vibe: text(),
+  imageKey: text(),
+  imageUrl: text(),
+  /** Ad plan: listing, featured or spotlight. Decides where and how high it shows. */
+  plan: text().notNull().default('listing'),
+  /** draft, live or paused */
+  status: text().notNull().default('draft'),
+  adStarts: date().notNull(),
+  adEnds: date(),
+  /** When the package can be travelled, if limited. */
+  travelFrom: date(),
+  travelTo: date(),
+  /** How travellers reach the advertiser about this package. Empty falls back to the advertiser's details. */
+  whatsapp: text(),
+  phone: text(),
+  website: text(),
+  /** Set on showcase packages so the showcase script can update them instead of adding copies. */
+  sampleKey: text().unique(),
+  createdAt: createdAt(),
+}, (t) => [index('packages_live_idx').on(t.status, t.adStarts), check('packages_price_positive', sql`${t.price} > 0`), check('packages_nights', sql`${t.nights} >= 0`)]);
+
+/** Views and enquiries, so advertisers can see what their money bought. */
+export const packageEvents = pgTable('package_events', {
+  id: id(),
+  packageId: uuid().notNull().references(() => travelPackages.id, { onDelete: 'cascade' }),
+  /** view, whatsapp, call, website or save */
+  kind: text().notNull(),
+  userId: uuid(),
+  createdAt: createdAt(),
+}, (t) => [index('package_events_idx').on(t.packageId, t.kind, t.createdAt)]);

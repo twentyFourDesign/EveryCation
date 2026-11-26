@@ -13,10 +13,10 @@ const freq = ['Daily', 'Weekly', 'Monthly'] as const;
 const everyDays = { daily: 1, weekly: 7, monthly: 30 };
 
 export default function NewGoal() {
-  const p = useLocalSearchParams<{ name?: string }>();
+  const p = useLocalSearchParams<{ name?: string; target?: string; kind?: string }>();
   const create = useCreateGoal();
-  const [kind, setKind] = useState<(typeof kinds)[number]['k']>('trip');
-  const [name, setName] = useState(p.name ?? ''); const [target, setTarget] = useState('₦600,000'); const [by, setBy] = useState('');
+  const [kind, setKind] = useState<(typeof kinds)[number]['k']>(kinds.find((o) => o.k === p.kind)?.k ?? 'trip');
+  const [name, setName] = useState(p.name ?? ''); const [target, setTarget] = useState(p.target && Number(p.target) > 0 ? formatNaira(Number(p.target)) : '₦600,000'); const [by, setBy] = useState('');
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly'); const [locked, setLocked] = useState(true);
   const [tried, setTried] = useState(false); const [error, setError] = useState(''); const [now] = useState(() => Date.now());
 

@@ -1,5 +1,5 @@
 'use client';
-import { BadgeCheck, Coins, Flag, Image as ImageIcon, LayoutDashboard, LogOut, Map, Megaphone, Settings, ShieldCheck, ShoppingBag, Truck, Users, Wallet, type LucideIcon } from 'lucide-react';
+import { BadgeCheck, Coins, Plane, Flag, Image as ImageIcon, LayoutDashboard, LogOut, Map, Megaphone, Settings, ShieldCheck, ShoppingBag, Truck, Users, Wallet, type LucideIcon } from 'lucide-react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
@@ -18,6 +18,7 @@ export const NAV: Item[] = [
   { group: 'MARKETPLACE', href: '/plans', label: 'Trip plans', icon: Map, area: 'plans' },
   { href: '/products', label: 'Shop products', icon: ShoppingBag, area: 'shop' },
   { href: '/orders', label: 'Shop orders', icon: Truck, area: 'shop' },
+  { href: '/packages', label: 'Packages & ads', icon: Plane, area: 'ads' },
   { group: 'ENGAGE', href: '/broadcasts', label: 'Notifications', icon: Megaphone, area: 'broadcasts' },
   { group: 'SYSTEM', href: '/admins', label: 'Admins & audit log', icon: ShieldCheck, area: 'settings' },
   { href: '/settings', label: 'Settings', icon: Settings, area: 'settings' },

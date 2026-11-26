@@ -12,7 +12,8 @@
     "db:migrate": "node --env-file-if-exists=.env dist/db/migrate.js",
     "db:seed": "node --env-file-if-exists=.env dist/scripts/seed.js",
     "admin:create": "node --env-file-if-exists=.env dist/scripts/create-admin.js",
-    "admin:code": "node --env-file-if-exists=.env dist/scripts/admin-code.js"
+    "admin:code": "node --env-file-if-exists=.env dist/scripts/admin-code.js",
+    "packages:showcase": "node --env-file-if-exists=.env dist/scripts/showcase-packages.js"
   },
   "dependencies": {
     "@nestjs/common": "^12.4.2",

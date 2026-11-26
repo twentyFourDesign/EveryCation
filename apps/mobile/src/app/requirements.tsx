@@ -1,9 +1,11 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { ArrowRight, ChevronDown, ChevronRight, ChevronUp, ClipboardCheck, ExternalLink } from 'lucide-react-native';
 import { useState } from 'react';
-import { Linking, Pressable, Text, View } from 'react-native';
+import { Linking, Pressable, ScrollView, Text, View } from 'react-native';
 import { Button, Loading, Note, Progress, Screen, T, colors, go } from '@/ui';
 import { CountryField } from '@/ui/country-field';
+import { PackageCard } from '@/ui/package-card';
+import { usePackages } from '@/lib/packages';
 import { errorMessage } from '@/lib/api';
 import { useSession } from '@/lib/session';
 import { SECTIONS, TONE_STYLE, flag, useChecklists, useCountries, useCreateChecklist, usePassport, usePassportOverview, useRequirement, type PassportOverview } from '@/lib/travel';
@@ -58,7 +60,7 @@ export default function Requirements() {
   const signedIn = useSession((s) => s.status === 'signedIn');
   const passport = usePassport(); const from = passport.code; const countries = useCountries().data;
   const [to, setTo] = useState((params.to ?? '').toUpperCase());
-  const req = useRequirement(from, to); const lists = useChecklists(); const create = useCreateChecklist();
+  const req = useRequirement(from, to); const offers = usePackages({ country: to || undefined }).data ?? []; const lists = useChecklists(); const create = useCreateChecklist();
   const existing = lists.data?.find((c) => c.destination === to);
   const r = req.data; const tone = r ? TONE_STYLE[r.tone] : null;
 
@@ -108,6 +110,12 @@ export default function Requirements() {
             </View>
           )}
           <Note>Rules change, sometimes quickly. Check the {r.toName} embassy or official government website before you book or pay for anything. Information updated {showDay(r.updated)}, from Passport Index data and official announcements.</Note>
+          {to && offers.length > 0 && (
+            <View className="gap-2.5">
+              <T v="strong">Packages to {r.toName}</T>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">{offers.map((p) => <PackageCard key={p.id} p={p} />)}</ScrollView>
+            </View>
+          )}
           <Pressable accessibilityRole="button" onPress={() => setTo('')} className="items-center py-1"><Text className="font-pop-sb text-sm text-heading-blue">See everywhere a {r.fromName} passport can go</Text></Pressable>
         </>
       )}

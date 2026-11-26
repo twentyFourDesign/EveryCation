@@ -6,14 +6,17 @@ import { usePlans } from '@/lib/plans';
 import { tripImage } from '@/lib/trips';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
 import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
+import { usePackages } from '@/lib/packages';
+import { PackageCard } from '@/ui/package-card';
 
-const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Visa & entry', 'Advice'] as const;
-const links: Record<string, string> = { Community: '/community', Places: '/places', 'Trip plans': '/plans', 'Visa & entry': '/requirements', Advice: '/advice' };
+const sections = ['For you', 'Packages', 'Community', 'Places', 'Trip plans', 'Visa & entry', 'Advice'] as const;
+const links: Record<string, string> = { Packages: '/packages', Community: '/community', Places: '/places', 'Trip plans': '/plans', 'Visa & entry': '/requirements', Advice: '/advice' };
 
 export default function Explore() {
   const tips = useTips('popular');
   const plans = usePlans('all', '');
   const unread = useUnread().data?.unread ?? 0;
+  const featured = usePackages({ plan: 'featured' }).data ?? [];
   return (
     <Screen edges={['top']}>
       <View className="flex-row items-center justify-between">
@@ -25,6 +28,15 @@ export default function Explore() {
         <Search size={20} color={colors.inkMuted} /><T className="text-ink-muted">Search places, tips, travellers</T>
       </Pressable>
       <Chips options={sections} value="For you" onChange={(s) => links[s] && go(links[s])} />
+
+      {featured.length > 0 && (
+        <>
+          <SectionTitle action="See all" onAction={() => router.push('/packages')}>Travel packages</SectionTitle>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} className="-mx-5" contentContainerClassName="gap-3 px-5">
+            {featured.map((p) => <PackageCard key={p.id} p={p} />)}
+          </ScrollView>
+        </>
+      )}
 
       <SectionTitle action="See all" onAction={() => router.push('/community')}>Tips from travellers</SectionTitle>
       {tips.isLoading ? <Loading what="tips" /> : !tips.data?.length ? (

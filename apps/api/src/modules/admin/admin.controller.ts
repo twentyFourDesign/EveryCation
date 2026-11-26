@@ -31,9 +31,9 @@ const activeBody = z.object({ active: z.boolean() });
 const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false), ...whyFields }).refine((b) => b.decision === 'keep' || whyComplete(b), WHY_MESSAGE);
 const orderStatusBody = z.object({ status: z.enum(['packed', 'shipped', 'delivered', 'cancelled']) });
 const productBody = z.object({ name: z.string().trim().min(2, 'Enter the product name').max(120), brand: z.string().trim().max(60).nullish(), category: z.string().trim().min(2, 'Choose a category').max(60), price: z.number().int().min(100, 'Enter a price'),
-  stock: z.number().int().min(0).nullable(), variant: z.string().trim().max(60).nullish(), description: z.string().trim().max(600).default(''), pickedNote: z.string().trim().max(200).nullish(), imageUrl: z.url().nullish(), active: z.boolean().default(true) });
+  stock: z.number().int().min(0).nullable(), variant: z.string().trim().max(60).nullish(), description: z.string().trim().max(600).optional(), pickedNote: z.string().trim().max(200).nullish(), imageUrl: z.url().nullish(), active: z.boolean().optional() });
 const placeBody = z.object({ name: z.string().trim().min(2, 'Enter the place name').max(60), kind: z.string().trim().min(2, 'Say what kind of place it is').max(30), countryCode: z.string().length(2, 'Choose a country'), lat: z.number().min(-90).max(90).nullable().optional(), lng: z.number().min(-180).max(180).nullable().optional(), summary: z.string().trim().min(20, 'Write a summary of at least 20 characters').max(300),
-  bestTime: z.string().trim().max(40).nullish(), currency: z.string().trim().max(40).nullish(), imageUrl: z.url().nullish(), published: z.boolean().default(true) });
+  bestTime: z.string().trim().max(40).nullish(), currency: z.string().trim().max(40).nullish(), imageUrl: z.url().nullish(), published: z.boolean().optional() });
 const userAction = z.object({ action: z.enum(['suspend', 'reinstate', 'freeze', 'unfreeze', 'reset_kyc', 'reset_pin']) });
 const removePlanBody = z.object({ refund: z.boolean().default(true), ...whyFields }).refine(whyComplete, WHY_MESSAGE);
 const broadcastBody = z.object({ title: z.string().trim().min(3, 'Write a title of at least 3 characters').max(60), message: z.string().trim().min(10, 'Write a message of at least 10 characters').max(140),
@@ -156,11 +156,11 @@ export class AdminController {
   async editProduct(@CurrentAdmin() admin: Admin, @Param('id', ParseUUIDPipe) id: string, @Body(new ZodPipe(productBody.partial())) b: Partial<z.infer<typeof productBody>>, @Req() req: Request) {
     const p = await this.shop.saveProduct(id, b); await this.auth.record(admin, b.active === false ? 'Hid product' : 'Edited product', `${p.name} · ${naira(p.price)} · stock ${p.stock ?? 'digital'}`, req); return { id: p.id };
   }
-  /** One photo for a product or a place, in a multipart field called "file". */
+  /** One photo for a product, a place or a package, in a multipart field called "file". */
   @Staff() @Post('uploads/:folder') @UseInterceptors(FileInterceptor('file', { limits: { fileSize: 9 * 1024 * 1024, files: 1 } }))
   upload(@CurrentAdmin() admin: Admin, @Param('folder') folder: string, @UploadedFile() file?: { buffer: Buffer; size: number }) {
-    if (folder !== 'products' && folder !== 'places') throw notFound('Upload folder');
-    if (!can(admin.role, folder === 'products' ? 'shop' : 'moderation', 'edit')) throw forbidden('no_access', 'Your role cannot upload here.');
+    if (folder !== 'products' && folder !== 'places' && folder !== 'packages') throw notFound('Upload folder');
+    if (!can(admin.role, folder === 'products' ? 'shop' : folder === 'packages' ? 'ads' : 'moderation', 'edit')) throw forbidden('no_access', 'Your role cannot upload here.');
     return this.media.storeImage(folder, file);
   }
 
