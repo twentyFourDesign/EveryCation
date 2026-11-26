@@ -1,4 +1,4 @@
-import { router } from 'expo-router';
+import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { Button, Input, Note, Screen, T } from '@/ui';
@@ -9,10 +9,13 @@ import { toIso, useCreateTrip, type PlaceHit } from '@/lib/trips';
 
 export default function NewTrip() {
   const create = useCreateTrip();
-  const [title, setTitle] = useState(''); const [place, setPlace] = useState(''); const [country, setCountry] = useState(''); const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [travellers, setTravellers] = useState('1');
+  // Opened from a bucket list dream: start with its name and place.
+  const from = useLocalSearchParams<{ title?: string; place?: string; countryCode?: string; lat?: string; lng?: string }>();
+  const fromPin: PlaceHit | null = from.place && from.countryCode && from.lat && from.lng ? { name: from.place, detail: '', label: from.place, countryCode: from.countryCode, lat: Number(from.lat), lng: Number(from.lng), source: 'map' } : null;
+  const [title, setTitle] = useState(from.title ?? ''); const [place, setPlace] = useState(from.place ?? ''); const [country, setCountry] = useState(from.countryCode ? countryName(from.countryCode) : ''); const [start, setStart] = useState(''); const [end, setEnd] = useState(''); const [travellers, setTravellers] = useState('1');
   const [tried, setTried] = useState(false); const [error, setError] = useState('');
   // The place the traveller picked from search. It carries the exact map position; typing again drops it.
-  const [picked, setPicked] = useState<PlaceHit | null>(null);
+  const [picked, setPicked] = useState<PlaceHit | null>(fromPin);
   function choose(hit: PlaceHit | null) { setPicked(hit); if (hit) setCountry(countryName(hit.countryCode)); }
   const match = findCountry(country); const s = toIso(start); const e = toIso(end);
   const errors = { title: title.trim().length < 2 ? 'Give the trip a name' : undefined, place: place.trim().length < 2 ? 'Add where you are going' : undefined, country: !match ? 'Choose a country, like Italy' : undefined,

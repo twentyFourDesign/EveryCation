@@ -443,6 +443,22 @@ describe('trips and the bucket list', () => {
     expect(list).toHaveLength(1);
     expect((await u.api.patch(`/bucket-list/${list[0].id}`, { state: 'done' }).expect(200)).body[0].state).toBe('done');
   });
+  it('keeps where each dream is, when it was ticked off and how it went', async () => {
+    const u = await named('Dreaming Dami');
+    await u.api.post('/bucket-list', { title: 'Watch the sunset in Oia', vibe: 'beach', place: 'Santorini, Greece', countryCode: 'gr', lat: 36.46, lng: 25.38 }, null).expect(200);
+    let list = (await u.api.post('/bucket-list', { title: 'Eat suya in Kano', vibe: 'food' }, null).expect(200)).body;
+    const oia = list.find((b: { title: string }) => b.title.includes('Oia'));
+    expect(oia).toMatchObject({ vibe: 'beach', place: 'Santorini, Greece', countryCode: 'GR', lat: 36.46, state: 'dream', doneAt: null });
+    await u.api.post('/bucket-list', { title: 'Something odd', vibe: 'space' }, null).expect(400);
+    list = (await u.api.patch(`/bucket-list/${oia.id}`, { state: 'done' }).expect(200)).body;
+    const ticked = list.find((b: { id: string }) => b.id === oia.id);
+    expect(ticked.doneAt).toBeTruthy();
+    list = (await u.api.patch(`/bucket-list/${oia.id}`, { memory: 'Worth every step of the climb.' }).expect(200)).body;
+    expect(list.find((b: { id: string }) => b.id === oia.id)).toMatchObject({ memory: 'Worth every step of the climb.', doneAt: ticked.doneAt });
+    list = (await u.api.patch(`/bucket-list/${oia.id}`, { state: 'dream' }).expect(200)).body;
+    expect(list.find((b: { id: string }) => b.id === oia.id)).toMatchObject({ state: 'dream', doneAt: null, memory: null });
+    await u.api.patch(`/bucket-list/${oia.id}`, {}).expect(400);
+  });
   it('shows a matching past trip to the moderator as evidence of the visit', async () => {
     const u = await named('Ifeoma N.'); const mod = await staff('moderator');
     await u.api.post('/trips', { title: 'Accra weekend', place: 'Accra, Ghana', countryCode: 'GH', startDate: '2026-01-16', endDate: '2026-01-19' }, null).expect(201);

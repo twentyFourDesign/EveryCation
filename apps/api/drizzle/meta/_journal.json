@@ -92,6 +92,13 @@
       "when": 1794445179660,
       "tag": "0012_jobs_social_calendar",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795655777393,
+      "tag": "0013_bucket_details",
+      "breakpoints": true
     }
   ]
 }

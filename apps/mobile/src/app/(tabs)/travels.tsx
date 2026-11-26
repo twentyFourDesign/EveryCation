@@ -1,14 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { Check, ChevronLeft, ChevronRight, MapPin, Plane, Plus, Trash2 } from 'lucide-react-native';
+import { ChevronLeft, ChevronRight, MapPin, Plane, Plus } from 'lucide-react-native';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
-import { Avatar, Badge, Button, Chips, Empty, IconButton, Input, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
+import { Avatar, Button, Chips, Empty, IconButton, Loading, Note, Photo, Screen, Stats, T, colors, cx, go } from '@/ui';
 import { MapView, type Pin } from '@/ui/map';
 import { Cancelled, connectGoogleCalendar, disconnectGoogleCalendar, useCalendar } from '@/lib/social';
 import { errorMessage } from '@/lib/api';
 import { countryName, initials } from '@/lib/community';
 import { useSession } from '@/lib/session';
-import { fmt, tripDates, tripImage, useAddBucket, useBucket, useRemoveBucket, useSetBucketState, useTrips, type Trip } from '@/lib/trips';
+import { fmt, tripDates, tripImage, useBucket, useTrips, type Trip } from '@/lib/trips';
+import { BucketList } from '@/ui/bucket-list';
 
 const views = ['Timeline', 'Bucket list', 'Calendar', 'Map'] as const;
 type ViewName = (typeof views)[number];
@@ -35,32 +36,6 @@ function Timeline({ trips }: { trips: Trip[] }) {
         </View>
       ))}
       <Button variant="outline" icon={Plus} label="Add a trip" onPress={() => router.push('/trip/new')} />
-    </>
-  );
-}
-
-function BucketList() {
-  const { data = [], isLoading, error } = useBucket();
-  const add = useAddBucket(); const setState = useSetBucketState(); const remove = useRemoveBucket();
-  const [dream, setDream] = useState('');
-  const done = data.filter((b) => b.state === 'done').length;
-  if (isLoading) return <Loading what="your bucket list" />;
-  return (
-    <>
-      {!!error && <Note tone="danger">{errorMessage(error)}</Note>}
-      <T v="strong">{data.length ? `${done} of ${data.length} ticked off` : 'Start your bucket list'}</T>
-      <View className="flex-row items-end gap-2"><View className="flex-1"><Input value={dream} onChangeText={setDream} placeholder="See the northern lights" accessibilityLabel="Add a dream" maxLength={80} /></View>
-        <Button small variant="navy" label="Add" disabled={dream.trim().length < 3 || add.isPending} onPress={() => add.mutate({ title: dream.trim() }, { onSuccess: () => setDream('') })} className="h-[52px]" /></View>
-      {data.length === 0 && <Empty>Add places from tips and place pages, or type your own above.</Empty>}
-      {data.map((b) => (
-        <View key={b.id} className={cx('flex-row items-center gap-3 rounded-card bg-surface-muted p-3', b.state === 'done' && 'opacity-70')}>
-          <Pressable accessibilityRole="checkbox" accessibilityState={{ checked: b.state === 'done' }} accessibilityLabel={`${b.title}, ${b.state === 'done' ? 'done' : 'not done yet'}`} hitSlop={8} onPress={() => setState.mutate({ id: b.id, state: b.state === 'done' ? 'dream' : 'done' })}
-            className={cx('h-8 w-8 items-center justify-center rounded-full border-2', b.state === 'done' ? 'border-navy bg-navy' : 'border-control-border bg-white')}>{b.state === 'done' && <Check size={16} color="#fff" strokeWidth={3} />}</Pressable>
-          <View className="flex-1 gap-1"><Badge label={b.state === 'done' ? 'Done' : 'Dream'} tone={b.state === 'done' ? 'info' : 'gold'} /><T v="strong">{b.title}</T>
-            {b.state === 'dream' && <Text accessibilityRole="link" onPress={() => router.push({ pathname: '/wallet/new-goal', params: { name: b.title } })} className="font-pop-sb text-[13px] text-heading-blue">Start saving →</Text>}</View>
-          <Pressable accessibilityRole="button" accessibilityLabel={`Remove ${b.title}`} hitSlop={10} onPress={() => remove.mutate(b.id)}><Trash2 size={18} color={colors.inkMuted} /></Pressable>
-        </View>
-      ))}
     </>
   );
 }
@@ -141,14 +116,19 @@ function TravelMap({ trips }: { trips: Trip[] }) {
   for (const t of trips) if (t.lat !== null && t.lng !== null) { const k = `${t.lat},${t.lng}`; spots.set(k, [...(spots.get(k) ?? []), t]); }
   const name = (list: Trip[]) => (list[0]!.pinned ? list[0]!.place : countryName(list[0]!.countryCode));
   const pins: Pin[] = [...spots].map(([id, list]) => ({ id, lat: list[0]!.lat!, lng: list[0]!.lng!, label: `${name(list)}, ${list.length} trip${list.length === 1 ? '' : 's'}`, tone: list.some((t) => t.status !== 'upcoming') ? 'visited' : 'planned' }));
-  const shown = picked ? spots.get(picked) ?? [] : [];
+  const dreams = (useBucket().data ?? []).filter((b) => b.state === 'dream' && b.lat !== null && b.lng !== null);
+  pins.push(...dreams.map((b): Pin => ({ id: `dream:${b.id}`, lat: b.lat!, lng: b.lng!, label: `Dream: ${b.title}`, tone: 'dream' })));
+  const dream = picked?.startsWith('dream:') ? dreams.find((b) => `dream:${b.id}` === picked) : undefined;
+  const shown = picked && !dream ? spots.get(picked) ?? [] : [];
   return (
     <>
       <T v="title" className="text-lg">Your travel map</T>
       <Stats items={[[visited.length, 'countries'], [nights, 'nights away'], [trips.length, 'trips']]} />
       <MapView pins={pins} height={340} zoom={5} onPin={setPicked} />
-      <View className="flex-row gap-4">{([['Visited', 'bg-navy'], ['Planned', 'bg-cyan']] as const).map(([l, tone]) => <View key={l} className="flex-row items-center gap-1.5"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="small">{l}</T></View>)}</View>
-      {trips.length === 0 ? <Empty>Add a trip and it shows on your map.</Empty> : shown.length === 0 ? <T v="small" className="text-center">Tap a pin to see the trips there.</T> : (
+      <View className="flex-row gap-4">{([['Visited', 'bg-navy'], ['Planned', 'bg-cyan'], ...(dreams.length ? [['Dreams', 'bg-gold']] as const : [])] as const).map(([l, tone]) => <View key={l} className="flex-row items-center gap-1.5"><View className={cx('h-3 w-3 rounded-full', tone)} /><T v="small">{l}</T></View>)}</View>
+      {dream ? (
+        <View className="gap-1 rounded-card bg-gold-soft p-3.5"><T v="eyebrow" className="text-ink-muted">ON YOUR BUCKET LIST</T><T v="strong">{dream.title}</T>{!!dream.place && <T v="small">{dream.place}</T>}</View>
+      ) : trips.length === 0 ? <Empty>{dreams.length ? 'Tap a gold pin to see a dream. Add a trip and it shows here too.' : 'Add a trip and it shows on your map.'}</Empty> : shown.length === 0 ? <T v="small" className="text-center">Tap a pin to see the trips there.</T> : (
         <>
           <T v="strong">{name(shown)}</T>
           {shown.map((t) => (

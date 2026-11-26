@@ -4,7 +4,7 @@ import MapCanvas from './map-canvas';
 
 /** Free OpenStreetMap map from OpenFreeMap. No account or key. Set EXPO_PUBLIC_MAP_STYLE_URL to use another provider's style. */
 const STYLE_URL = process.env.EXPO_PUBLIC_MAP_STYLE_URL || 'https://tiles.openfreemap.org/styles/positron';
-const tones = { visited: colors.navy, planned: colors.cyan, place: colors.gold } as const;
+const tones = { visited: colors.navy, planned: colors.cyan, place: colors.gold, dream: colors.gold } as const;
 export interface Pin { id: string; lat: number; lng: number; label: string; tone: keyof typeof tones }
 
 /** A real map with pins. `zoom` is how close to go for one pin, and the closest it will go when fitting several. */

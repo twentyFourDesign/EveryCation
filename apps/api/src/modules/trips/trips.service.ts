@@ -73,13 +73,23 @@ export class TripsService {
   }
 
   // ───────────── Bucket list ─────────────
-  async bucket(userId: string) { return (await this.db.select().from(bucketItems).where(eq(bucketItems.userId, userId)).orderBy(bucketItems.state, desc(bucketItems.createdAt))).map((b) => ({ id: b.id, title: b.title, state: b.state, source: b.source, imageKey: b.imageKey })); }
-  async addBucket(userId: string, input: { title: string; source?: string; imageKey?: string }) {
-    await this.db.insert(bucketItems).values({ userId, ...input }).onConflictDoNothing();
+  async bucket(userId: string) {
+    const rows = await this.db.select().from(bucketItems).where(eq(bucketItems.userId, userId)).orderBy(bucketItems.state, desc(sql`coalesce(${bucketItems.doneAt}, ${bucketItems.createdAt})`));
+    return rows.map((b) => ({ id: b.id, title: b.title, state: b.state, source: b.source, imageKey: b.imageKey, vibe: b.vibe, place: b.place, countryCode: b.countryCode, lat: b.lat, lng: b.lng,
+      doneAt: b.doneAt?.toISOString() ?? null, memory: b.memory, createdAt: b.createdAt.toISOString() }));
+  }
+  async addBucket(userId: string, input: { title: string; source?: string; imageKey?: string; vibe?: string; place?: string; countryCode?: string; lat?: number; lng?: number }) {
+    // A position only counts with the country it belongs to.
+    const pin = input.countryCode && input.lat !== undefined && input.lng !== undefined ? { lat: input.lat, lng: input.lng } : { lat: undefined, lng: undefined };
+    await this.db.insert(bucketItems).values({ userId, ...input, ...pin }).onConflictDoNothing();
     return this.bucket(userId);
   }
-  async setBucketState(userId: string, id: string, state: 'dream' | 'done') {
-    const [b] = await this.db.update(bucketItems).set({ state }).where(and(eq(bucketItems.id, id), eq(bucketItems.userId, userId))).returning({ id: bucketItems.id });
+  /** Ticks a dream off (or back), records when, and keeps a one-line memory of how it went. */
+  async updateBucket(userId: string, id: string, change: { state?: 'dream' | 'done'; memory?: string; vibe?: string }) {
+    const [b] = await this.db.update(bucketItems).set({
+      ...(change.state && { state: change.state, doneAt: change.state === 'done' ? sql`coalesce(${bucketItems.doneAt}, now())` : null, ...(change.state === 'dream' && { memory: null }) }),
+      ...(change.memory !== undefined && { memory: change.memory || null }), ...(change.vibe && { vibe: change.vibe }),
+    }).where(and(eq(bucketItems.id, id), eq(bucketItems.userId, userId))).returning({ id: bucketItems.id });
     if (!b) throw notFound('Bucket list item');
     return this.bucket(userId);
   }

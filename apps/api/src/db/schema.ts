@@ -337,6 +337,16 @@ export const bucketItems = pgTable('bucket_items', {
   /** Where it came from: a tip or a place, so the same thing is not added twice. */
   source: text(),
   imageKey: text(),
+  /** What kind of dream it is: beach, city, adventure, food, culture or nature. Picks the card's colour and emoji. */
+  vibe: text(),
+  /** Where, when the traveller picked a place, so it can become a trip and a pin on the map. */
+  place: text(),
+  countryCode: text(),
+  lat: doublePrecision(),
+  lng: doublePrecision(),
+  doneAt: timestamp({ withTimezone: true }),
+  /** One line about how it went, written when it is ticked off. */
+  memory: text(),
   createdAt: createdAt(),
 }, (t) => [index('bucket_user_idx').on(t.userId), uniqueIndex('bucket_source_once_idx').on(t.userId, t.source)]);
 
