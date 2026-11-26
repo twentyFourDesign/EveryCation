@@ -1,0 +1,36 @@
+{
+	email {$ACME_EMAIL}
+}
+
+(common) {
+	encode zstd gzip
+	header {
+		Strict-Transport-Security "max-age=31536000"
+		X-Content-Type-Options nosniff
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+}
+
+# The API, used by the mobile app. Swagger docs are off in production.
+{$API_HOST} {
+	import common
+	request_body max_size 60MB
+	reverse_proxy api:4000
+}
+
+# The staff console. Its API calls go to /v1 on the same address, so the browser needs no CORS.
+{$ADMIN_HOST} {
+	import common
+	header X-Frame-Options DENY
+	request_body max_size 60MB
+	handle /v1/* {
+		reverse_proxy api:4000
+	}
+	handle /media/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		reverse_proxy admin:3000
+	}
+}

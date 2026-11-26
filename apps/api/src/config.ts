@@ -14,6 +14,8 @@ const schema = z.object({
   /** Mail server for sign-in codes, like smtps://user:password@smtp.provider.com:465. Without it, emails are written to the log. */
   SMTP_URL: z.string().optional(),
   MAIL_FROM: z.string().default('EveryCation <no-reply@everycation.app>'),
+  /** Test servers only: return sign-in codes to the app even in production, for testing before email is connected. Anyone who knows an email address can then sign in as it. */
+  SHOW_SIGNIN_CODES: z.enum(['0', '1']).default('0'),
   /** Google sign-in and Calendar sync: a "Web application" OAuth client from Google Cloud. Its redirect URI is PUBLIC_URL + /v1/auth/google/callback. */
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),

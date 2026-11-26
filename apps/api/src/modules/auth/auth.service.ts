@@ -36,7 +36,7 @@ export class AuthService {
     const code = String(randomInt(0, 1_000_000)).padStart(6, '0');
     await this.db.insert(otpCodes).values({ destination: email, codeHash: this.hashCode(email, code), expiresAt: minutes(RULES.otpTtlMinutes) });
     await this.mail.send(codeEmail(email, code, RULES.otpTtlMinutes));
-    return { sentTo: maskEmail(email), resendInSeconds: RULES.otpResendSeconds, ...(this.config.NODE_ENV !== 'production' ? { devCode: code } : {}) };
+    return { sentTo: maskEmail(email), resendInSeconds: RULES.otpResendSeconds, ...(this.config.NODE_ENV !== 'production' || this.config.SHOW_SIGNIN_CODES === '1' ? { devCode: code } : {}) };
   }
 
   /** Step 2: check the code, create the account on first use, and start a session. */

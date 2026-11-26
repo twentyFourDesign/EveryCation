@@ -5,3 +5,6 @@ dist
 .turbo
 *.log
 .env*.local
+.env
+apps/api/uploads
+deploy/.env

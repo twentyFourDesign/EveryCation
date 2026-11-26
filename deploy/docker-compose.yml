@@ -1,0 +1,59 @@
+# EveryCation on one server: database, API, staff console and Caddy (HTTPS).
+# Settings live in deploy/.env, which setup.sh writes. Run from this folder: docker compose up -d --build
+name: everycation
+
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: everycation
+      POSTGRES_USER: everycation
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U everycation -d everycation']
+      interval: 10s
+      retries: 10
+    shm_size: 256mb
+
+  api:
+    build: { context: .., target: api }
+    restart: unless-stopped
+    depends_on: { postgres: { condition: service_healthy } }
+    env_file: .env
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      DATABASE_URL: postgresql://everycation:${POSTGRES_PASSWORD}@postgres:5432/everycation
+      MEDIA_DIR: /data/media
+      PUBLIC_URL: https://${API_HOST}
+    volumes: [media:/data/media]
+
+  admin:
+    build:
+      context: ..
+      target: admin
+      args: { NEXT_PUBLIC_API_URL: 'https://${ADMIN_HOST}/v1' }
+    restart: unless-stopped
+    depends_on: [api]
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [api, admin]
+    ports: ['80:80', '443:443', '443:443/udp']
+    environment:
+      API_HOST: ${API_HOST}
+      ADMIN_HOST: ${ADMIN_HOST}
+      ACME_EMAIL: ${ACME_EMAIL}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  pgdata:
+  media:
+  caddy_data:
+  caddy_config:

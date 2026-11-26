@@ -13,6 +13,8 @@ export async function createApp() {
   // The mobile apps are not browsers and need no CORS; this is for the Expo web build and the admin console in development.
   if (process.env.NODE_ENV !== 'production') app.enableCors({ origin: true, allowedHeaders: ['Content-Type', 'Authorization', 'Idempotency-Key'] });
   app.disable('x-powered-by');
+  // Behind Caddy, the visitor's address arrives in X-Forwarded-For. Trust it only from local and private-network proxies, so rate limits count each visitor.
+  app.set('trust proxy', 'loopback, uniquelocal');
   // Uploaded media in development. In production the CDN serves these straight from object storage.
   app.useStaticAssets(app.get(DiskStorage).root, { prefix: '/media', maxAge: '7d', index: false });
   app.enableShutdownHooks();
