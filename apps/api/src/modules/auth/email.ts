@@ -1,4 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
+import { AppError } from '../../common/errors.js';
 import { createTransport, type Transporter } from 'nodemailer';
 import { CONFIG, type Config } from '../../config.js';
 
@@ -19,8 +20,24 @@ export class ConsoleEmailSender extends EmailSender {
 @Injectable()
 export class SmtpEmailSender extends EmailSender {
   private readonly transport: Transporter;
-  constructor(@Inject(CONFIG) private readonly config: Config) { super(); this.transport = createTransport(config.SMTP_URL!); }
-  async send(email: Email) { await this.transport.sendMail({ from: this.config.MAIL_FROM, ...email }); }
+  private readonly log = new Logger('Email');
+  constructor(@Inject(CONFIG) private readonly config: Config) { super(); this.transport = createTransport(config.SMTP_URL!, { connectionTimeout: 10_000, greetingTimeout: 10_000, socketTimeout: 20_000 }); }
+  /** Logs where each email went, never its contents (they hold sign-in codes). */
+  async send(email: Email) {
+    const to = email.to.replace(/^(.).*(@.*)$/, '$1***$2');
+    try {
+      const r = await this.transport.sendMail({ from: this.config.MAIL_FROM, ...email });
+      this.log.log(`Sent to ${to} (${r.response ?? 'accepted'})`);
+    } catch (e) {
+      this.log.error(`Could not send to ${to}: ${(e as Error).message}`);
+      throw new EmailFailed();
+    }
+  }
+}
+
+/** Sending failed; the traveller is told to try again rather than shown a server error. */
+export class EmailFailed extends AppError {
+  constructor() { super(503, 'email_failed', 'We could not send your code just now. Please try again in a minute.'); }
 }
 
 /** The sign-in code email. Plain, quick to read on a phone, and the code is in the subject so it shows in the notification. */
