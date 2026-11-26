@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api, clearTokens, refreshSession, saveTokens, setSignedOutHandler } from './api';
 import { queryClient } from './query';
 
-export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean }
+export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean; passportCountry: string }
 interface Session {
   status: 'loading' | 'guest' | 'signedIn';
   me: Me | null;
@@ -12,7 +12,7 @@ interface Session {
   verifyCode: (email: string, code: string) => Promise<void>;
   /** Saves the name shown on tips, comments and advice. */
   setName: (name: string) => Promise<void>;
-  updateProfile: (patch: { name?: string; handle?: string; city?: string; bio?: string }) => Promise<void>;
+  updateProfile: (patch: { name?: string; handle?: string; city?: string; bio?: string; passportCountry?: string }) => Promise<void>;
   signOut: () => Promise<void>;
 }
 

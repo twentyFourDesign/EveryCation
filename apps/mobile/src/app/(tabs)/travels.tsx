@@ -36,6 +36,11 @@ function Timeline({ trips }: { trips: Trip[] }) {
         </View>
       ))}
       <Button variant="outline" icon={Plus} label="Add a trip" onPress={() => router.push('/trip/new')} />
+      <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/requirements', params: next ? { to: next.countryCode, tripId: next.id } : {} })} className="flex-row items-center gap-3 rounded-card bg-tint p-3.5 active:opacity-80">
+        <Text className="text-2xl">🛂</Text>
+        <View className="flex-1"><T v="strong">Visa & entry checklists</T><T v="small">See what your passport needs for any country, then tick it off as you prepare.</T></View>
+        <ChevronRight size={18} color={colors.inkMuted} />
+      </Pressable>
     </>
   );
 }

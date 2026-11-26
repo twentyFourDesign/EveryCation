@@ -8,6 +8,8 @@ import { MapView } from '@/ui/map';
 import { errorMessage } from '@/lib/api';
 import { dayLabel, daysOf, tripDates, tripImage, useRemoveItem, useTrip } from '@/lib/trips';
 import { useWallet } from '@/lib/wallet';
+import { useSession } from '@/lib/session';
+import { TONE_STYLE, flag, useChecklists, useRequirement } from '@/lib/travel';
 
 export default function TripDetail() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -15,6 +17,8 @@ export default function TripDetail() {
   const remove = useRemoveItem();
   const { data: wallet } = useWallet();
   const [picked, setPicked] = useState<string | null>(null);
+  const passport = useSession((s) => s.me?.passportCountry ?? 'NG');
+  const entry = useRequirement(passport, t?.countryCode); const checklist = useChecklists().data?.find((c) => c.destination === t?.countryCode);
   if (isLoading) return <Screen title=""><Loading what="your trip" /></Screen>;
   if (!t) return <Screen title="Trip"><Note tone="danger">{error ? errorMessage(error) : 'This trip could not be found.'}</Note></Screen>;
   const days = daysOf(t); const day = picked && days.includes(picked) ? picked : (t.itinerary[0]?.day ?? days[0]!);
@@ -41,6 +45,14 @@ export default function TripDetail() {
             </View>
           ))}
           {t.lat !== null && t.lng !== null && <MapView pins={[{ id: t.id, lat: t.lat, lng: t.lng, label: t.place, tone: t.status === 'upcoming' ? 'planned' : 'visited' }]} height={170} interactive={false} zoom={t.pinned ? 7 : 3.5} />}
+          {entry.data && t.status !== 'past' && entry.data.entry !== 'own_country' && (
+            <Pressable accessibilityRole="button" accessibilityLabel={`Visa and entry for ${entry.data.toName}: ${entry.data.title}`} onPress={() => (checklist ? go(`/checklist/${checklist.id}`) : router.push({ pathname: '/requirements', params: { to: t.countryCode, tripId: t.id } }))}
+              style={{ backgroundColor: TONE_STYLE[entry.data.tone].bg }} className="gap-1 rounded-card p-3.5 active:opacity-80">
+              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-md text-xs">{flag(t.countryCode)} Visa & entry for {entry.data.toName}</Text>
+              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-base">{TONE_STYLE[entry.data.tone].emoji} {entry.data.title}{entry.data.days ? ` · up to ${entry.data.days} days` : ''}</Text>
+              <Text style={{ color: TONE_STYLE[entry.data.tone].ink }} className="font-pop-sb text-[13px]">{checklist ? `Checklist: ${checklist.done} of ${checklist.total} done →` : 'See what you need and make a checklist →'}</Text>
+            </Pressable>
+          )}
           {goal && <Pressable accessibilityRole="button" onPress={() => go(`/wallet/goal/${goal.id}`)} className="gap-2 rounded-card bg-tint p-3.5 active:opacity-80"><T v="small" className="text-xs">Trip savings · {goal.name}</T><T v="strong">{goal.percent}% saved</T><Progress pct={goal.percent} /></Pressable>}
           {t.status === 'past' && <Note>This trip is on your timeline. It backs up the advice you share for {t.place.split(',').pop()?.trim()}, and you can turn it into a plan others follow.</Note>}
         </View>

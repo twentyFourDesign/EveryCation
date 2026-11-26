@@ -28,6 +28,7 @@ const authed = (token: string) => ({
   post: (p: string, body?: object, key: string | null = randomUUID()) => { const r = http().post(`/v1${p}`).set('Authorization', `Bearer ${token}`); if (key) r.set('Idempotency-Key', key); return r.send(body); },
   put: (p: string, body: object) => http().put(`/v1${p}`).set('Authorization', `Bearer ${token}`).send(body),
   patch: (p: string, body: object) => http().patch(`/v1${p}`).set('Authorization', `Bearer ${token}`).send(body),
+  delete: (p: string) => http().delete(`/v1${p}`).set('Authorization', `Bearer ${token}`),
 });
 
 async function signUp() {
@@ -823,6 +824,45 @@ describe('timed jobs', () => {
     expect(status.jobs.find((j: { name: string }) => j.name === 'plan_on_sale')).toMatchObject({ problem: null, lastOkAt: expect.any(String) });
     expect((await boss.post('/jobs/cleanup/run').expect(200)).body.ran).toBe(true);
     await boss.post('/jobs/nonsense/run').expect(404);
+  });
+});
+
+describe('entry requirements and checklists', () => {
+  it('shows what a passport needs for a destination', async () => {
+    const countries = (await http().get('/v1/travel/countries').expect(200)).body as { code: string; name: string }[];
+    expect(countries.length).toBeGreaterThan(190); expect(countries.find((c) => c.code === 'NG')?.name).toBe('Nigeria');
+    const gh = (await http().get('/v1/travel/requirements?from=ng&to=gh').expect(200)).body;
+    expect(gh).toMatchObject({ from: 'NG', to: 'GH', toName: 'Ghana', entry: 'visa_free', days: 90, tone: 'good', updated: '2026-02-17' });
+    expect(gh.summary).toContain('90 days');
+    const gb = (await http().get('/v1/travel/requirements?from=NG&to=GB').expect(200)).body;
+    expect(gb).toMatchObject({ entry: 'visa_required', tone: 'bad', title: 'Visa required' });
+    expect(gb.checklist.map((i: { text: string }) => i.text)).toContain('Book and attend your visa appointment');
+    expect((await http().get('/v1/travel/requirements?from=GB&to=GB').expect(200)).body.entry).toBe('own_country');
+    await http().get('/v1/travel/requirements?from=NG&to=ZZ').expect(400);
+  });
+  it('makes one checklist per destination, private to its owner, and remembers the passport', async () => {
+    const u = await named('Packing Pelumi'); const other = await named('Nosy Neighbour');
+    expect((await u.api.get('/auth/me').expect(200)).body.passportCountry).toBe('NG');
+    expect((await u.api.patch('/auth/me', { passportCountry: 'gh' }).expect(200)).body.passportCountry).toBe('GH');
+    const trip = (await u.api.post('/trips', { title: 'London calling', place: 'London, United Kingdom', countryCode: 'GB', startDate: '2099-06-01', endDate: '2099-06-08' }, null).expect(201)).body;
+    const list = (await u.api.post('/travel/checklists', { from: 'GH', to: 'GB', tripId: trip.id }, null).expect(200)).body;
+    expect(list).toMatchObject({ destination: 'GB', destinationName: 'United Kingdom', passportName: 'Ghana', tripId: trip.id, requirement: { entry: 'visa_required' } });
+    expect(list.items.length).toBeGreaterThan(10);
+    const again = (await u.api.post('/travel/checklists', { from: 'GH', to: 'GB' }, null).expect(200)).body;
+    expect(again.id).toBe(list.id);
+    const ticked = (await u.api.patch(`/travel/checklists/${list.id}/items/${list.items[0].id}`, { done: true }).expect(200)).body;
+    expect(ticked.items[0].done).toBe(true);
+    const added = (await u.api.post(`/travel/checklists/${list.id}/items`, { text: 'Buy an Oyster card', section: 'money' }, null).expect(200)).body;
+    const mine = added.items.find((i: { text: string }) => i.text === 'Buy an Oyster card');
+    expect(mine).toMatchObject({ own: true, section: 'money', done: false });
+    expect((await u.api.get('/travel/checklists').expect(200)).body[0]).toMatchObject({ id: list.id, destinationName: 'United Kingdom', done: 1, total: list.items.length + 1 });
+    await other.api.get(`/travel/checklists/${list.id}`).expect(404);
+    await other.api.patch(`/travel/checklists/${list.id}/items/${mine.id}`, { done: true }).expect(404);
+    expect((await u.api.delete(`/travel/checklists/${list.id}/items/${mine.id}`).expect(200)).body.items).toHaveLength(list.items.length);
+    await u.api.post('/travel/checklists', { from: 'GH', to: 'XX' }, null).expect(400);
+    await u.api.delete(`/travel/checklists/${list.id}`).expect(204);
+    expect((await u.api.get('/travel/checklists').expect(200)).body).toHaveLength(0);
+    await http().get('/v1/travel/checklists').expect(401);
   });
 });
 

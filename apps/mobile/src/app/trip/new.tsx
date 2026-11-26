@@ -5,7 +5,8 @@ import { Button, Input, Note, Screen, T } from '@/ui';
 import { PlaceField } from '@/ui/place-field';
 import { errorMessage } from '@/lib/api';
 import { countryName, findCountry } from '@/lib/community';
-import { toIso, useCreateTrip, type PlaceHit } from '@/lib/trips';
+import { useCreateTrip, type PlaceHit } from '@/lib/trips';
+import { DateField } from '@/ui/date-field';
 
 export default function NewTrip() {
   const create = useCreateTrip();
@@ -17,9 +18,9 @@ export default function NewTrip() {
   // The place the traveller picked from search. It carries the exact map position; typing again drops it.
   const [picked, setPicked] = useState<PlaceHit | null>(fromPin);
   function choose(hit: PlaceHit | null) { setPicked(hit); if (hit) setCountry(countryName(hit.countryCode)); }
-  const match = findCountry(country); const s = toIso(start); const e = toIso(end);
+  const match = findCountry(country); const s = start || null; const e = end || null;
   const errors = { title: title.trim().length < 2 ? 'Give the trip a name' : undefined, place: place.trim().length < 2 ? 'Add where you are going' : undefined, country: !match ? 'Choose a country, like Italy' : undefined,
-    start: !s ? 'Use dd/mm/yyyy' : undefined, end: !e ? 'Use dd/mm/yyyy' : s && e < s ? 'The trip cannot end before it starts' : undefined };
+    start: !s ? 'Choose when the trip starts' : undefined, end: !e ? 'Choose when the trip ends' : s && e < s ? 'The trip cannot end before it starts' : undefined };
   async function save() {
     setTried(true); setError('');
     if (Object.values(errors).some(Boolean)) return;
@@ -34,8 +35,8 @@ export default function NewTrip() {
       <PlaceField label="Where are you going? *" value={place} onChangeText={setPlace} picked={picked} onPick={choose} error={show('place')} hint="Pinned on your travel map." />
       <Input label="Country *" value={country} onChangeText={setCountry} placeholder="Italy" autoCapitalize="words" error={show('country')} />
       <View className="flex-row gap-3">
-        <View className="flex-1"><Input label="From *" value={start} onChangeText={setStart} placeholder="dd/mm/yyyy" keyboardType="numbers-and-punctuation" maxLength={10} error={show('start')} /></View>
-        <View className="flex-1"><Input label="To *" value={end} onChangeText={setEnd} placeholder="dd/mm/yyyy" keyboardType="numbers-and-punctuation" maxLength={10} error={show('end')} /></View>
+        <View className="flex-1"><DateField label="From *" value={start} onChange={(d) => { setStart(d); if (end && end < d) setEnd(''); }} placeholder="Start date" error={show('start')} /></View>
+        <View className="flex-1"><DateField label="To *" value={end} onChange={setEnd} min={start || undefined} placeholder="End date" error={show('end')} /></View>
       </View>
       <Input label="Travellers" value={travellers} onChangeText={(v) => setTravellers(v.replace(/\D/g, ''))} keyboardType="number-pad" maxLength={2} />
       {!!error && <Note tone="danger">{error}</Note>}

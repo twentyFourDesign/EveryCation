@@ -328,6 +328,29 @@ export const itineraryItems = pgTable('itinerary_items', {
   createdAt: createdAt(),
 }, (t) => [index('itinerary_trip_idx').on(t.tripId, t.day, t.time)]);
 
+/** A packing-and-paperwork list for one destination, made from its entry requirements for the traveller's passport. */
+export const travelChecklists = pgTable('travel_checklists', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  passport: text().notNull(),
+  destination: text().notNull(),
+  tripId: uuid().references(() => trips.id, { onDelete: 'set null' }),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('checklist_destination_once_idx').on(t.userId, t.destination)]);
+
+export const checklistItems = pgTable('checklist_items', {
+  id: id(),
+  checklistId: uuid().notNull().references(() => travelChecklists.id, { onDelete: 'cascade' }),
+  /** documents, health, money or before */
+  section: text().notNull(),
+  text: text().notNull(),
+  done: boolean().notNull().default(false),
+  /** Added by the traveller rather than made from the requirements. */
+  own: boolean().notNull().default(false),
+  position: integer().notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('checklist_items_idx').on(t.checklistId, t.position)]);
+
 export const bucketState = pgEnum('bucket_state', ['dream', 'done']);
 export const bucketItems = pgTable('bucket_items', {
   id: id(),

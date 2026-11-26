@@ -7,8 +7,8 @@ import { tripImage } from '@/lib/trips';
 import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
 import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
 
-const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Advice'] as const;
-const links: Record<string, string> = { Community: '/community', Places: '/places', 'Trip plans': '/plans', Advice: '/advice' };
+const sections = ['For you', 'Community', 'Places', 'Trip plans', 'Visa & entry', 'Advice'] as const;
+const links: Record<string, string> = { Community: '/community', Places: '/places', 'Trip plans': '/plans', 'Visa & entry': '/requirements', Advice: '/advice' };
 
 export default function Explore() {
   const tips = useTips('popular');

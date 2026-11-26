@@ -10,7 +10,9 @@ import { SocialAuthService } from './social.service.js';
 
 const requestBody = z.object({ email: z.string().min(5).max(254) });
 const verifyBody = z.object({ email: z.string().min(5).max(254), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'), device: z.string().max(120).optional() });
-const profileBody = z.object({ name: z.string().trim().min(2, 'Enter your name').max(60), handle: z.string().trim().regex(/^[a-zA-Z0-9._]{3,24}$/, 'Use 3 to 24 letters, numbers, dots or underscores'), city: z.string().trim().max(60), bio: z.string().trim().max(200) }).partial();
+const profileBody = z.object({ name: z.string().trim().min(2, 'Enter your name').max(60), handle: z.string().trim().regex(/^[a-zA-Z0-9._]{3,24}$/, 'Use 3 to 24 letters, numbers, dots or underscores'), city: z.string().trim().max(60), bio: z.string().trim().max(200),
+  /** The passport the traveller holds, as a two-letter code. Used for entry requirements. */
+  passportCountry: z.string().regex(/^[A-Za-z]{2}$/, 'Choose a country').transform((c) => c.toUpperCase()) }).partial();
 const handoffBody = z.object({ code: z.string().min(20).max(100), device: z.string().max(120).optional() });
 const appleBody = z.object({ identityToken: z.string().min(20).max(5000), name: z.string().trim().max(60).optional(), device: z.string().max(120).optional() });
 const refreshBody = z.object({ refreshToken: z.string().min(20) });

@@ -18,7 +18,7 @@ FROM deps AS api-build
 COPY apps/api apps/api
 RUN pnpm --filter @everycation/api build \
  && pnpm --filter @everycation/api deploy --legacy --prod /out \
- && cp -r apps/api/dist apps/api/drizzle /out/
+ && cp -r apps/api/dist apps/api/drizzle apps/api/data /out/
 
 FROM node:22-bookworm-slim AS api
 ENV NODE_ENV=production PORT=4000 MEDIA_DIR=/data/media

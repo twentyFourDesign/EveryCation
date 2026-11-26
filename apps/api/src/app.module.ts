@@ -18,6 +18,7 @@ import { JobsModule } from './modules/jobs/jobs.module.js';
 import { SettingsModule } from './modules/settings/settings.service.js';
 import { ShopModule } from './modules/shop/shop.module.js';
 import { TripsModule } from './modules/trips/trips.module.js';
+import { TravelModule } from './modules/travel/travel.module.js';
 import { WalletModule } from './modules/wallet/wallet.module.js';
 
 @Controller('health')
@@ -39,6 +40,7 @@ class ConfigModule {}
     SettingsModule,
     AuthModule,
     WalletModule,
+    TravelModule,
     CommunityModule,
     AdminModule,
     GeoModule,

@@ -4,20 +4,13 @@ import { useState } from 'react';
 import { Pressable, View } from 'react-native';
 import { formatNaira, parseNaira } from '@everycation/shared';
 import { Button, Input, Note, Screen, Segmented, T, Toggle, colors, cx } from '@/ui';
+import { DateField, addDays, todayIso } from '@/ui/date-field';
 import { errorMessage } from '@/lib/api';
 import { useCreateGoal } from '@/lib/wallet';
 
 const kinds = [{ k: 'trip', l: 'A trip', i: Plane }, { k: 'shopping', l: 'Shopping', i: ShoppingBag }, { k: 'package', l: 'A package', i: Package }] as const;
 const freq = ['Daily', 'Weekly', 'Monthly'] as const;
 const everyDays = { daily: 1, weekly: 7, monthly: 30 };
-
-/** "30/04/2027" → "2027-04-30", or null when it is not a real date in the future. */
-function toIsoDate(input: string): string | null {
-  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(input.trim());
-  if (!m) return null;
-  const iso = `${m[3]}-${m[2]}-${m[1]}`; const d = new Date(`${iso}T00:00:00Z`);
-  return !Number.isNaN(d.getTime()) && d.toISOString().startsWith(iso) && d.getTime() > Date.now() ? iso : null;
-}
 
 export default function NewGoal() {
   const p = useLocalSearchParams<{ name?: string }>();
@@ -27,15 +20,15 @@ export default function NewGoal() {
   const [frequency, setFrequency] = useState<'daily' | 'weekly' | 'monthly'>('weekly'); const [locked, setLocked] = useState(true);
   const [tried, setTried] = useState(false); const [error, setError] = useState(''); const [now] = useState(() => Date.now());
 
-  const kobo = parseNaira(target) ?? 0; const iso = by ? toIsoDate(by) : null;
-  const errors = { name: name.trim().length < 2 ? 'Give your goal a name' : undefined, target: kobo < 500000 ? 'Set a target of at least ₦5,000' : undefined, by: by && !iso ? 'Use dd/mm/yyyy, and a date in the future' : undefined };
+  const kobo = parseNaira(target) ?? 0; const iso = by || null;
+  const errors = { name: name.trim().length < 2 ? 'Give your goal a name' : undefined, target: kobo < 500000 ? 'Set a target of at least ₦5,000' : undefined };
   const days = iso ? Math.ceil((new Date(iso).getTime() - now) / 86_400_000) : null;
   const times = days ? Math.max(1, Math.ceil(days / everyDays[frequency])) : null;
   const each = times ? Math.ceil(kobo / times / 100000) * 100000 : null;
 
   async function submit() {
     setTried(true); setError('');
-    if (errors.name || errors.target || errors.by) return;
+    if (errors.name || errors.target) return;
     try {
       const goal = await create.mutateAsync({ name: name.trim(), kind, target: kobo, locked, ...(iso && { targetDate: iso }), ...(each && { autoSaveAmount: each, autoSaveFrequency: frequency }) });
       router.replace(`/wallet/goal/${goal.id}`);
@@ -49,8 +42,8 @@ export default function NewGoal() {
             <o.i size={22} color={colors.navy} /><T v="label">{o.l}</T></Pressable>))}</View></View>
       <Input label="Goal name" value={name} onChangeText={setName} placeholder="Beach escape" maxLength={60} error={tried ? errors.name : undefined} />
       <View className="flex-row gap-3">
-        <View className="flex-1"><Input label="Target" value={target} onChangeText={setTarget} keyboardType="number-pad" error={tried ? errors.target : undefined} /></View>
-        <View className="flex-1"><Input label="By (optional)" value={by} onChangeText={setBy} placeholder="dd/mm/yyyy" keyboardType="numbers-and-punctuation" maxLength={10} error={errors.by} /></View>
+        <View className="flex-1"><Input label="Target" value={target} onChangeText={setTarget} onBlur={() => kobo && setTarget(formatNaira(kobo))} keyboardType="number-pad" error={tried ? errors.target : undefined} /></View>
+        <View className="flex-1"><DateField label="By (optional)" value={by} onChange={setBy} min={addDays(todayIso(), 1)} optional /></View>
       </View>
       {each && times && (
         <View className="gap-2"><T v="label">Saving plan</T>
