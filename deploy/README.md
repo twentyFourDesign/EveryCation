@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/twentyFourDesign/EveryCation/main/d
 
 It updates the system, adds swap, installs Docker, allows only SSH, HTTP and HTTPS through the firewall, turns off SSH password logins, writes `deploy/.env` with fresh secrets, builds and starts the app, and schedules daily database backups.
 
-Until a domain is set, the addresses are made from the server's IP with sslip.io, e.g. `https://api.165-22-127-35.sslip.io/v1` and `https://admin.165-22-127-35.sslip.io`.
+Until a domain is set, the addresses are made from the server's IP with sslip.io, e.g. `https://api.165-22-127-35.sslip.io/v1` `https://admin.165-22-127-35.sslip.io` for the staff console, and `https://app.165-22-127-35.sslip.io` for the app in a browser.
 
 Then create the first staff account (if sign-in details are ever lost or exposed, `dist/scripts/reset-admin.js you@example.com` issues new ones):
 
@@ -32,7 +32,7 @@ cd /opt/everycation/deploy && docker compose exec api node dist/scripts/create-a
 
 ## Moving to a real domain
 
-Point `api.` and `admin.` records for the domain at the server's IP, set `API_HOST` and `ADMIN_HOST` in `.env`, then run `docker compose up -d --build` (the console is rebuilt because its API address is built in). Update `EXPO_PUBLIC_API_URL` in the app builds to match.
+Point `api.`, `admin.` and `app.` records for the domain at the server's IP, set `API_HOST`, `ADMIN_HOST` and `APP_HOST` in `.env`, then run `docker compose up -d --build` (the console and web app are rebuilt because their API address is built in). Update `EXPO_PUBLIC_API_URL` in the app builds to match.
 
 ## Before real users join
 

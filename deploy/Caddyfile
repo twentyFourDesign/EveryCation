@@ -34,3 +34,22 @@
 		reverse_proxy admin:3000
 	}
 }
+
+# The traveller app in a browser. Its API calls go to /v1 on the same address.
+{$APP_HOST} {
+	import common
+	request_body max_size 60MB
+	handle /v1/* {
+		reverse_proxy api:4000
+	}
+	handle /media/* {
+		reverse_proxy api:4000
+	}
+	handle {
+		root * /srv/app
+		@assets path /_expo/* /assets/*
+		header @assets Cache-Control "public, max-age=31536000, immutable"
+		try_files {path} /index.html
+		file_server
+	}
+}

@@ -5,7 +5,8 @@ node_modules
 **/.turbo
 **/.expo
 apps/api/uploads
-apps/mobile
+**/ios
+**/android
 **/.env
 **/*.log
 .git

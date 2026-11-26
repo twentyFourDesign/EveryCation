@@ -1,4 +1,4 @@
-# EveryCation on one server: database, API, staff console and Caddy (HTTPS).
+# EveryCation on one server: database, API, staff console, and Caddy (HTTPS and the app's web version).
 # Settings live in deploy/.env, which setup.sh writes. Run from this folder: docker compose up -d --build
 name: everycation
 
@@ -38,14 +38,19 @@ services:
     restart: unless-stopped
     depends_on: [api]
 
+  # Caddy serves HTTPS for everything and the app's web version (built into this image).
   caddy:
-    image: caddy:2
+    build:
+      context: ..
+      target: web
+      args: { EXPO_PUBLIC_API_URL: 'https://${APP_HOST}/v1' }
     restart: unless-stopped
     depends_on: [api, admin]
     ports: ['80:80', '443:443', '443:443/udp']
     environment:
       API_HOST: ${API_HOST}
       ADMIN_HOST: ${ADMIN_HOST}
+      APP_HOST: ${APP_HOST}
       ACME_EMAIL: ${ACME_EMAIL}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro

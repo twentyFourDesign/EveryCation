@@ -64,6 +64,7 @@ if [ ! -f .env ]; then
 # After changing it: cd $DIR/deploy && docker compose up -d
 API_HOST=${API_HOST:-api.$DASHED.sslip.io}
 ADMIN_HOST=${ADMIN_HOST:-admin.$DASHED.sslip.io}
+APP_HOST=${APP_HOST:-app.$DASHED.sslip.io}
 ACME_EMAIL=${ACME_EMAIL:-wole@24group.com.ng}
 
 POSTGRES_PASSWORD=$(secret)
@@ -96,7 +97,7 @@ say "Daily database backups at 02:30, kept for 14 days in /var/backups/everycati
 chmod +x "$DIR/deploy/backup.sh" "$DIR/deploy/update.sh"
 echo "30 2 * * * root $DIR/deploy/backup.sh >> /var/log/everycation-backup.log 2>&1" > /etc/cron.d/everycation-backup
 
-API_HOST=$(grep '^API_HOST=' .env | cut -d= -f2-); ADMIN_HOST=$(grep '^ADMIN_HOST=' .env | cut -d= -f2-)
+API_HOST=$(grep '^API_HOST=' .env | cut -d= -f2-); ADMIN_HOST=$(grep '^ADMIN_HOST=' .env | cut -d= -f2-); APP_HOST=$(grep '^APP_HOST=' .env | cut -d= -f2-)
 say "Waiting for the API"
 for i in $(seq 1 60); do
   if docker compose exec -T api node -e "fetch('http://127.0.0.1:4000/v1/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))" 2>/dev/null; then break; fi
@@ -109,6 +110,7 @@ cat <<DONE
 EveryCation is running.
   API:            https://$API_HOST/v1   (health check: https://$API_HOST/v1/health)
   Staff console:  https://$ADMIN_HOST
+  App in a browser: https://$APP_HOST
 
 Create your staff account (shows a temporary password and an authenticator code once):
   cd $DIR/deploy && docker compose exec api node dist/scripts/create-admin.js you@example.com "Your Name" super_admin
