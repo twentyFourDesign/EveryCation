@@ -117,10 +117,11 @@ export function Segmented<V extends string>({ options, value, onChange }: { opti
   );
 }
 
-export const Avatar = ({ initials, size = 40, onPress }: { initials: string; size?: number; onPress?: () => void }) => (
-  <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? `Open profile ${initials}` : undefined}
-    style={{ width: size, height: size }} className="items-center justify-center rounded-full bg-tint">
-    <Text className="font-pop-sb text-navy" style={{ fontSize: size * 0.36 }}>{initials}</Text>
+/** A profile photo when there is one (`uri`), otherwise the person's initials. */
+export const Avatar = ({ initials, uri, size = 40, onPress, label }: { initials: string; uri?: string | null; size?: number; onPress?: () => void; label?: string }) => (
+  <Pressable disabled={!onPress} onPress={onPress} accessibilityRole={onPress ? 'button' : undefined} accessibilityLabel={onPress ? label ?? `Open profile ${initials}` : undefined}
+    style={{ width: size, height: size }} className="items-center justify-center overflow-hidden rounded-full bg-tint">
+    {uri ? <Image source={{ uri }} style={{ width: size, height: size }} contentFit="cover" transition={120} /> : <Text className="font-pop-sb text-navy" style={{ fontSize: size * 0.36 }}>{initials}</Text>}
   </Pressable>
 );
 

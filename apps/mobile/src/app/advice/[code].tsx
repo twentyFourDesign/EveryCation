@@ -51,7 +51,7 @@ export default function CountryAdvice() {
         return (
           <View key={a.id} className="gap-3 rounded-card bg-surface-muted p-4">
             <View className="flex-row items-center gap-3">
-              <Avatar initials={initials(a.author.name)} onPress={() => go(`/traveller/${a.author.id}`)} />
+              <Avatar initials={initials(a.author.name)} uri={a.author.avatarUrl} onPress={() => go(`/traveller/${a.author.id}`)} />
               <View className="flex-1 gap-1"><T v="strong">{a.mine ? 'You' : a.author.name}</T>
                 <View className="flex-row flex-wrap items-center gap-1.5"><Badge icon={verified ? IconVerified : Clock} tone={s.tone} label={s.label} /><T v="small" className="text-xs">{a.city}{a.visited ? ` · ${a.visited}` : ''}</T></View></View>
             </View>

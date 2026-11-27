@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { and, desc, eq, inArray, isNull, sql } from 'drizzle-orm';
+import { conflict } from '../../common/errors.js';
 import { RULES } from '../../config.js';
 import { Database } from '../../db/db.module.js';
 import { maskEmail } from '../auth/auth.service.js';
@@ -96,8 +97,9 @@ export class AdminUsersService {
 
   /** Support actions. Each returns a short description for the audit log. */
   async act(id: string, action: 'suspend' | 'reinstate' | 'freeze' | 'unfreeze' | 'reset_kyc' | 'reset_pin') {
-    const [u] = await this.db.select({ name: users.name, email: users.email }).from(users).where(eq(users.id, id));
+    const [u] = await this.db.select({ name: users.name, email: users.email, status: users.status }).from(users).where(eq(users.id, id));
     if (!u) return null;
+    if (u.status === 'deleted') throw conflict('account_deleted', 'This person deleted their account. It cannot be changed.');
     const who = u.name ?? contact(u.email);
     if (action === 'suspend') { await this.db.update(users).set({ status: 'suspended', walletFrozen: true }).where(eq(users.id, id)); await this.db.update(sessions).set({ revokedAt: new Date() }).where(and(eq(sessions.userId, id), isNull(sessions.revokedAt))); return { who, did: 'Suspended account and froze wallet' }; }
     if (action === 'reinstate') { await this.db.update(users).set({ status: 'active', walletFrozen: false }).where(eq(users.id, id)); return { who, did: 'Reinstated account' }; }

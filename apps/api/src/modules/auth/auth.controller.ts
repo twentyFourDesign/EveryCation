@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, Patch, Post, Query, Res } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, Patch, Post, Query, Res } from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
@@ -12,7 +12,10 @@ const requestBody = z.object({ email: z.string().min(5).max(254) });
 const verifyBody = z.object({ email: z.string().min(5).max(254), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code'), device: z.string().max(120).optional() });
 const profileBody = z.object({ name: z.string().trim().min(2, 'Enter your name').max(60), handle: z.string().trim().regex(/^[a-zA-Z0-9._]{3,24}$/, 'Use 3 to 24 letters, numbers, dots or underscores'), city: z.string().trim().max(60), bio: z.string().trim().max(200),
   /** The passport the traveller holds, as a two-letter code. Used for entry requirements. */
-  passportCountry: z.string().regex(/^[A-Za-z]{2}$/, 'Choose a country').transform((c) => c.toUpperCase()) }).partial();
+  passportCountry: z.string().regex(/^[A-Za-z]{2}$/, 'Choose a country').transform((c) => c.toUpperCase()), showCity: z.boolean(), avatarMediaId: z.uuid().nullable() }).partial();
+const emailBody = z.object({ email: z.string().max(254) });
+const emailCodeBody = z.object({ email: z.string().max(254), code: z.string().regex(/^\d{6}$/, 'Enter the 6-digit code') });
+const deleteBody = z.object({ confirm: z.literal('DELETE', { error: 'Type DELETE to confirm' }) });
 const handoffBody = z.object({ code: z.string().min(20).max(100), device: z.string().max(120).optional() });
 const appleBody = z.object({ identityToken: z.string().min(20).max(5000), name: z.string().trim().max(60).optional(), device: z.string().max(120).optional() });
 const refreshBody = z.object({ refreshToken: z.string().min(20) });
@@ -61,4 +64,16 @@ export class AuthController {
   @ApiBearerAuth()
   @Patch('me')
   update(@CurrentUser() user: AuthUser, @Body(new ZodPipe(profileBody)) body: z.infer<typeof profileBody>) { return this.auth.updateProfile(user.id, body); }
+
+  @ApiBearerAuth() @Throttle({ default: { limit: 5, ttl: 60_000 } }) @HttpCode(200)
+  @Post('me/email')
+  changeEmail(@CurrentUser() user: AuthUser, @Body(new ZodPipe(emailBody)) body: z.infer<typeof emailBody>) { return this.auth.requestEmailChange(user.id, body.email); }
+
+  @ApiBearerAuth() @Throttle({ default: { limit: 10, ttl: 60_000 } }) @HttpCode(200)
+  @Post('me/email/verify')
+  confirmEmail(@CurrentUser() user: AuthUser, @Body(new ZodPipe(emailCodeBody)) body: z.infer<typeof emailCodeBody>) { return this.auth.confirmEmailChange(user.id, body.email, body.code); }
+
+  @ApiBearerAuth() @HttpCode(204)
+  @Delete('me')
+  remove(@CurrentUser() user: AuthUser, @Body(new ZodPipe(deleteBody)) _body: z.infer<typeof deleteBody>) { return this.auth.deleteAccount(user.id); }
 }

@@ -1,15 +1,15 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { Share2 } from 'lucide-react-native';
-import { Pressable, Share, View } from 'react-native';
-import { Avatar, Button, Empty, IconButton, Loading, Note, Photo, Screen, SectionTitle, Stats, T, go } from '@/ui';
+import { Share, View } from 'react-native';
+import { Avatar, Button, IconButton, Loading, Note, Screen, Stats, T } from '@/ui';
+import { ProfilePosts } from '@/ui/profile-posts';
 import { errorMessage } from '@/lib/api';
-import { initials, tipImage, tipPhoto, useFollow, useTipsBy, useTraveller } from '@/lib/community';
+import { initials, useFollow, useTraveller } from '@/lib/community';
 import { useSession } from '@/lib/session';
 
 export default function TravellerProfile() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { data: t, isLoading, error } = useTraveller(id);
-  const { data: tips = [] } = useTipsBy(id);
   const follow = useFollow();
   const signedIn = useSession((s) => s.status === 'signedIn');
   if (isLoading) return <Screen title=""><Loading what="this profile" /></Screen>;
@@ -18,7 +18,7 @@ export default function TravellerProfile() {
   return (
     <Screen title="" right={<IconButton icon={Share2} label="Share profile" onPress={share} />}>
       <View className="items-center gap-2">
-        <Avatar initials={initials(t.name)} size={88} />
+        <Avatar initials={initials(t.name)} uri={t.avatarUrl} size={88} />
         <T v="h2">{t.name}</T>
         {(t.handle || t.city) && <T v="small">{[t.handle && `@${t.handle}`, t.city].filter(Boolean).join(' · ')}</T>}
         {!!t.bio && <T className="text-center">{t.bio}</T>}
@@ -30,11 +30,7 @@ export default function TravellerProfile() {
           <Button className="flex-1" variant="outline" label="Share profile" onPress={share} />
         </View>
       )}
-      <SectionTitle>Tips</SectionTitle>
-      {tips.length === 0 ? <Empty>No tips yet.</Empty> : (
-        <View className="flex-row flex-wrap gap-2">
-          {tips.map((tip) => <Pressable key={tip.id} accessibilityRole="button" accessibilityLabel={tip.title} onPress={() => go(`/tip/${tip.id}`)} className="w-[31.8%]"><Photo k={tipImage(tip)} uri={tipPhoto(tip)} className="aspect-square rounded-xl" /></Pressable>)}
-        </View>)}
+      <ProfilePosts userId={t.id} mine={t.isMe} />
     </Screen>
   );
 }

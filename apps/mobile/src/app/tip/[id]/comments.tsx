@@ -34,7 +34,7 @@ export default function Comments() {
       <Screen title={`Comments · ${data?.length ?? tip?.comments ?? 0}`} footer={status === 'signedIn' ? (
         <>
           <View className="flex-row items-center gap-2.5">
-            <Avatar initials={initials(me?.name ?? 'You')} size={36} />
+            <Avatar initials={initials(me?.name ?? 'You')} uri={me?.avatarUrl} size={36} />
             <TextInput value={draft} onChangeText={setDraft} placeholder={`Add a comment for ${tip?.author.name.split(' ')[0] ?? 'the author'}`} placeholderTextColor={colors.inkMuted} accessibilityLabel="Add a comment" maxLength={500} onSubmitEditing={send}
               className="h-12 min-w-0 flex-1 rounded-full bg-surface-muted px-4 font-pop text-[15px] text-ink" />
             <Pressable accessibilityRole="button" accessibilityLabel="Post comment" accessibilityState={{ disabled: !ok || add.isPending }} disabled={!ok || add.isPending} onPress={send} className={cx('h-12 w-12 items-center justify-center rounded-full bg-gold', (!ok || add.isPending) && 'opacity-40')}><Send size={20} color={colors.ink} /></Pressable>
@@ -47,7 +47,7 @@ export default function Comments() {
         {data?.length === 0 && <Empty>No comments yet. Be the first to add one.</Empty>}
         {data?.map((c) => (
           <View key={c.id} className="flex-row gap-3">
-            <Avatar initials={initials(c.author.name)} size={36} />
+            <Avatar initials={initials(c.author.name)} uri={c.author.avatarUrl} size={36} />
             <View className="flex-1 gap-1">
               <View className="flex-row flex-wrap items-center gap-2"><T v="label">{c.mine ? 'You' : c.author.name}</T>{c.isTipAuthor && <Badge label="Author" />}<T v="small">· {timeAgo(c.createdAt)}</T></View>
               <T>{c.body}</T>

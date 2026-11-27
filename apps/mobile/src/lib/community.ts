@@ -5,7 +5,7 @@ import { photos } from '../ui/photos';
 import { queryClient } from './query';
 import { useSession } from './session';
 
-export interface Author { id: string; name: string; handle: string | null; city: string | null }
+export interface Author { id: string; name: string; handle: string | null; city: string | null; avatarUrl?: string | null }
 export interface Tip {
   id: string; title: string; place: string; countryCode: string | null; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow: string[];
   imageKey: string | null; visited: string | null; likes: number; comments: number; createdAt: string; author: Author; liked: boolean; mine: boolean; media: { kind: 'image' | 'video' | 'audio'; url: string } | null;

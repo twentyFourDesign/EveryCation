@@ -7,7 +7,7 @@ const createdAt = () => timestamp({ withTimezone: true }).notNull().defaultNow()
 const kobo = () => bigint({ mode: 'number' });
 
 export const kycStatus = pgEnum('kyc_status', ['none', 'verified', 'failed']);
-export const userStatus = pgEnum('user_status', ['active', 'suspended']);
+export const userStatus = pgEnum('user_status', ['active', 'suspended', 'deleted']);
 
 export const users = pgTable('users', {
   id: id(),
@@ -20,6 +20,12 @@ export const users = pgTable('users', {
   handle: text().unique(),
   city: text(),
   bio: text(),
+  /** Profile photo address, from one of their own uploads. */
+  avatarUrl: text(),
+  /** Show their home city next to their name on posts and their profile. */
+  showCity: boolean().notNull().default(true),
+  /** Set when they delete their account; their personal details are wiped at the same moment. */
+  deletedAt: timestamp({ withTimezone: true }),
   /** The passport they travel on, as a two-letter code. Empty until they choose it. */
   passportCountry: text(),
   status: userStatus().notNull().default('active'),

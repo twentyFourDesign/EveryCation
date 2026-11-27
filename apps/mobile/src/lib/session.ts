@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { api, clearTokens, refreshSession, saveTokens, setSignedOutHandler } from './api';
 import { queryClient } from './query';
 
-export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean; passportCountry: string | null }
+export interface Me { id: string; phone: string | null; email: string | null; name: string | null; handle: string | null; city: string | null; bio: string | null; avatarUrl: string | null; showCity: boolean; memberSince: string; kycStatus: 'none' | 'verified' | 'failed'; hasPin: boolean; walletFrozen: boolean; passportCountry: string | null }
 interface Session {
   status: 'loading' | 'guest' | 'signedIn';
   me: Me | null;
@@ -12,7 +12,12 @@ interface Session {
   verifyCode: (email: string, code: string) => Promise<void>;
   /** Saves the name shown on tips, comments and advice. */
   setName: (name: string) => Promise<void>;
-  updateProfile: (patch: { name?: string; handle?: string; city?: string; bio?: string; passportCountry?: string }) => Promise<void>;
+  updateProfile: (patch: { name?: string; handle?: string; city?: string; bio?: string; passportCountry?: string; showCity?: boolean; avatarMediaId?: string | null }) => Promise<void>;
+  /** Sends a code to a new email address; `confirmEmail` switches to it once the code comes back. */
+  changeEmail: (email: string) => Promise<{ sentTo: string; resendInSeconds: number; devCode?: string }>;
+  confirmEmail: (email: string, code: string) => Promise<void>;
+  /** Deletes the account for good and signs out on this phone. */
+  deleteAccount: () => Promise<void>;
   signOut: () => Promise<void>;
 }
 
@@ -33,6 +38,14 @@ export const useSession = create<Session>((set, get) => ({
   },
   setName: async (name) => set({ me: await api<Me>('/auth/me', { method: 'PATCH', body: { name } }) }),
   updateProfile: async (patch) => { set({ me: await api<Me>('/auth/me', { method: 'PATCH', body: patch }) }); await queryClient.invalidateQueries(); },
+  changeEmail: (email) => api('/auth/me/email', { method: 'POST', body: { email } }),
+  confirmEmail: async (email, code) => set({ me: await api<Me>('/auth/me/email/verify', { method: 'POST', body: { email, code } }) }),
+  deleteAccount: async () => {
+    await api('/auth/me', { method: 'DELETE', body: { confirm: 'DELETE' } });
+    await clearTokens();
+    queryClient.clear();
+    set({ status: 'guest', me: null });
+  },
   signOut: async () => {
     if (get().status === 'signedIn') await api('/auth/logout', { method: 'POST' }).catch(() => {});
     await clearTokens();

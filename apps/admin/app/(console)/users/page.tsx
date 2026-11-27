@@ -8,9 +8,9 @@ import { cn } from '@/lib/cn';
 import { accessFor, useSession } from '@/lib/session';
 
 type Kyc = 'none' | 'pending' | 'verified' | 'failed';
-interface Row { id: string; name: string; contact: string; handle: string | null; joined: string; kyc: Kyc; status: 'active' | 'suspended'; walletFrozen: boolean; wallet: number; plansSold: number }
+interface Row { id: string; name: string; contact: string; handle: string | null; joined: string; kyc: Kyc; status: 'active' | 'suspended' | 'deleted'; walletFrozen: boolean; wallet: number; plansSold: number }
 interface List { counts: { total: number; verified: number; kyc_failed: number; suspended: number; frozen: number }; users: Row[] }
-interface Detail { id: string; name: string; contact: string; handle: string | null; city: string | null; joined: string; status: 'active' | 'suspended'; walletFrozen: boolean; kyc: { status: Kyc; method: string | null; attempts: number; legalName: string | null }; hasPin: boolean; pinLocked: boolean; wallet: { available: number; inGoals: number }; tips: number; advice: number; verifiedAdvice: number; trips: number; lastSeen: string | null; banks: { bank: string; account: string; name: string; isDefault: boolean }[] }
+interface Detail { id: string; name: string; contact: string; handle: string | null; city: string | null; joined: string; status: 'active' | 'suspended' | 'deleted'; walletFrozen: boolean; kyc: { status: Kyc; method: string | null; attempts: number; legalName: string | null }; hasPin: boolean; pinLocked: boolean; wallet: { available: number; inGoals: number }; tips: number; advice: number; verifiedAdvice: number; trips: number; lastSeen: string | null; banks: { bank: string; account: string; name: string; isDefault: boolean }[] }
 type Action = 'suspend' | 'reinstate' | 'freeze' | 'unfreeze' | 'reset_kyc' | 'reset_pin';
 const filters = [{ value: 'all', label: 'All' }, { value: 'kyc_failed', label: 'ID check failed' }, { value: 'sellers', label: 'Plan sellers' }, { value: 'frozen', label: 'Wallet frozen' }, { value: 'suspended', label: 'Suspended' }] as const;
 const kycLabel: Record<Kyc, string> = { none: 'Not started', pending: 'Checking', verified: 'Verified', failed: 'Failed' };
@@ -55,7 +55,7 @@ export default function Users() {
                   <td className={td}><Badge tone={u.kyc === 'failed' ? 'danger' : u.kyc === 'verified' ? 'info' : 'neutral'}>{kycLabel[u.kyc]}</Badge></td>
                   <td className={`${td} tnum whitespace-nowrap`}>{u.kyc === 'verified' || u.wallet ? naira(u.wallet) : '—'}</td>
                   <td className={`${td} tnum`}>{u.plansSold}</td>
-                  <td className={td}><Badge tone={u.status === 'suspended' || u.walletFrozen ? 'danger' : 'neutral'}>{u.status === 'suspended' ? 'Suspended' : u.walletFrozen ? 'Wallet frozen' : 'Active'}</Badge></td>
+                  <td className={td}><Badge tone={u.status === 'suspended' || u.walletFrozen ? 'danger' : 'neutral'}>{u.status === 'deleted' ? 'Deleted' : u.status === 'suspended' ? 'Suspended' : u.walletFrozen ? 'Wallet frozen' : 'Active'}</Badge></td>
                 </tr>
               ))}
               {!data?.users.length && <tr><td colSpan={6} className="px-3 py-8 text-center text-sm text-ink-muted">{isLoading ? 'Loading users…' : 'No users match.'}</td></tr>}
@@ -65,6 +65,7 @@ export default function Users() {
         {user && (
           <Card className="flex flex-[1_1_320px] flex-col gap-4">
             <div className="flex items-center gap-3"><Avatar initials={initials(user.name)} className="size-12" /><div className="flex flex-col"><b className="font-semibold">{user.name}</b><span className="text-xs text-ink-muted">{user.contact}{user.city ? ` · ${user.city}` : ''}</span></div></div>
+            {user.status === 'deleted' && <p className="rounded-2xl bg-surface-muted p-3 text-sm font-semibold">This person deleted their account. Their details were wiped; wallet records are kept.</p>}
             {(user.status === 'suspended' || user.walletFrozen) && <p className="rounded-2xl bg-danger-soft p-3 text-sm font-semibold text-danger">{user.status === 'suspended' ? 'This account is suspended and cannot sign in.' : 'The wallet is frozen. No money can leave it.'}</p>}
             <dl className="flex flex-col text-sm">{facts.map(([k, v]) => <div key={k} className="flex justify-between gap-3 border-b border-line py-2.5"><dt className="text-ink-muted">{k}</dt><dd className="text-right font-semibold">{v}</dd></div>)}</dl>
             {user.banks.length > 0 && <div className="flex flex-col gap-1 text-sm"><b className="font-semibold">Bank accounts</b>{user.banks.map((b) => <span key={b.account + b.bank} className="text-ink-muted">{b.bank} {b.account} · {b.name}{b.isDefault ? ' · main' : ''}</span>)}</div>}

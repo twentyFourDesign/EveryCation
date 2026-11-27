@@ -111,7 +111,7 @@ export function MomentCard({ m, fixed, active = true, open = true }: { m: Moment
   return (
     <View className={cx('rounded-card border border-line bg-white p-3', fixed && 'flex-1')}>
       <View className="flex-row items-center gap-2.5 pb-2.5">
-        <Avatar initials={initials(m.author.name)} size={36} onPress={() => go(`/traveller/${m.author.id}`)} />
+        <Avatar initials={initials(m.author.name)} uri={m.author.avatarUrl} size={36} onPress={() => go(`/traveller/${m.author.id}`)} />
         <View className="min-w-0 flex-1"><T v="label" numberOfLines={1}>{m.mine ? 'You' : m.author.name}</T><T v="small" numberOfLines={1} className="text-xs">{timeAgo(m.createdAt)}{m.author.city ? ` · ${m.author.city}` : ''}</T></View>
         <KindPill kind={m.kind} small />
       </View>

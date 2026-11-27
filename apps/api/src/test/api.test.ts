@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto';
 import request from 'supertest';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import { Database } from '../db/db.module.js';
-import { bankAccounts, ledgerAccounts, outbox, places, products } from '../db/schema.js';
+import { bankAccounts, ledgerAccounts, otpCodes, outbox, places, products } from '../db/schema.js';
 import { createApp } from '../main.js';
 import { Ledger } from '../modules/wallet/ledger.service.js';
 import { AdminAuthService, type AdminRole } from '../modules/admin/admin-auth.js';
@@ -1112,5 +1112,59 @@ describe('moments', () => {
     await mod.post('/reports/decision', { targetType: 'moment', targetId: m.id, decision: 'remove', reason: 'spam' }).expect(200);
     await http().get(`/v1/moments/${m.id}`).expect(404);
     expect((await spammer.api.get('/notifications')).body.items[0].text).toContain('We removed your moment');
+  });
+});
+
+describe('profile settings', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082', 'hex');
+  it('sets a profile photo and lets people hide their home city', async () => {
+    const u = await named('Kemi A.'); const other = await named('Other');
+    await u.api.patch('/auth/me', { city: 'Ibadan' }).expect(200);
+    const mine = (await http().post('/v1/media').set('Authorization', `Bearer ${u.token}`).attach('file', png, { filename: 'me.png', contentType: 'image/png' }).expect(201)).body;
+    await other.api.patch('/auth/me', { avatarMediaId: mine.id }).expect(404);
+    const me = (await u.api.patch('/auth/me', { avatarMediaId: mine.id }).expect(200)).body;
+    expect(me.avatarUrl).toBe(mine.url);
+    const m = (await u.api.post('/moments', { kind: 'status', body: 'Hello from Ibadan' }, null).expect(201)).body;
+    expect(m.author).toMatchObject({ avatarUrl: mine.url, city: 'Ibadan' });
+    await u.api.patch('/auth/me', { showCity: false }).expect(200);
+    expect((await http().get(`/v1/moments/${m.id}`)).body.author.city).toBeNull();
+    expect((await u.api.patch('/auth/me', { avatarMediaId: null }).expect(200)).body.avatarUrl).toBeNull();
+    // Turning the city off for posts does not lose it from their own settings.
+    expect((await u.api.get('/auth/me')).body).toMatchObject({ city: 'Ibadan', showCity: false });
+  });
+
+  it('changes the email address only after a code sent to the new one comes back', async () => {
+    const u = await signUp(); const api = authed(u.token); const other = await signUp();
+    expect((await api.post('/auth/me/email', { email: other.email }, null).expect(409)).body.code).toBe('email_in_use');
+    expect((await api.post('/auth/me/email', { email: u.email }, null).expect(400)).body.code).toBe('same_email');
+    const fresh = `moved${Date.now()}@example.com`;
+    const sent = (await api.post('/auth/me/email', { email: fresh }, null).expect(200)).body;
+    expect((await api.post('/auth/me/email/verify', { email: fresh, code: sent.devCode === '000000' ? '111111' : '000000' }, null).expect(400)).body.code).toBe('otp_wrong');
+    expect((await api.post('/auth/me/email/verify', { email: fresh, code: sent.devCode }, null).expect(200)).body.email).toBe(fresh);
+    await db.update(otpCodes).set({ createdAt: new Date(Date.now() - 600_000) }).where(eq(otpCodes.destination, fresh)); // past the resend wait
+    const again = (await http().post('/v1/auth/otp/request').send({ email: fresh })).body;
+    const login = (await http().post('/v1/auth/otp/verify').send({ email: fresh, code: again.devCode }).expect(200)).body;
+    expect((await authed(login.accessToken).get('/auth/me')).body.id).toBe(u.id);
+  });
+
+  it('deletes an account once the wallet is empty, taking down what they posted', async () => {
+    const rich = await readyUser(5_000);
+    expect((await http().delete('/v1/auth/me').set('Authorization', `Bearer ${rich.token}`).send({ confirm: 'DELETE' }).expect(409)).body.code).toBe('wallet_not_empty');
+    const u = await named('Leaving Soon'); const mod = await staff('super_admin');
+    const m = (await u.api.post('/moments', { kind: 'fun', body: 'Last post' }, null).expect(201)).body;
+    const tip = (await u.api.post('/tips', { title: 'Carry small naira notes', place: 'Lagos, Nigeria', category: 'Money', body: 'Danfo drivers rarely have change.' }, null).expect(201)).body;
+    await http().delete('/v1/auth/me').set('Authorization', `Bearer ${u.token}`).send({ confirm: 'yes' }).expect(400);
+    await http().delete('/v1/auth/me').set('Authorization', `Bearer ${u.token}`).send({ confirm: 'DELETE' }).expect(204);
+    expect((await u.api.get('/auth/me').expect(401)).body.code).toBe('account_deleted');
+    await http().post('/v1/auth/refresh').send({ refreshToken: u.refreshToken }).expect(401);
+    await http().get(`/v1/moments/${m.id}`).expect(404);
+    await http().get(`/v1/tips/${tip.id}`).expect(404);
+    expect((await mod.post(`/users/${u.id}/action`, { action: 'reinstate' }).expect(409)).body.code).toBe('account_deleted');
+    // Signing in again with the same email starts a brand-new, empty account.
+    await db.update(otpCodes).set({ createdAt: new Date(Date.now() - 600_000) }).where(eq(otpCodes.destination, u.email));
+    const again = (await http().post('/v1/auth/otp/request').send({ email: u.email })).body;
+    const login = (await http().post('/v1/auth/otp/verify').send({ email: u.email, code: again.devCode }).expect(200)).body;
+    expect(login.isNewUser).toBe(true);
+    expect((await authed(login.accessToken).get('/auth/me')).body.id).not.toBe(u.id);
   });
 });

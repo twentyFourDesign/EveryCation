@@ -28,11 +28,12 @@ export const KIND_ORDER = Object.keys(KINDS) as MomentKind[];
 const useWho = () => useSession((s) => s.me?.id ?? 'guest');
 
 /** Newest first, 20 at a time; call fetchNextPage for more. */
-export function useMoments(kind?: MomentKind) {
+export function useMoments(kind?: MomentKind, authorId?: string) {
   const w = useWho();
   return useInfiniteQuery({
-    queryKey: ['moments', 'feed', kind ?? 'all', w],
-    queryFn: ({ pageParam }) => api<Page>(`/moments?${new URLSearchParams({ ...(kind ? { kind } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    queryKey: ['moments', 'feed', kind ?? 'all', authorId ?? 'everyone', w],
+    queryFn: ({ pageParam }) => api<Page>(`/moments?${new URLSearchParams({ ...(kind ? { kind } : {}), ...(authorId ? { authorId } : {}), ...(pageParam ? { before: pageParam } : {}) })}`),
+    enabled: authorId === undefined || isUuid(authorId),
     initialPageParam: '',
     getNextPageParam: (last) => last.next ?? undefined,
   });

@@ -42,7 +42,7 @@ export default function SearchResults() {
         <Pressable key={c.code + c.label} accessibilityRole="button" onPress={() => go(`/advice/${c.code}`)} className="flex-row items-center gap-3 active:opacity-70"><Avatar initials={c.code} size={48} /><View className="flex-1"><T v="strong">{c.label}</T><T v="small">Entry, money, getting around and safety</T></View><ChevronRight size={18} color={colors.inkMuted} /></Pressable>
       ))}</Group>}
       {query.length >= 2 && show('Travellers') && !!data?.travellers.length && <Group title="TRAVELLERS">{data.travellers.map((t) => (
-        <Pressable key={t.id} accessibilityRole="button" onPress={() => go(`/traveller/${t.id}`)} className="flex-row items-center gap-3 active:opacity-70"><Avatar initials={initials(t.name)} size={48} /><View className="flex-1"><T v="strong">{t.name}</T><T v="small">{t.tips} tip{t.tips === 1 ? '' : 's'}{t.city ? ` · ${t.city}` : ''}</T></View><ChevronRight size={18} color={colors.inkMuted} /></Pressable>
+        <Pressable key={t.id} accessibilityRole="button" onPress={() => go(`/traveller/${t.id}`)} className="flex-row items-center gap-3 active:opacity-70"><Avatar initials={initials(t.name)} uri={t.avatarUrl} size={48} /><View className="flex-1"><T v="strong">{t.name}</T><T v="small">{t.tips} tip{t.tips === 1 ? '' : 's'}{t.city ? ` · ${t.city}` : ''}</T></View><ChevronRight size={18} color={colors.inkMuted} /></Pressable>
       ))}</Group>}
     </Screen>
   );

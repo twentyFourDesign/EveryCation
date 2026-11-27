@@ -16,5 +16,5 @@ class MediaController {
 }
 
 @Global()
-@Module({ controllers: [MediaController], providers: [MediaService, DiskStorage, { provide: MediaStorage, useExisting: DiskStorage }], exports: [MediaService, DiskStorage] })
+@Module({ controllers: [MediaController], providers: [MediaService, DiskStorage, { provide: MediaStorage, useExisting: DiskStorage }], exports: [MediaService, DiskStorage, MediaStorage] })
 export class MediaModule {}

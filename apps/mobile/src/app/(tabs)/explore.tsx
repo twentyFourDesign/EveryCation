@@ -5,8 +5,9 @@ import { Pressable, ScrollView, Text, View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
 import { usePlans } from '@/lib/plans';
 import { tripImage } from '@/lib/trips';
-import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
-import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
+import { Avatar, Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, colors, go } from '@/ui';
+import { initials, tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
+import { useSession } from '@/lib/session';
 import { usePackages } from '@/lib/packages';
 import { PackageCard } from '@/ui/package-card';
 import { MomentsFrame } from '@/ui/moment-card';
@@ -18,12 +19,16 @@ export default function Explore() {
   const tips = useTips('popular');
   const plans = usePlans('all', '');
   const unread = useUnread().data?.unread ?? 0;
+  const me = useSession((s) => s.me);
   const featured = usePackages({ plan: 'featured' }).data ?? [];
   return (
     <Screen edges={['top']}>
       <View className="flex-row items-center justify-between">
         <View className="flex-row items-center gap-2"><Mark size={30} color="brand" /><Text className="font-pop-sb text-lg text-navy">EveryCation</Text></View>
-        <IconButton icon={IconBell} label="Notifications" badge={unread || undefined} onPress={() => router.push('/notifications')} />
+        <View className="flex-row items-center gap-1">
+          <IconButton icon={IconBell} label="Notifications" badge={unread || undefined} onPress={() => router.push('/notifications')} />
+          <Avatar initials={initials(me?.name ?? 'You')} uri={me?.avatarUrl} size={36} onPress={() => router.push('/profile')} label="Your profile and settings" />
+        </View>
       </View>
       <T v="h1">Where to next?</T>
       <Pressable accessibilityRole="search" accessibilityLabel="Search places, tips and trip plans" onPress={() => router.push('/search')} className="h-[52px] flex-row items-center gap-3 rounded-full bg-surface-muted px-4">

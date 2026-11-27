@@ -1,37 +1,41 @@
 import { router } from 'expo-router';
-import { Settings } from 'lucide-react-native';
+import { Settings, Share2 } from 'lucide-react-native';
 import { IconStore } from '@/ui/icons';
-import { Pressable, View } from 'react-native';
-import { Avatar, Button, Empty, IconButton, ListRow, Photo, Screen, SectionTitle, Stats, T, go } from '@/ui';
-import { initials, tipImage, tipPhoto, useProfile, useTipsBy } from '@/lib/community';
+import { Share, View } from 'react-native';
+import { Avatar, Button, IconButton, ListRow, Screen, Stats, T } from '@/ui';
+import { initials, useProfile } from '@/lib/community';
 import { useSession } from '@/lib/session';
+import { ProfilePosts } from '@/ui/profile-posts';
+
+const since = (iso?: string) => (iso ? new Date(iso).toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }) : '');
 
 export default function Profile() {
   const { me, status } = useSession();
   const { data: p } = useProfile(me?.id);
-  const { data: tips = [] } = useTipsBy(me?.id);
+  const gear = <IconButton icon={Settings} label="Settings" onPress={() => router.push('/settings')} />;
   if (status !== 'signedIn' || !me) return (
-    <Screen title="Profile" right={<IconButton icon={Settings} label="Settings" onPress={() => router.push('/settings')} />}>
-      <View className="gap-4 pt-10"><T v="h2" className="text-center">Sign in to see your profile</T><T className="text-center text-ink-muted">Your tips, advice and trips live here.</T><Button label="SIGN IN" onPress={() => router.push('/sign-up')} /></View>
+    <Screen title="Profile" right={gear}>
+      <View className="gap-4 pt-10"><T v="h2" className="text-center">Sign in to see your profile</T><T className="text-center text-ink-muted">Your moments, tips, advice and trips live here.</T><Button label="SIGN IN" onPress={() => router.push('/sign-up')} /></View>
     </Screen>
   );
   const name = me.name ?? 'Traveller';
+  const line = [me.handle && `@${me.handle}`, me.showCity ? me.city : null].filter(Boolean).join(' · ');
   return (
-    <Screen title="" right={<IconButton icon={Settings} label="Settings" onPress={() => router.push('/settings')} />}>
+    <Screen title="" right={<View className="flex-row"><IconButton icon={Share2} label="Share profile" onPress={() => Share.share({ message: `${name} on EveryCation${me.handle ? ` · @${me.handle}` : ''}` })} />{gear}</View>}>
       <View className="items-center gap-2">
-        <Avatar initials={initials(name)} size={88} />
+        <Avatar initials={initials(name)} uri={me.avatarUrl} size={96} onPress={() => router.push('/edit-profile')} label="Change your profile photo" />
         <T v="h2">{name}</T>
-        <T v="small">{[me.handle && `@${me.handle}`, me.city].filter(Boolean).join(' · ') || 'Add a username and home city'}</T>
+        <T v="small">{line || 'Add a username and home city'}</T>
         {!!me.bio && <T className="text-center">{me.bio}</T>}
-        <Button small variant="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} />
+        {!!me.memberSince && <T v="small" className="text-xs">Member since {since(me.memberSince)}</T>}
+        <View className="flex-row gap-2 pt-1">
+          <Button small variant="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} />
+          <Button small variant="outline" label="Settings" onPress={() => router.push('/settings')} />
+        </View>
       </View>
       <Stats items={[[p?.countries ?? 0, 'countries'], [p?.tips ?? 0, 'tips'], [p?.verifiedAdvice ?? 0, 'verified advice']]} />
       <ListRow icon={IconStore} title="Creator studio" subtitle="Share or sell your trip plans" onPress={() => router.push('/creator-studio')} />
-      <SectionTitle>My tips</SectionTitle>
-      {tips.length === 0 ? <Empty>You have not shared a tip yet. Use the + button to post your first.</Empty> : (
-        <View className="flex-row flex-wrap gap-2">
-          {tips.map((t) => <Pressable key={t.id} accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/tip/${t.id}`)} className="w-[31.8%]"><Photo k={tipImage(t)} uri={tipPhoto(t)} className="aspect-square rounded-xl" /></Pressable>)}
-        </View>)}
+      <ProfilePosts userId={me.id} mine />
     </Screen>
   );
 }

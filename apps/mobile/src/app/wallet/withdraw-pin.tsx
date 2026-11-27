@@ -6,7 +6,7 @@ import { Text, View } from 'react-native';
 import { formatNaira } from '@everycation/shared';
 import { Button, Mark, PinPad, Screen, T } from '@/ui';
 import { ApiError, errorMessage } from '@/lib/api';
-import { biometricsAvailable, forgetPin, pinWithBiometrics, rememberPin } from '@/lib/biometric-pin';
+import { biometricsAllowed, biometricsAvailable, forgetPin, pinWithBiometrics, rememberPin } from '@/lib/biometric-pin';
 import { useWallet, useWithdraw } from '@/lib/wallet';
 
 export default function WithdrawPin() {
@@ -19,7 +19,7 @@ export default function WithdrawPin() {
   const [key] = useState(() => randomUUID());
   const bank = w?.banks.find((b) => b.isDefault) ?? w?.banks[0];
   const from = source === 'available' ? 'available balance' : `${w?.goals.find((g) => g.id === source)?.name ?? 'your'} goal`;
-  useEffect(() => { biometricsAvailable().then(setBio); }, []);
+  useEffect(() => { void Promise.all([biometricsAvailable(), biometricsAllowed()]).then(([has, allowed]) => setBio(has && allowed)); }, []);
 
   async function send(value: string, viaBiometrics = false) {
     setError('');

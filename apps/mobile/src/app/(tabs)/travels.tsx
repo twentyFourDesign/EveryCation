@@ -159,7 +159,7 @@ export default function MyTravels() {
   );
   return (
     <Screen edges={['top']} title="My travels" back={false}
-      right={view === 'Calendar' ? <IconButton icon={Plus} label="Add to itinerary" onPress={() => router.push('/calendar-add')} /> : <View className="pr-2"><Avatar initials={initials(me?.name ?? 'You')} onPress={() => router.push('/profile')} /></View>}>
+      right={view === 'Calendar' ? <IconButton icon={Plus} label="Add to itinerary" onPress={() => router.push('/calendar-add')} /> : <View className="pr-2"><Avatar initials={initials(me?.name ?? 'You')} uri={me?.avatarUrl} label="Your profile" onPress={() => router.push('/profile')} /></View>}>
       <Chips options={views} value={view} onChange={setView} />
       {!!error && <Note tone="danger">{errorMessage(error)}</Note>}
       {isLoading ? <Loading what="your trips" /> : view === 'Timeline' ? <Timeline trips={trips ?? []} /> : view === 'Bucket list' ? <BucketList /> : view === 'Calendar' ? <Calendar trips={trips ?? []} /> : <TravelMap trips={trips ?? []} />}

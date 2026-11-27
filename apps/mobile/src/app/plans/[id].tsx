@@ -59,7 +59,7 @@ export default function PlanDetail() {
           {p.status === 'scheduled' && p.opensAt && <Note tone="gold">{`Goes on sale on ${fmt(p.opensAt.slice(0, 10))}, the morning after your trip ends. Only you can see it until then.`}</Note>}
           {p.status === 'private' && <Note>Only you can see this plan.</Note>}
           <View className="flex-row items-center gap-3 rounded-card bg-surface-muted p-3.5">
-            <Avatar initials={initials(p.author.name)} onPress={() => go(`/traveller/${p.author.id}`)} />
+            <Avatar initials={initials(p.author.name)} uri={p.author.avatarUrl} onPress={() => go(`/traveller/${p.author.id}`)} />
             <View className="flex-1 gap-1"><View className="flex-row items-center gap-2"><T v="strong">{p.mine ? 'You' : p.author.name}</T><Badge label="CREATOR" tone="navy" /></View>
               {p.tripEnded && <View className="flex-row items-center gap-1"><IconVerified size={14} color="#002C82" /><T v="small" className="text-xs">Made this trip, ended {fmt(p.tripEndDate)}</T></View>}</View>
           </View>

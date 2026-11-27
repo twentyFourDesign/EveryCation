@@ -30,7 +30,7 @@ export default function CommunityFeed() {
         const saved = savedTips.includes(t.id);
         return (
           <View key={t.id} className="gap-3 border-b border-line pb-5">
-            <Pressable accessibilityRole="button" accessibilityLabel={`${t.author.name}'s profile`} onPress={() => go(`/traveller/${t.author.id}`)} className="flex-row items-center gap-3"><Avatar initials={initials(t.author.name)} /><View><T v="strong">{t.author.name}</T><T v="small">{t.place} · {timeAgo(t.createdAt)}</T></View></Pressable>
+            <Pressable accessibilityRole="button" accessibilityLabel={`${t.author.name}'s profile`} onPress={() => go(`/traveller/${t.author.id}`)} className="flex-row items-center gap-3"><Avatar initials={initials(t.author.name)} uri={t.author.avatarUrl} /><View><T v="strong">{t.author.name}</T><T v="small">{t.place} · {timeAgo(t.createdAt)}</T></View></Pressable>
             <Pressable accessibilityRole="button" accessibilityLabel={t.title} onPress={() => go(`/tip/${t.id}`)} className="gap-2.5 active:opacity-80">
               <View><Photo k={tipImage(t)} uri={tipPhoto(t)} className="h-[210px] rounded-card" />
                 {(t.media?.kind === 'video' || t.format !== 'write') && <View className="absolute bottom-3 left-3 flex-row items-center gap-1 rounded-full bg-navy px-2.5 py-1"><Play size={12} color="#fff" fill="#fff" /><Text className="font-pop-sb text-xs capitalize text-white">{t.media?.kind === 'video' ? 'Video' : t.format}</Text></View>}</View>

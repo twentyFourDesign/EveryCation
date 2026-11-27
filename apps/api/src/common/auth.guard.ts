@@ -31,7 +31,7 @@ export class AuthGuard implements CanActivate {
     if (payload.adm) throw unauthorized(); // staff tokens are not customer tokens
     const [user] = await this.database.db.select({ status: users.status }).from(users).where(eq(users.id, payload.sub));
     if (!user) { if (isPublic) return true; throw unauthorized(); }
-    if (user.status !== 'active') { if (isPublic) return true; throw forbidden('account_suspended', 'This account is suspended. Contact support.'); }
+    if (user.status !== 'active') { if (isPublic) return true; if (user.status === 'deleted') throw unauthorized('account_deleted', 'This account has been deleted.'); throw forbidden('account_suspended', 'This account is suspended. Contact support.'); }
     req.user = { id: payload.sub, sessionFamily: payload.fam };
     return true;
   }

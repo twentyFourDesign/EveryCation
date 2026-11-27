@@ -9,7 +9,7 @@ import { Database } from '../../db/db.module.js';
 import { advice, comments, momentComments, moments, reports, tipLikes, tips, users } from '../../db/schema.js';
 
 export interface TipInput { title: string; place: string; countryCode?: string; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow?: string[]; imageKey?: string; mediaId?: string; visited?: string }
-export const author = (u: { id: string; name: string | null; handle: string | null; city: string | null }) => ({ id: u.id, name: u.name ?? 'Traveller', handle: u.handle, city: u.city });
+export const author = (u: { id: string; name: string | null; handle: string | null; city: string | null; avatarUrl?: string | null; showCity?: boolean }) => ({ id: u.id, name: u.name ?? 'Traveller', handle: u.handle, city: u.showCity === false ? null : u.city, avatarUrl: u.avatarUrl ?? null });
 
 @Injectable()
 export class TipsService {
