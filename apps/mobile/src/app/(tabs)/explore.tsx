@@ -9,9 +9,10 @@ import { Chips, IconButton, Loading, Mark, Photo, Screen, SectionTitle, T, color
 import { tipImage, tipPhoto, useTips, useUnread } from '@/lib/community';
 import { usePackages } from '@/lib/packages';
 import { PackageCard } from '@/ui/package-card';
+import { MomentsFrame } from '@/ui/moment-card';
 
-const sections = ['For you', 'Packages', 'Community', 'Places', 'Trip plans', 'Visa & entry', 'Advice'] as const;
-const links: Record<string, string> = { Packages: '/packages', Community: '/community', Places: '/places', 'Trip plans': '/plans', 'Visa & entry': '/requirements', Advice: '/advice' };
+const sections = ['For you', 'Moments', 'Packages', 'Community', 'Places', 'Trip plans', 'Visa & entry', 'Advice'] as const;
+const links: Record<string, string> = { Moments: '/moments', Packages: '/packages', Community: '/community', Places: '/places', 'Trip plans': '/plans', 'Visa & entry': '/requirements', Advice: '/advice' };
 
 export default function Explore() {
   const tips = useTips('popular');
@@ -38,6 +39,8 @@ export default function Explore() {
           </ScrollView>
         </>
       )}
+
+      <MomentsFrame />
 
       <SectionTitle action="See all" onAction={() => router.push('/community')}>Tips from travellers</SectionTitle>
       {tips.isLoading ? <Loading what="tips" /> : !tips.data?.length ? (

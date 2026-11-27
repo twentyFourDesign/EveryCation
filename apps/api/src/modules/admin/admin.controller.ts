@@ -28,7 +28,7 @@ const loginBody = z.object({ email: z.email('Enter your work email'), password: 
 const decisionBody = z.object({ decision: z.enum(['approve', 'changes', 'reject']), note: z.string().trim().max(500).optional() });
 const inviteBody = z.object({ email: z.email('Enter a work email'), name: z.string().trim().min(2, 'Enter their name').max(60), role: z.enum(['super_admin', 'moderator', 'finance', 'shop_ops', 'support']) });
 const activeBody = z.object({ active: z.boolean() });
-const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false), ...whyFields }).refine((b) => b.decision === 'keep' || whyComplete(b), WHY_MESSAGE);
+const reportDecision = z.object({ targetType: z.enum(['tip', 'comment', 'advice', 'moment', 'moment_comment']), targetId: z.uuid(), decision: z.enum(['remove', 'keep']), suspendAuthor: z.boolean().default(false), ...whyFields }).refine((b) => b.decision === 'keep' || whyComplete(b), WHY_MESSAGE);
 const orderStatusBody = z.object({ status: z.enum(['packed', 'shipped', 'delivered', 'cancelled']) });
 const productBody = z.object({ name: z.string().trim().min(2, 'Enter the product name').max(120), brand: z.string().trim().max(60).nullish(), category: z.string().trim().min(2, 'Choose a category').max(60), price: z.number().int().min(100, 'Enter a price'),
   stock: z.number().int().min(0).nullable(), variant: z.string().trim().max(60).nullish(), description: z.string().trim().max(600).optional(), pickedNote: z.string().trim().max(200).nullish(), imageUrl: z.url().nullish(), active: z.boolean().optional() });

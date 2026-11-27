@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { router, useLocalSearchParams } from 'expo-router';
-import { Bookmark, ChevronLeft, Heart, MessageCircle, Share2 } from 'lucide-react-native';
+import { Bookmark, ChevronLeft, Share2 } from 'lucide-react-native';
+import { IconComment, IconLike, IconLiked } from '@/ui/icons';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { ScrollView, Share, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -50,7 +51,7 @@ export default function TipDetail() {
             <View className="flex-row gap-2 px-4 pt-2">
               <IconButton tone="glass" icon={ChevronLeft} label="Back" onPress={() => (router.canGoBack() ? router.back() : router.replace('/explore'))} />
               <View className="flex-1" />
-              <IconButton tone="glass" icon={MessageCircle} label={`${tip.comments} comments`} badge={tip.comments || undefined} onPress={() => go(`/tip/${tip.id}/comments`)} />
+              <IconButton tone="glass" icon={IconComment} label={`${tip.comments} comments`} badge={tip.comments || undefined} onPress={() => go(`/tip/${tip.id}/comments`)} />
               <IconButton tone="glass" icon={Share2} label="Share tip" onPress={() => Share.share({ message: `${tip.title} · EveryCation` })} />
               <IconButton tone="glass" icon={Bookmark} label={saved ? 'Saved' : 'Save tip'} onPress={() => toggle('savedTips', tip.id)} />
             </View>
@@ -61,7 +62,7 @@ export default function TipDetail() {
             <View className="flex-row items-center gap-3">
               <Avatar initials={tip.authorInitials} onPress={tip.authorLink ? () => go(tip.authorLink!) : undefined} />
               <View className="flex-1"><T v="strong">{tip.authorName}</T>{!!tip.visited && <T v="small">{tip.visited}</T>}</View>
-              {live && <Button small variant={tip.liked ? 'navy' : 'outline'} icon={Heart} label={`${tip.likes}`} onPress={() => (signedIn ? like.mutate(tip.id) : router.push('/sign-up'))} />}
+              {live && <Button small variant={tip.liked ? 'navy' : 'outline'} icon={tip.liked ? IconLiked : IconLike} label={`${tip.likes}`} onPress={() => (signedIn ? like.mutate(tip.id) : router.push('/sign-up'))} />}
             </View>
             {!!tip.audio && <VoicePlayer url={tip.audio} />}
             {!!tip.body && <T className="text-base leading-[26px]">{tip.body}</T>}

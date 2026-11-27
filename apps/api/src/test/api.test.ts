@@ -1045,3 +1045,72 @@ describe('sign in with Google or Apple, and Google Calendar', () => {
     expect(revoked).toBe('refresh-1');
   });
 });
+
+describe('moments', () => {
+  const png = Buffer.from('89504e470d0a1a0a0000000d49484452000000010000000108060000001f15c4890000000d49444154789c6360000002000001e221bc330000000049454e44ae426082', 'hex');
+  it('shows everyone a public timeline that anyone signed in can like and comment on', async () => {
+    const ada = await named('Ada K.'); const bayo = await named('Bayo F.');
+    await http().post('/v1/moments').send({ kind: 'status', body: 'Hello' }).expect(401);
+    expect((await ada.api.post('/moments', { kind: 'status', body: '' }, null).expect(400)).body.code).toBe('empty_moment');
+    expect((await ada.api.post('/moments', { kind: 'event', body: 'Afrobeats on the beach' }, null).expect(400)).body.code).toBe('event_date_required');
+    expect((await ada.api.post('/moments', { kind: 'safety', body: 'Road closed by flooding' }, null).expect(400)).body.code).toBe('place_required');
+    expect((await ada.api.post('/moments', { kind: 'gossip', body: 'Hi there' }, null).expect(400)).body.code).toBe('invalid_input');
+
+    const up = (await http().post('/v1/media').set('Authorization', `Bearer ${ada.token}`).attach('file', png, { filename: 'a.png', contentType: 'image/png' }).expect(201)).body;
+    await bayo.api.post('/moments', { kind: 'fun', body: '', mediaId: up.id }, null).expect(404); // not his upload
+    const photo = (await ada.api.post('/moments', { kind: 'fun', body: '', mediaId: up.id }, null).expect(201)).body;
+    expect(photo).toMatchObject({ kind: 'fun', media: { kind: 'image' }, mine: true, likes: 0, comments: 0, author: { name: 'Ada K.' } });
+    const event = (await ada.api.post('/moments', { kind: 'event', body: 'Lagos boat regatta, who is coming?', place: 'Lagos, Nigeria', countryCode: 'ng', eventDate: '2027-03-14' }, null).expect(201)).body;
+    expect(event).toMatchObject({ eventDate: '2027-03-14', countryCode: 'NG', place: 'Lagos, Nigeria' });
+    const alert = (await bayo.api.post('/moments', { kind: 'safety', body: 'Third Mainland Bridge closed tonight, use Carter Bridge.', place: 'Lagos, Nigeria' }, null).expect(201)).body;
+
+    const all = (await http().get('/v1/moments').expect(200)).body;
+    expect(all.items.slice(0, 3).map((m: { id: string }) => m.id)).toEqual([alert.id, event.id, photo.id]);
+    expect(all.items[0]).toMatchObject({ liked: false, mine: false });
+    expect((await http().get('/v1/moments?kind=safety')).body.items.every((m: { kind: string }) => m.kind === 'safety')).toBe(true);
+    expect((await http().get(`/v1/moments?authorId=${ada.id}`)).body.items).toHaveLength(2);
+    const older = (await http().get(`/v1/moments?before=${encodeURIComponent(event.createdAt)}&authorId=${ada.id}`)).body;
+    expect(older.items.map((m: { id: string }) => m.id)).toEqual([photo.id]);
+
+    expect((await bayo.api.post(`/moments/${event.id}/like`, {}, null).expect(200)).body).toEqual({ liked: true, likes: 1 });
+    expect((await authed(bayo.token).get(`/moments/${event.id}`)).body.liked).toBe(true);
+    expect((await bayo.api.post(`/moments/${event.id}/like`, {}, null).expect(200)).body).toEqual({ liked: false, likes: 0 });
+    await bayo.api.post(`/moments/${event.id}/like`, {}, null);
+
+    const thread = (await bayo.api.post(`/moments/${event.id}/comments`, { body: 'Count me in!' }, null).expect(201)).body;
+    expect(thread).toHaveLength(1);
+    await ada.api.post(`/moments/${event.id}/comments`, { body: 'See you there' }, null).expect(201);
+    const seen = (await http().get(`/v1/moments/${event.id}/comments`).expect(200)).body;
+    expect(seen.map((c: { isAuthor: boolean }) => c.isAuthor)).toEqual([false, true]);
+    expect((await http().get(`/v1/moments/${event.id}`)).body).toMatchObject({ likes: 1, comments: 2 });
+    expect((await ada.api.get('/notifications')).body.items[0]).toMatchObject({ text: expect.stringContaining('Bayo F. commented on your event'), href: `/moment/${event.id}` });
+
+    // The author of a moment may tidy up its comments; others may remove only their own.
+    const outsider = await named('Outsider');
+    await outsider.api.delete(`/moments/${event.id}/comments/${thread[0].id}`).expect(403);
+    expect((await ada.api.delete(`/moments/${event.id}/comments/${thread[0].id}`).expect(200)).body).toHaveLength(1);
+    expect((await http().get(`/v1/moments/${event.id}`)).body.comments).toBe(1);
+
+    await bayo.api.delete(`/moments/${event.id}`).expect(404);
+    await ada.api.delete(`/moments/${photo.id}`).expect(204);
+    await http().get(`/v1/moments/${photo.id}`).expect(404);
+  });
+
+  it('lets travellers report moments and comments, and moderators remove them', async () => {
+    const spammer = await named('Cheap Flights'); const r1 = await named('Rep A'); const mod = await staff('moderator');
+    const m = (await spammer.api.post('/moments', { kind: 'trip', body: 'Flights to London for N50k, DM me' }, null).expect(201)).body;
+    const host = (await r1.api.post('/moments', { kind: 'status', body: 'Just landed in Accra' }, null).expect(201)).body;
+    const c = (await spammer.api.post(`/moments/${host.id}/comments`, { body: 'Cheap flights, DM' }, null)).body.at(-1);
+    expect((await spammer.api.post('/reports', { targetType: 'moment', targetId: m.id, reason: 'Spam' }, null).expect(409)).body.code).toBe('own_content');
+    await r1.api.post('/reports', { targetType: 'moment', targetId: m.id, reason: 'Scam' }, null).expect(200);
+    await r1.api.post('/reports', { targetType: 'moment_comment', targetId: c.id, reason: 'Spam' }, null).expect(200);
+    const open = (await mod.get('/reports').expect(200)).body as { targetType: string; targetId: string; item: string }[];
+    expect(open.find((x) => x.targetId === m.id)).toMatchObject({ targetType: 'moment', item: 'Moment · trip' });
+    expect(open.find((x) => x.targetId === c.id)?.item).toContain('Comment on a moment');
+    await mod.post('/reports/decision', { targetType: 'moment_comment', targetId: c.id, decision: 'remove', reason: 'spam' }).expect(200);
+    expect((await http().get(`/v1/moments/${host.id}`)).body.comments).toBe(0);
+    await mod.post('/reports/decision', { targetType: 'moment', targetId: m.id, decision: 'remove', reason: 'spam' }).expect(200);
+    await http().get(`/v1/moments/${m.id}`).expect(404);
+    expect((await spammer.api.get('/notifications')).body.items[0].text).toContain('We removed your moment');
+  });
+});

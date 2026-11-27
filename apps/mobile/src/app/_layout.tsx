@@ -24,6 +24,7 @@ export default function RootLayout() {
         <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: '#fff' } }}>
           <Stack.Screen name="record-tip" options={{ presentation: 'modal' }} />
           <Stack.Screen name="calendar-add" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="moment/new" options={{ presentation: 'modal' }} />
         </Stack>
       </SafeAreaProvider>
     </QueryClientProvider>

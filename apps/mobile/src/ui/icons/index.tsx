@@ -52,4 +52,5 @@ export const IconExplore = make('explore'), IconWallet = make('wallet'), IconSho
   IconBank = make('bank'), IconStore = make('store'), IconMegaphone = make('megaphone'), IconHeart = make('heart'), IconBeach = make('beach'),
   IconCity = make('city'), IconAdventure = make('adventure'), IconFood = make('food'), IconCulture = make('culture'), IconNature = make('nature'),
   IconHealth = make('health'), IconMoney = make('money'), IconDreamer = make('dreamer'), IconWanderer = make('wanderer'), IconGlobe = make('globe'),
-  IconTrophy = make('trophy'), IconApply = make('apply'), IconHome = make('home'), IconInspire = make('inspire');
+  IconTrophy = make('trophy'), IconApply = make('apply'), IconHome = make('home'), IconInspire = make('inspire'),
+  IconLike = make('like'), IconLiked = make('liked'), IconComment = make('comment');

@@ -267,7 +267,7 @@ export const adviceHelpful = pgTable('advice_helpful', {
   userId: uuid().notNull().references(() => users.id),
 }, (t) => [uniqueIndex('advice_helpful_once_idx').on(t.adviceId, t.userId)]);
 
-export const reportTarget = pgEnum('report_target', ['tip', 'comment', 'advice']);
+export const reportTarget = pgEnum('report_target', ['tip', 'comment', 'advice', 'moment', 'moment_comment']);
 
 /** One report per person per item. */
 export const reports = pgTable('reports', {
@@ -279,6 +279,43 @@ export const reports = pgTable('reports', {
   resolvedAt: timestamp({ withTimezone: true }),
   createdAt: createdAt(),
 }, (t) => [uniqueIndex('reports_once_idx').on(t.targetType, t.targetId, t.reporterId), index('reports_target_idx').on(t.targetType, t.targetId)]);
+
+// ───────────── Moments: the public timeline on Explore ─────────────
+
+/** What a moment is about. Everyone sees every moment; there is no following. */
+export const momentKind = pgEnum('moment_kind', ['status', 'event', 'trip', 'safety', 'fun']);
+
+export const moments = pgTable('moments', {
+  id: id(),
+  userId: uuid().notNull().references(() => users.id),
+  kind: momentKind().notNull(),
+  body: text().notNull().default(''),
+  /** One photo, video or voice note, from the uploader's own media. */
+  mediaId: uuid(),
+  place: text(),
+  countryCode: text(),
+  /** For events: the day it happens. */
+  eventDate: date(),
+  status: contentStatus().notNull().default('published'),
+  likeCount: integer().notNull().default(0),
+  commentCount: integer().notNull().default(0),
+  createdAt: createdAt(),
+}, (t) => [index('moments_feed_idx').on(t.status, t.createdAt), index('moments_kind_idx').on(t.kind, t.status, t.createdAt), index('moments_user_idx').on(t.userId)]);
+
+export const momentLikes = pgTable('moment_likes', {
+  momentId: uuid().notNull().references(() => moments.id),
+  userId: uuid().notNull().references(() => users.id),
+  createdAt: createdAt(),
+}, (t) => [uniqueIndex('moment_likes_once_idx').on(t.momentId, t.userId)]);
+
+export const momentComments = pgTable('moment_comments', {
+  id: id(),
+  momentId: uuid().notNull().references(() => moments.id),
+  userId: uuid().notNull().references(() => users.id),
+  body: text().notNull(),
+  status: contentStatus().notNull().default('published'),
+  createdAt: createdAt(),
+}, (t) => [index('moment_comments_idx').on(t.momentId, t.createdAt)]);
 
 // ───────────── Notifications ─────────────
 

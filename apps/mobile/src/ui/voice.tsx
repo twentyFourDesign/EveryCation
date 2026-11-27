@@ -18,7 +18,7 @@ export async function voiceUpload(note: VoiceNote) {
 }
 
 /** A record button that turns into a timer and a stop button. Hands back the finished recording. */
-export function VoiceRecorder({ onDone, onError }: { onDone: (note: VoiceNote) => void; onError: (message: string) => void }) {
+export function VoiceRecorder({ onDone, onError, what = 'voice tip' }: { onDone: (note: VoiceNote) => void; onError: (message: string) => void; what?: string }) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
   const state = useAudioRecorderState(recorder, 250);
   const [starting, setStarting] = useState(false);
@@ -29,7 +29,7 @@ export function VoiceRecorder({ onDone, onError }: { onDone: (note: VoiceNote) =
     setStarting(true);
     try {
       const permission = await requestRecordingPermissionsAsync();
-      if (!permission.granted) return onError('Allow microphone access in your phone settings to record a voice tip.');
+      if (!permission.granted) return onError(`Allow microphone access in your phone settings to record a ${what}.`);
       await setAudioModeAsync({ playsInSilentMode: true, allowsRecording: true });
       await recorder.prepareToRecordAsync();
       recorder.record();
@@ -57,8 +57,8 @@ export function VoiceRecorder({ onDone, onError }: { onDone: (note: VoiceNote) =
     </View>
   );
   return (
-    <Pressable accessibilityRole="button" accessibilityLabel="Record a voice tip" disabled={starting} onPress={start} className="h-11 flex-row items-center justify-center gap-2 rounded-full border-[1.5px] border-navy active:opacity-70">
-      <IconMic size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">{starting ? 'Starting…' : 'Record a voice tip'}</Text>
+    <Pressable accessibilityRole="button" accessibilityLabel={`Record a ${what}`} disabled={starting} onPress={start} className="h-11 flex-row items-center justify-center gap-2 rounded-full border-[1.5px] border-navy active:opacity-70">
+      <IconMic size={18} color={colors.navy} /><Text className="font-pop-sb text-[13px] text-navy">{starting ? 'Starting…' : `Record a ${what}`}</Text>
     </Pressable>
   );
 }

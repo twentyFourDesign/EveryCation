@@ -6,7 +6,7 @@ import { notify } from '../../common/notify.js';
 import { SettingsService } from '../settings/settings.service.js';
 import { MediaService } from '../media/media.service.js';
 import { Database } from '../../db/db.module.js';
-import { advice, comments, reports, tipLikes, tips, users } from '../../db/schema.js';
+import { advice, comments, momentComments, moments, reports, tipLikes, tips, users } from '../../db/schema.js';
 
 export interface TipInput { title: string; place: string; countryCode?: string; category: string; format: 'write' | 'video' | 'voice'; body: string; goodToKnow?: string[]; imageKey?: string; mediaId?: string; visited?: string }
 export const author = (u: { id: string; name: string | null; handle: string | null; city: string | null }) => ({ id: u.id, name: u.name ?? 'Traveller', handle: u.handle, city: u.city });
@@ -73,8 +73,8 @@ export class TipsService {
   }
 
   /** One report per person per item. Enough reports on verified advice send it back to the review queue. */
-  async report(userId: string, targetType: 'tip' | 'comment' | 'advice', targetId: string, reason: string) {
-    const table = { tip: tips, comment: comments, advice }[targetType];
+  async report(userId: string, targetType: 'tip' | 'comment' | 'advice' | 'moment' | 'moment_comment', targetId: string, reason: string) {
+    const table = { tip: tips, comment: comments, advice, moment: moments, moment_comment: momentComments }[targetType];
     const [target] = await this.db.select({ id: table.id, userId: table.userId }).from(table).where(eq(table.id, targetId));
     if (!target) throw notFound('That item');
     if (target.userId === userId) throw conflict('own_content', 'You cannot report your own post.');

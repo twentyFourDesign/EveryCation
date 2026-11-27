@@ -14,7 +14,7 @@ const tipBody = z.object({ title: text(8, 80, 'Write a headline of at least 8 ch
 const commentBody = z.object({ body: text(1, 500, 'Write a comment') });
 const adviceBody = z.object({ countryCode: z.string().length(2, 'Choose a country'), city: text(2, 60, 'Choose a location'), topic: text(2, 30, 'Choose a topic'), body: text(30, 600, 'Write at least 30 characters so it is useful'), visited: z.string().trim().max(40).optional(), showPassport: z.boolean().optional() });
 const reviseBody = adviceBody.pick({ body: true });
-const reportBody = z.object({ targetType: z.enum(['tip', 'comment', 'advice']), targetId: z.uuid(), reason: text(3, 200, 'Say what is wrong') });
+const reportBody = z.object({ targetType: z.enum(['tip', 'comment', 'advice', 'moment', 'moment_comment']), targetId: z.uuid(), reason: text(3, 200, 'Say what is wrong') });
 
 @ApiTags('community')
 @Controller()

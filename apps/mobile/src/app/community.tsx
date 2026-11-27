@@ -1,5 +1,6 @@
 import { router } from 'expo-router';
-import { Bookmark, Heart, MessageCircle, Play } from 'lucide-react-native';
+import { Bookmark, Play } from 'lucide-react-native';
+import { IconComment, IconLike, IconLiked } from '@/ui/icons';
 import { IconBell } from '@/ui/icons';
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
@@ -38,8 +39,8 @@ export default function CommunityFeed() {
             </Pressable>
             <View className="flex-row items-center gap-5">
               <Pressable accessibilityRole="button" accessibilityLabel={`${t.liked ? 'Unlike' : 'Like'}, ${t.likes} likes`} accessibilityState={{ selected: t.liked }} hitSlop={10} onPress={() => (signedIn ? like.mutate(t.id) : router.push('/sign-up'))} className="flex-row items-center gap-1.5">
-                <Heart size={20} color={t.liked ? colors.danger : colors.ink} fill={t.liked ? colors.danger : 'transparent'} /><T v="label">{t.likes}</T></Pressable>
-              <Pressable accessibilityRole="button" accessibilityLabel={`${t.comments} comments`} hitSlop={10} onPress={() => go(`/tip/${t.id}/comments`)} className="flex-row items-center gap-1.5"><MessageCircle size={20} color={colors.ink} /><T v="label">{t.comments}</T></Pressable>
+                {t.liked ? <IconLiked size={22} color={colors.navy} /> : <IconLike size={22} color={colors.ink} />}<T v="label">{t.likes}</T></Pressable>
+              <Pressable accessibilityRole="button" accessibilityLabel={`${t.comments} comments`} hitSlop={10} onPress={() => go(`/tip/${t.id}/comments`)} className="flex-row items-center gap-1.5"><IconComment size={22} color={colors.ink} /><T v="label">{t.comments}</T></Pressable>
               <View className="flex-1" />
               <Pressable accessibilityRole="button" accessibilityLabel={saved ? 'Remove from saved' : 'Save tip'} hitSlop={10} onPress={() => toggle('savedTips', t.id)}><Bookmark size={22} color={colors.navy} fill={saved ? colors.navy : 'transparent'} /></Pressable>
             </View>

@@ -7,10 +7,11 @@ import { cn } from '@/lib/cn';
 import { noWhy, ReasonPicker, whyBody, whyReady, type Why } from '@/components/reason-picker';
 import { accessFor, useSession } from '@/lib/session';
 
-type Target = 'tip' | 'comment' | 'advice';
+type Target = 'tip' | 'comment' | 'advice' | 'moment' | 'moment_comment';
+const NAME: Record<Target, string> = { tip: 'Tip', comment: 'Comment', advice: 'Advice', moment: 'Moment', moment_comment: 'Moment comment' };
 interface Report { targetType: Target; targetId: string; reports: number; priority: 'High' | 'Normal'; reasons: string[]; openedAt: string; item: string; body: string; removed: boolean; author: { id: string; name: string; suspended: boolean } | null }
-const types = ['All types', 'Tips', 'Comments', 'Advice'] as const;
-const typeOf: Record<(typeof types)[number], Target | null> = { 'All types': null, Tips: 'tip', Comments: 'comment', Advice: 'advice' };
+const types = ['All types', 'Tips', 'Comments', 'Advice', 'Moments', 'Moment comments'] as const;
+const typeOf: Record<(typeof types)[number], Target | null> = { 'All types': null, Tips: 'tip', Comments: 'comment', Advice: 'advice', Moments: 'moment', 'Moment comments': 'moment_comment' };
 const th = 'border-b border-line px-3 py-2.5 text-left text-xs font-semibold whitespace-nowrap text-ink-muted';
 const td = 'border-b border-line px-3 py-3 text-sm';
 
@@ -57,7 +58,7 @@ export default function Reports() {
         </Card>
         {current && (
           <Card className="flex flex-[2_1_360px] flex-col gap-3.5">
-            <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold capitalize">{current.targetType} report</h2><Badge tone={current.priority === 'High' ? 'danger' : 'neutral'}>{current.priority} · {current.reports} report{current.reports === 1 ? '' : 's'}</Badge></div>
+            <div className="flex items-center justify-between gap-2"><h2 className="text-base font-semibold">{NAME[current.targetType]} report</h2><Badge tone={current.priority === 'High' ? 'danger' : 'neutral'}>{current.priority} · {current.reports} report{current.reports === 1 ? '' : 's'}</Badge></div>
             <div className="text-sm"><b className="font-semibold">{current.item}</b><span className="block text-ink-muted">by {current.author?.name ?? 'unknown'}{current.author?.suspended ? ' · suspended' : ''}</span></div>
             <blockquote className="rounded-xl bg-surface-muted p-3 text-sm whitespace-pre-wrap">{current.body || 'No text.'}</blockquote>
             <div><h3 className="mb-1 text-[13px] font-semibold">What reporters said</h3><ul className="list-disc pl-5 text-sm">{current.reasons.map((r) => <li key={r}>{r}</li>)}</ul></div>
